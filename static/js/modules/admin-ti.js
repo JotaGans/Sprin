@@ -937,7 +937,7 @@ function recalcularDiasFasesMadreWBS() {
 
 export function renderizarEditorWBSPlantilla() {
   const tbody = document.getElementById("tbody-editor-wbs-plantilla");
-  const badge = document.getElementById("badge-conteo-tareas-editor");
+  const badge = document.getElementById("badge-total-actividades-wbs") || document.getElementById("badge-conteo-tareas-editor");
   if (!tbody) return;
 
   ordenarPorCodigoWBS(actividadesEditorWBS);
@@ -1215,11 +1215,15 @@ export function abrirNuevaPlantillaAdmin() {
   document.getElementById("edit-plantilla-id").value = "";
   document.getElementById("edit-plantilla-nombre").value = "";
   document.getElementById("edit-plantilla-descripcion").value = "";
-  document.getElementById("edit-plantilla-oficial").value = "1";
-  document.getElementById("edit-plantilla-proceso").value = "General";
+  
+  const selVis = document.getElementById("edit-plantilla-visibilidad") || document.getElementById("edit-plantilla-oficial");
+  if (selVis) selVis.value = "1";
+  
+  const selProc = document.getElementById("edit-plantilla-proceso");
+  if (selProc) selProc.value = "General";
 
-  const tit = document.getElementById("titulo-box-editor-plantilla");
-  if (tit) tit.innerText = "✨ Crear nueva plantilla oficial y estructura WBS";
+  const tit = document.getElementById("lbl-titulo-editor-plantilla") || document.getElementById("titulo-box-editor-plantilla");
+  if (tit) tit.innerText = "✨ CREAR NUEVA PLANTILLA OFICIAL Y ESTRUCTURA WBS";
 
   actividadesEditorWBS = [
     { codigo: "1", descripcion: "FASE 1: ACTOS PREPARATORIOS", dias: 4, predecesores: "" },
@@ -1231,7 +1235,6 @@ export function abrirNuevaPlantillaAdmin() {
   const box = document.getElementById("box-editar-plantilla-admin");
   if (box) {
     box.classList.remove("hidden");
-    box.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 }
 
@@ -1239,15 +1242,15 @@ export function abrirEdicionPlantillaAdmin(id) {
   const plant = listaPlantillasAdminGlobal.find(x => x.id === id);
   if (!plant) return;
 
-  const tit = document.getElementById("titulo-box-editor-plantilla");
-  if (tit) tit.innerText = `✏️ Editando plantilla: ${plant.nombre}`;
+  const tit = document.getElementById("lbl-titulo-editor-plantilla") || document.getElementById("titulo-box-editor-plantilla");
+  if (tit) tit.innerText = `✏️ EDITANDO PLANTILLA: ${(plant.nombre || "").toUpperCase()}`;
 
   document.getElementById("edit-plantilla-id").value = plant.id;
   document.getElementById("edit-plantilla-nombre").value = plant.nombre || "";
   document.getElementById("edit-plantilla-descripcion").value = plant.descripcion || "";
 
-  const selOficial = document.getElementById("edit-plantilla-oficial");
-  if (selOficial) selOficial.value = String(plant.es_oficial === 1 ? 1 : 0);
+  const selVis = document.getElementById("edit-plantilla-visibilidad") || document.getElementById("edit-plantilla-oficial");
+  if (selVis) selVis.value = String(plant.es_oficial === 1 ? 1 : 0);
 
   const selProc = document.getElementById("edit-plantilla-proceso");
   if (selProc) {
@@ -1274,12 +1277,14 @@ export function abrirEdicionPlantillaAdmin(id) {
   const box = document.getElementById("box-editar-plantilla-admin");
   if (box) {
     box.classList.remove("hidden");
-    box.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 }
 
 export function cerrarEdicionPlantillaAdmin() {
-  document.getElementById("box-editar-plantilla-admin")?.classList.add("hidden");
+  const box = document.getElementById("box-editar-plantilla-admin");
+  if (box) box.classList.add("hidden");
+  // Asegurar permanencia visual en la pestaña de plantillas
+  cambiarTabTI("plantillas");
 }
 
 export async function guardarEdicionPlantillaAdmin() {
@@ -1288,7 +1293,9 @@ export async function guardarEdicionPlantillaAdmin() {
   const nombre = document.getElementById("edit-plantilla-nombre")?.value.trim();
   const descripcion = document.getElementById("edit-plantilla-descripcion")?.value.trim();
   const categoria = document.getElementById("edit-plantilla-proceso")?.value || "General";
-  const es_oficial = parseInt(document.getElementById("edit-plantilla-oficial")?.value ?? "1", 10);
+  
+  const selVis = document.getElementById("edit-plantilla-visibilidad") || document.getElementById("edit-plantilla-oficial");
+  const es_oficial = parseInt(selVis?.value ?? "1", 10);
 
   if (!nombre) {
     alert("El nombre de la plantilla es obligatorio.");
@@ -1388,23 +1395,36 @@ window.cancelarEdicionProcesoTI = cancelarEdicionProcesoTI;
 window.guardarProcesoTI = guardarProcesoTI;
 window.eliminarProcesoTI = eliminarProcesoTI;
 
-// Funciones del módulo de plantillas y constructor WBS
+// Exposición de funciones del módulo de plantillas y constructor WBS
 window.cargarAdminPlantillas = cargarAdminPlantillas;
 window.filtrarTablaAdminPlantillas = filtrarTablaAdminPlantillas;
 window.abrirNuevaPlantillaAdmin = abrirNuevaPlantillaAdmin;
 window.abrirEdicionPlantillaAdmin = abrirEdicionPlantillaAdmin;
 window.cerrarEdicionPlantillaAdmin = cerrarEdicionPlantillaAdmin;
+window.cerrarEditorPlantillaAdmin = cerrarEdicionPlantillaAdmin; // Alias para compatibilidad con el modal
 window.guardarEdicionPlantillaAdmin = guardarEdicionPlantillaAdmin;
+window.guardarCambiosPlantillaAdmin = guardarEdicionPlantillaAdmin; // Alias para compatibilidad con el modal
 window.eliminarPlantillaDesdeAdmin = eliminarPlantillaDesdeAdmin;
 window.actualizarCampoActividadWBS = actualizarCampoActividadWBS;
 window.agregarFaseMadrePlantilla = agregarFaseMadrePlantilla;
+window.insertarNuevaFaseMadreWBS = agregarFaseMadrePlantilla; // Alias para el botón superior
 window.insertarActividadHermanaWBS = insertarActividadHermanaWBS;
 window.insertarActividadHijaWBS = insertarActividadHijaWBS;
 window.eliminarActividadWBS = eliminarActividadWBS;
 
-// --- FUNCIONES DE CIERRE DE MODALES AUXILIARES TI ---
+// Cierre de modales auxiliares TI
 export function cerrarModalCrearTrabajadorTI() {
   document.getElementById("modal-editar-trabajador-ti")?.classList.add("hidden");
 }
-
 window.cerrarModalCrearTrabajadorTI = cerrarModalCrearTrabajadorTI;
+
+// Listener para cerrar el modal del editor WBS al presionar la tecla Escape
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" || e.key === "Esc") {
+    const boxEditor = document.getElementById("box-editar-plantilla-admin");
+    if (boxEditor && !boxEditor.classList.contains("hidden")) {
+      e.preventDefault();
+      cerrarEdicionPlantillaAdmin();
+    }
+  }
+});

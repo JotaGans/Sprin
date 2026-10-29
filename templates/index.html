@@ -1145,79 +1145,99 @@
           </div>
         </div>
 
-        <!-- Panel Desplegable: Constructor WBS de Plantilla -->
-        <div id="box-editar-plantilla-admin" class="hidden bg-slate-50 border-2 border-[#0f2a4a]/20 rounded-xl p-4 space-y-4 shadow-md">
-          <div class="flex justify-between items-center border-b border-gray-200 pb-2.5">
-            <div class="flex items-center space-x-2">
-              <span class="text-base">🛠️</span>
-              <div>
-                <h5 id="titulo-box-editor-plantilla" class="text-xs font-black text-[#0f2a4a] uppercase">Editor de plantilla y estructura WBS</h5>
-                <p class="text-[10px] text-gray-500 font-medium">Modifique los datos generales o inserte actividades madre (nivel 1), hijas (nivel 2) y subactividades (nivel 3).</p>
-              </div>
-            </div>
-            <button type="button" onclick="cerrarEdicionPlantillaAdmin()" class="text-xs font-bold text-gray-500 hover:text-rose-600 cursor-pointer px-2 py-1">✕ Cerrar editor</button>
-          </div>
-
-          <input type="hidden" id="edit-plantilla-id">
-
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs bg-white p-3.5 rounded-xl border border-gray-200">
-            <div>
-              <label class="block font-bold text-gray-700 mb-1">Nombre de la plantilla:</label>
-              <input type="text" id="edit-plantilla-nombre" placeholder="Ej.: Contratación menor a 8 UIT" class="w-full p-2 bg-gray-50 border border-gray-300 rounded-lg font-bold text-[#0f2a4a] outline-none focus:bg-white focus:border-[#0f2a4a]">
-            </div>
-            <div>
-              <label class="block font-bold text-gray-700 mb-1">Proceso o subproceso relacionado:</label>
-              <select id="edit-plantilla-proceso" class="w-full p-2 bg-gray-50 border border-gray-300 rounded-lg font-semibold text-gray-800 outline-none focus:bg-white focus:border-[#0f2a4a]">
-                <option value="General">Sin proceso específico (General)</option>
-              </select>
-            </div>
-            <div>
-              <label class="block font-bold text-gray-700 mb-1">Visibilidad institucional:</label>
-              <select id="edit-plantilla-oficial" class="w-full p-2 bg-gray-50 border border-gray-300 rounded-lg font-bold text-[#0f2a4a] outline-none focus:bg-white focus:border-[#0f2a4a]">
-                <option value="1">🏛️ Oficial IMARPE (visible para todos)</option>
-                <option value="0">👤 Personal (solo visible para su creador)</option>
-              </select>
-            </div>
-            <div class="md:col-span-3">
-              <label class="block font-bold text-gray-700 mb-1">Descripción o alcance normativo:</label>
-              <input type="text" id="edit-plantilla-descripcion" placeholder="Breve descripción de cuándo utilizar esta plantilla..." class="w-full p-2 bg-gray-50 border border-gray-300 rounded-lg font-medium text-gray-700 outline-none focus:bg-white focus:border-[#0f2a4a]">
-            </div>
-          </div>
-
-          <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div class="bg-[#0f2a4a] text-white px-3.5 py-2.5 flex flex-wrap justify-between items-center gap-2">
-              <div class="flex items-center space-x-2">
-                <span class="text-xs font-black uppercase tracking-wider">📑 Estructura secuencial de actividades (EDT / WBS)</span>
-                <span id="badge-conteo-tareas-editor" class="bg-teal-500/20 text-teal-200 border border-teal-400/30 text-[10px] font-bold px-2 py-0.5 rounded-full">0 ítems</span>
-              </div>
-              <div>
-                <button type="button" onclick="agregarFaseMadrePlantilla()" class="px-2.5 py-1 bg-teal-600 hover:bg-teal-500 text-white text-[11px] font-black rounded-md shadow-2xs cursor-pointer transition">
-                  + Nueva fase madre (nivel 1)
-                </button>
-              </div>
-            </div>
-
-            <div class="max-h-[260px] overflow-y-auto">
-              <table class="w-full text-left border-collapse text-xs">
-                <thead class="bg-[#0f2a4a] text-white uppercase text-[10.5px] font-black sticky top-0 z-20 shadow-xs">
-                  <tr>
-                    <th class="py-2.5 px-3 w-20 border-r border-[#1a3d66]/50">Código</th>
-                    <th class="py-2.5 px-3 border-r border-[#1a3d66]/50">Denominación de la actividad</th>
-                    <th class="py-2.5 px-2 w-20 text-center border-r border-[#1a3d66]/50">Días háb.</th>
-                    <th class="py-2.5 px-2 w-24 text-center border-r border-[#1a3d66]/50">Predecesor</th>
-                    <th class="py-2.5 px-3 w-44 text-center">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody id="tbody-editor-wbs-plantilla" class="divide-y divide-gray-100"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="flex justify-end space-x-2 pt-1">
-            <button type="button" onclick="cerrarEdicionPlantillaAdmin()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold rounded-lg cursor-pointer">Cancelar</button>
-            <button type="button" onclick="guardarEdicionPlantillaAdmin()" class="px-5 py-2 bg-[#0f2a4a] hover:bg-[#1a3d66] text-white text-xs font-black rounded-lg shadow cursor-pointer">💾 Guardar plantilla y actividades</button>
-          </div>
+        <!-- Modal Editor WBS de Plantilla a Pantalla Completa / Dedicado -->
+<div id="box-editar-plantilla-admin" class="hidden fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 animate-fadeIn">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200">
+    
+    <!-- Barra Superior de Navegación del Editor -->
+    <div class="px-6 py-4 bg-[#0f2a4a] text-white flex items-center justify-between shadow-md shrink-0">
+      <div class="flex items-center gap-3">
+        <button type="button" onclick="cerrarEditorPlantillaAdmin()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+          <span>←</span> Volver a Plantillas
+        </button>
+        <div class="h-5 w-px bg-blue-300/30"></div>
+        <div>
+          <h3 id="lbl-titulo-editor-plantilla" class="text-sm font-black tracking-wide flex items-center gap-2">
+            ✏️ EDITANDO PLANTILLA
+          </h3>
+          <p class="text-[11px] text-blue-200 font-medium">Modifique los datos generales o configure la estructura jerárquica EDT / WBS</p>
         </div>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="cerrarEditorPlantillaAdmin()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-rose-600 text-white text-base font-bold flex items-center justify-center transition cursor-pointer" title="Cerrar (Escape)">
+          ✕
+        </button>
+      </div>
+    </div>
+
+    <!-- Cuerpo con Scroll Interno -->
+    <div class="p-6 overflow-y-auto space-y-5 bg-slate-50 flex-1">
+      <input type="hidden" id="edit-plantilla-id" value="">
+      
+      <!-- Campos de Datos Generales -->
+      <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">Nombre de la plantilla:</label>
+          <input type="text" id="edit-plantilla-nombre" class="w-full p-2 bg-slate-50 border border-gray-300 rounded-lg text-xs font-bold text-gray-800 outline-none focus:border-[#0f2a4a] focus:bg-white transition">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">Proceso o subproceso relacionado:</label>
+          <select id="edit-plantilla-proceso" class="w-full p-2 bg-slate-50 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 outline-none focus:border-[#0f2a4a] focus:bg-white transition"></select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">Visibilidad institucional:</label>
+          <select id="edit-plantilla-visibilidad" class="w-full p-2 bg-slate-50 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#0f2a4a] focus:bg-white transition">
+            <option value="1">🏛️ Oficial IMARPE (visible para todos)</option>
+            <option value="0">🔒 Personal / En borrador</option>
+          </select>
+        </div>
+        <div class="md:col-span-3">
+          <label class="block text-xs font-bold text-gray-700 mb-1">Descripción o alcance normativo:</label>
+          <input type="text" id="edit-plantilla-descripcion" class="w-full p-2 bg-slate-50 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 outline-none focus:border-[#0f2a4a] focus:bg-white transition">
+        </div>
+      </div>
+
+      <!-- Tabla Estructura Secuencial WBS -->
+      <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-[#0f2a4a]">
+        <div class="px-4 py-3 bg-[#0f2a4a] text-white flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-black tracking-wide uppercase">📋 ESTRUCTURA SECUENCIAL DE ACTIVIDADES (EDT / WBS)</span>
+            <span id="badge-total-actividades-wbs" class="px-2 py-0.5 bg-teal-500/20 text-teal-300 border border-teal-400/30 rounded-full text-[11px] font-bold">0 actividades</span>
+          </div>
+          <button type="button" onclick="insertarNuevaFaseMadreWBS()" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer">
+            + Nueva fase madre (nivel 1)
+          </button>
+        </div>
+        <div class="max-h-96 overflow-y-auto bg-white">
+          <table class="w-full text-xs text-left border-collapse">
+            <thead class="sticky top-0 bg-[#0f2a4a] text-white z-10 shadow-xs">
+              <tr class="bg-[#0f2a4a]">
+                <th class="p-2.5 font-bold w-28 border-none">CÓDIGO</th>
+                <th class="p-2.5 font-bold border-none">DENOMINACIÓN DE LA ACTIVIDAD</th>
+                <th class="p-2.5 font-bold text-center w-24 border-none">DÍAS HÁB.</th>
+                <th class="p-2.5 font-bold text-center w-28 border-none">PREDECESOR</th>
+                <th class="p-2.5 font-bold text-center w-36 whitespace-nowrap border-none">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-editor-wbs-plantilla" class="divide-y divide-gray-100 font-medium bg-white"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Botones de Acción al pie -->
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button type="button" onclick="cerrarEditorPlantillaAdmin()" class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold transition cursor-pointer">
+          Cancelar
+        </button>
+        <button type="button" onclick="guardarCambiosPlantillaAdmin()" class="px-5 py-2 bg-[#0f2a4a] hover:bg-blue-900 text-white rounded-xl text-xs font-black shadow-md transition flex items-center gap-2 cursor-pointer">
+          💾 Guardar cambios de plantilla
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
 
         <!-- Tabla principal de plantillas -->
         <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white max-h-64 overflow-y-auto">
