@@ -23,3 +23,9 @@ modulosProyecto.forEach(mod => {
     }
   });
 });
+
+// Asignaciones directas de alta prioridad (Garantía de ejecución en HTML nativo)
+window.cambiarVistaProyecto = ProjectWBS.cambiarVistaProyecto;
+window.alternarFiltroMisActividades = ProjectWBS.alternarFiltroMisActividades;
+window.abrirModalCargaTrabajo = ProjectAux.abrirModalCargaTrabajo;
+window.cerrarModalCargaTrabajo = ProjectAux.cerrarModalCargaTrabajo;

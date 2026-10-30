@@ -227,6 +227,7 @@ export function renderizarTabla() {
     if (estaOcultoPorPadre(act.codigo)) return;
     if (txtBusqueda && !act.descripcion.toLowerCase().includes(txtBusqueda) && !act.codigo.toLowerCase().includes(txtBusqueda)) return;
     if (respFiltro && !(act.responsable || "").includes(respFiltro)) return;
+    if (state.filtroSoloMisActividades && !esResponsableDeActividad(act)) return;
 
     const esNivel1 = (nivel === 1);
     const esMadre = tieneHijos(act.codigo);
@@ -1879,3 +1880,78 @@ window.crearActividadRapidaInline = crearActividadRapidaInline;
 window.abrirModalPegarListaTareas = abrirModalPegarListaTareas;
 window.cerrarModalPegarListaTareas = cerrarModalPegarListaTareas;
 window.confirmarPegadoLoteTareas = confirmarPegadoLoteTareas;
+
+// =========================================================================
+// CONMUTADOR DE VISTAS (DIVIDIDA | LISTA | GANTT) Y FILTRO RÁPIDO
+// =========================================================================
+
+export function cambiarVistaProyecto(modo) {
+  state.vistaProyectoActiva = modo;
+  localStorage.setItem("sprin_vista_proyecto", modo);
+
+  const btnSplit = document.getElementById("btn-vista-proy-split");
+  const btnLista = document.getElementById("btn-vista-proy-lista");
+  const btnGantt = document.getElementById("btn-vista-proy-gantt");
+
+  const estiloActivo = "px-2 py-1 rounded text-[11px] font-bold bg-[#0f2a4a] text-white shadow-2xs transition flex items-center gap-1 cursor-pointer";
+  const estiloInactivo = "px-2 py-1 rounded text-[11px] font-bold text-slate-600 hover:text-[#0f2a4a] transition flex items-center gap-1 cursor-pointer";
+
+  if (btnSplit) btnSplit.className = (modo === "split") ? estiloActivo : estiloInactivo;
+  if (btnLista) btnLista.className = (modo === "lista") ? estiloActivo : estiloInactivo;
+  if (btnGantt) btnGantt.className = (modo === "gantt") ? estiloActivo : estiloInactivo;
+
+  // Ajustar visibilidad de columnas según el modo
+  if (modo === "lista") {
+    // Modo Lista: Ocultar lienzo Gantt y expandir la tabla
+    state.visibilidadColumnas.gantt = false;
+    state.visibilidadColumnas.responsable = true;
+    state.visibilidadColumnas.estado = true;
+    state.visibilidadColumnas.inicio = true;
+    state.visibilidadColumnas.fin = true;
+    state.visibilidadColumnas.dias = true;
+    state.visibilidadColumnas.avance = true;
+  } else if (modo === "gantt") {
+    // Modo Solo Gantt: Maximizar el cronograma ocultando columnas intermedias
+    state.visibilidadColumnas.gantt = true;
+    state.visibilidadColumnas.responsable = true;
+    state.visibilidadColumnas.estado = false;
+    state.visibilidadColumnas.inicio = false;
+    state.visibilidadColumnas.fin = false;
+    state.visibilidadColumnas.dias = false;
+    state.visibilidadColumnas.avance = false;
+  } else {
+    // Modo Dividida: Restablecer vista balanceada
+    state.visibilidadColumnas.gantt = true;
+    state.visibilidadColumnas.responsable = true;
+    state.visibilidadColumnas.estado = true;
+    state.visibilidadColumnas.inicio = true;
+    state.visibilidadColumnas.fin = true;
+    state.visibilidadColumnas.dias = true;
+    state.visibilidadColumnas.avance = true;
+  }
+
+  const { aplicarVisibilidadColumnas } = window;
+  if (typeof aplicarVisibilidadColumnas === "function") {
+    aplicarVisibilidadColumnas();
+  }
+  renderizarTabla();
+}
+
+export function alternarFiltroMisActividades() {
+  state.filtroSoloMisActividades = !state.filtroSoloMisActividades;
+  const btn = document.getElementById("btn-filtro-mis-actividades");
+
+  if (btn) {
+    if (state.filtroSoloMisActividades) {
+      btn.className = "h-[30px] px-2.5 rounded-lg text-xs font-black bg-teal-600 hover:bg-teal-700 text-white border border-teal-700 transition shadow-xs flex items-center gap-1 cursor-pointer whitespace-nowrap flex-shrink-0";
+      notificarToast("Mostrando únicamente tus actividades asignadas.", "info");
+    } else {
+      btn.className = "h-[30px] px-2.5 rounded-lg text-xs font-bold bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-300 transition shadow-2xs flex items-center gap-1 cursor-pointer whitespace-nowrap flex-shrink-0";
+    }
+  }
+
+  aplicarFiltrosGlobales();
+}
+
+window.cambiarVistaProyecto = cambiarVistaProyecto;
+window.alternarFiltroMisActividades = alternarFiltroMisActividades;

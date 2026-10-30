@@ -12,6 +12,8 @@ export const state = {
   actividadesGlobal: [],
   responsablesGlobal: [],
   nivelFiltroActivo: 4,
+  vistaProyectoActiva: localStorage.getItem("sprin_vista_proyecto") || "split", // 'split' | 'lista' | 'gantt'
+  filtroSoloMisActividades: false,
 
   modoZoom: "dias",
   zoomNivelEscala: 5,

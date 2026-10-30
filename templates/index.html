@@ -433,6 +433,11 @@
             <span class="hidden sm:inline">Personal</span>
           </button>
 
+          <button id="btn-workload-gantt" onclick="abrirModalCargaTrabajo()" class="h-8 w-8 sm:w-auto px-1.5 sm:px-2.5 bg-white hover:bg-slate-200 text-teal-800 border border-gray-300 rounded-lg text-xs font-bold transition shadow-2xs flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap" title="Ver balance y carga de trabajo del equipo">
+            <span>📊</span>
+            <span class="hidden sm:inline">Carga de trabajo</span>
+          </button>
+
           <button id="btn-historial-gantt" onclick="abrirHistorial()" class="h-8 w-8 sm:w-auto px-1.5 sm:px-2.5 bg-white hover:bg-slate-200 text-slate-700 border border-gray-300 rounded-lg text-xs font-bold transition shadow-2xs flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap" title="Historial de Auditoría">
             <span>📜</span>
             <span class="hidden sm:inline">Historial</span>
@@ -453,6 +458,28 @@
             <span>Actividad</span>
           </button>
           
+          <!-- CONMUTADOR DE VISTAS (View Switcher: Dividida | Lista | Gantt) -->
+          <div class="flex items-center bg-slate-100 border border-slate-300 p-0.5 rounded-lg shadow-2xs flex-shrink-0">
+            <button type="button" id="btn-vista-proy-split" onclick="cambiarVistaProyecto('split')" class="px-2 py-1 rounded text-[11px] font-bold bg-[#0f2a4a] text-white shadow-2xs transition flex items-center gap-1 cursor-pointer" title="Vista dividida (Tabla + Gantt)">
+              <span>◫</span>
+              <span class="hidden xl:inline">Dividida</span>
+            </button>
+            <button type="button" id="btn-vista-proy-lista" onclick="cambiarVistaProyecto('lista')" class="px-2 py-1 rounded text-[11px] font-bold text-slate-600 hover:text-[#0f2a4a] transition flex items-center gap-1 cursor-pointer" title="Vista de solo lista (Tabla completa)">
+              <span>☰</span>
+              <span class="hidden xl:inline">Lista</span>
+            </button>
+            <button type="button" id="btn-vista-proy-gantt" onclick="cambiarVistaProyecto('gantt')" class="px-2 py-1 rounded text-[11px] font-bold text-slate-600 hover:text-[#0f2a4a] transition flex items-center gap-1 cursor-pointer" title="Vista de solo cronograma (Gantt amplio)">
+              <span>📊</span>
+              <span class="hidden xl:inline">Gantt</span>
+            </button>
+          </div>
+
+          <!-- FILTRO RÁPIDO: Mis Actividades -->
+          <button type="button" id="btn-filtro-mis-actividades" onclick="alternarFiltroMisActividades()" class="h-[30px] px-2.5 rounded-lg text-xs font-bold bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-300 transition shadow-2xs flex items-center gap-1 cursor-pointer whitespace-nowrap flex-shrink-0" title="Ver solo mis actividades asignadas">
+            <span>👤</span>
+            <span class="hidden md:inline">Mis actividades</span>
+          </button>
+
           <div class="h-5 w-px bg-gray-300 mx-0.5 flex-shrink-0"></div>
           
           <!-- 1. Filtro Nivel -->
@@ -2185,7 +2212,42 @@
       📝
     </button>
 
+    <!-- MODAL: CARGA DE TRABAJO DEL EQUIPO (TEAM WORKLOAD) -->
+  <div id="modal-carga-trabajo" class="hidden fixed inset-0 bg-black/60 z-[160] flex items-center justify-center p-4 backdrop-blur-[1px]">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden border border-gray-200 flex flex-col max-h-[88vh]">
+      <!-- Encabezado Institucional -->
+      <div class="bg-[#0f2a4a] text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
+        <div class="flex items-center space-x-2.5">
+          <span class="text-xl">📊</span>
+          <div>
+            <h3 class="font-bold text-sm tracking-wide">Carga de trabajo del equipo</h3>
+            <p class="text-[11px] text-teal-300 font-medium">Balance operativo y distribución de actividades por colaborador</p>
+          </div>
+        </div>
+        <button type="button" onclick="cerrarModalCargaTrabajo()" class="text-white hover:text-gray-300 text-2xl font-bold leading-none cursor-pointer">&times;</button>
+      </div>
+
+      <!-- Métricas Resumen -->
+      <div class="bg-slate-50 border-b border-gray-200 px-6 py-3 flex items-center justify-between text-xs">
+        <span class="text-gray-600 font-bold" id="workload-resumen-total">Calculando participantes...</span>
+        <span class="text-[11px] text-teal-800 font-bold bg-teal-50 px-2.5 py-1 rounded-md border border-teal-200">Proyecto activo</span>
+      </div>
+
+      <!-- Lista de Colaboradores y Barras de Carga -->
+      <div class="p-6 overflow-y-auto space-y-4 flex-1 bg-white" id="workload-lista-colaboradores">
+        <!-- Se inyecta dinámicamente -->
+      </div>
+
+      <!-- Pie del Modal -->
+      <div class="px-6 py-3 bg-gray-50 border-t border-gray-200 flex justify-end flex-shrink-0">
+        <button type="button" onclick="cerrarModalCargaTrabajo()" class="px-5 py-2 bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white text-xs font-bold rounded-lg transition shadow-2xs cursor-pointer">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
     <!-- Carga del Módulo Orquestador Principal ES6 -->
-    <script type="module" src="/static/js/main.js?v=100035"></script>
+    <script type="module" src="/static/js/main.js?v=100036"></script>
 </body>
 </html>

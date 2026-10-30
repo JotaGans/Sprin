@@ -511,6 +511,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (e.key === "Escape") {
       const idsPrioridadCierre = [
+        "modal-carga-trabajo",
         "modal-detalle-pendiente", "modal-agenda-pendiente", "modal-editar-feriado",
         "modal-notificacion-correo", "modal-dialog-imarpe", "modal-input-custom",
         "modal-fecha-custom", "modal-fin-interactiva", "modal-asignar-responsables",

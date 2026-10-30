@@ -108,6 +108,10 @@ export async function ingresarAlProyecto(id, nombre, esGestor) {
     document.getElementById("bloque-superior-gantt")?.classList.remove("hidden");
 
     aplicarVisibilidadColumnas();
+    const vistaGuardada = localStorage.getItem("sprin_vista_proyecto") || "split";
+    if (typeof window.cambiarVistaProyecto === "function") {
+      window.cambiarVistaProyecto(vistaGuardada);
+    }
     inicializarRedimensionDescripcion();
     await sincronizarDatosProyecto(id);
 

@@ -537,7 +537,116 @@ export async function ejecutarImportacionEnProyectoActivo() {
   }
 }
 
-// Vincular funciones a window
+// =========================================================================
+// PANEL DIRECTIVO: CARGA DE TRABAJO DEL EQUIPO (TEAM WORKLOAD)
+// =========================================================================
+
+export function abrirModalCargaTrabajo() {
+  const modal = document.getElementById("modal-carga-trabajo");
+  const contenedor = document.getElementById("workload-lista-colaboradores");
+  const resumenTxt = document.getElementById("workload-resumen-total");
+  if (!modal || !contenedor) return;
+
+  contenedor.innerHTML = "";
+
+  // Filtrar únicamente actividades operativas (sin subtareas) para no duplicar conteos
+  const actsOperativas = (state.actividadesGlobal || []).filter(a => {
+    const cod = String(a.codigo).replace(/\.+$/, "");
+    return !state.actividadesGlobal.some(sub => {
+      const subCod = String(sub.codigo).replace(/\.+$/, "");
+      return subCod.startsWith(cod + ".") && subCod !== cod;
+    });
+  });
+
+  const totalOperativas = actsOperativas.length;
+  if (totalOperativas === 0) {
+    contenedor.innerHTML = `<div class="p-8 text-center text-gray-400 font-semibold italic">Este proyecto aún no contiene actividades operativas para analizar.</div>`;
+    modal.classList.remove("hidden");
+    return;
+  }
+
+  // Mapear actividades por persona
+  const mapaCarga = {};
+
+  actsOperativas.forEach(act => {
+    const respCampo = (act.responsable || "No asignado").trim();
+    const personas = respCampo.includes(";") 
+      ? respCampo.split(";").map(s => s.trim()).filter(Boolean) 
+      : [respCampo];
+
+    personas.forEach(nom => {
+      if (!mapaCarga[nom]) {
+        mapaCarga[nom] = { total: 0, ejecutadas: 0, enProceso: 0, noIniciadas: 0 };
+      }
+      mapaCarga[nom].total += 1;
+      if (act.estado === "Ejecutado") mapaCarga[nom].ejecutadas += 1;
+      else if (act.estado === "En proceso") mapaCarga[nom].enProceso += 1;
+      else mapaCarga[nom].noIniciadas += 1;
+    });
+  });
+
+  const listaColaboradores = Object.keys(mapaCarga).sort((a, b) => mapaCarga[b].total - mapaCarga[a].total);
+
+  if (resumenTxt) {
+    resumenTxt.innerText = `${listaColaboradores.length} colaborador(es) asignado(s) · ${totalOperativas} actividades operativas totales`;
+  }
+
+  // Renderizar cada tarjeta de colaborador con su barra de progreso segmentada
+  contenedor.innerHTML = listaColaboradores.map(nombre => {
+    const datos = mapaCarga[nombre];
+    const pctTotal = Math.round((datos.total / totalOperativas) * 100);
+    const iniciales = nombre.includes(",") 
+      ? (nombre.split(",")[0].trim()[0] + (nombre.split(",")[1] ? nombre.split(",")[1].trim()[0] : "")).toUpperCase()
+      : (nombre.split(" ")[0][0] + (nombre.split(" ")[1] ? nombre.split(" ")[1][0] : "")).toUpperCase();
+
+    // Generar color consistente
+    let hash = 0;
+    for (let i = 0; i < nombre.length; i++) hash = nombre.charCodeAt(i) + ((hash << 5) - hash);
+    const colorBg = state.coloresAvatar[Math.abs(hash) % state.coloresAvatar.length];
+
+    const pctEjec = Math.round((datos.ejecutadas / datos.total) * 100);
+    const pctProc = Math.round((datos.enProceso / datos.total) * 100);
+    const pctNoInic = Math.round((datos.noIniciadas / datos.total) * 100);
+
+    return `
+      <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2.5 min-w-0">
+            <div class="avatar-circle font-black flex-shrink-0" style="background-color: ${colorBg}; width: 28px; height: 28px; font-size: 10px;">
+              ${iniciales || '?'}
+            </div>
+            <div class="min-w-0">
+              <h4 class="text-xs font-black text-[#0f2a4a] truncate">${nombre}</h4>
+              <p class="text-[10px] text-gray-500 font-semibold">${datos.total} actividad(es) (${pctTotal}% del proyecto)</p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2 text-[10px] font-bold flex-shrink-0">
+            <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200">${datos.ejecutadas} Ejec.</span>
+            <span class="bg-amber-100 text-amber-900 px-2 py-0.5 rounded border border-amber-200">${datos.enProceso} En proc.</span>
+            <span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded border border-slate-300">${datos.noIniciadas} No inic.</span>
+          </div>
+        </div>
+
+        <!-- Barra segmentada multicromática -->
+        <div class="w-full bg-gray-200 rounded-full h-2 flex overflow-hidden shadow-inner">
+          <div class="bg-emerald-500 h-2 transition-all duration-300" style="width: ${pctEjec}%" title="Ejecutadas: ${datos.ejecutadas}"></div>
+          <div class="bg-amber-400 h-2 transition-all duration-300" style="width: ${pctProc}%" title="En proceso: ${datos.enProceso}"></div>
+          <div class="bg-slate-400 h-2 transition-all duration-300" style="width: ${pctNoInic}%" title="No iniciadas: ${datos.noIniciadas}"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  modal.classList.remove("hidden");
+}
+
+export function cerrarModalCargaTrabajo() {
+  document.getElementById("modal-carga-trabajo")?.classList.add("hidden");
+}
+
+// =========================================================================
+// VINCULACIÓN DE FUNCIONES AL OBJETO GLOBAL WINDOW
+// =========================================================================
 window.abrirHistorial = abrirHistorial;
 window.cerrarHistorial = cerrarHistorial;
 window.abrirResponsables = abrirResponsables;
@@ -552,3 +661,11 @@ window.iniciarEdicionComentario = iniciarEdicionComentario;
 window.cancelarEdicionComentario = cancelarEdicionComentario;
 window.eliminarComentario = eliminarComentario;
 window.exportarExcelCSV = exportarExcelCSV;
+window.abrirModalGuardarPlantilla = abrirModalGuardarPlantilla;
+window.cerrarModalGuardarPlantilla = cerrarModalGuardarPlantilla;
+window.guardarProyectoComoPlantilla = guardarProyectoComoPlantilla;
+window.abrirModalImportarPlantillaProyecto = abrirModalImportarPlantillaProyecto;
+window.cerrarModalImportarPlantillaProyecto = cerrarModalImportarPlantillaProyecto;
+window.ejecutarImportacionEnProyectoActivo = ejecutarImportacionEnProyectoActivo;
+window.abrirModalCargaTrabajo = abrirModalCargaTrabajo;
+window.cerrarModalCargaTrabajo = cerrarModalCargaTrabajo;
