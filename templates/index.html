@@ -379,21 +379,14 @@
     <div class="max-w-[1920px] w-full mx-auto px-2 sm:px-6 py-1.5 bg-slate-100/90 border-b border-gray-200 overflow-x-auto">
       <div class="flex items-center justify-between min-h-[34px] gap-2 w-full">
         
-        <!-- Extremo Izquierdo: Casita (desplazada 5px a la derecha) + Proceso Vinculado -->
-        <div class="flex items-center space-x-2 flex-shrink-0 ml-[5px]">
-          <div class="relative flex-shrink-0 z-20 w-8 h-8">
-            <button onclick="volverAlHub()" class="group h-8 w-8 md:hover:w-[144px] px-[7px] md:hover:px-2.5 bg-[#0f2a4a] hover:bg-[#1b4573] text-white border border-blue-900/60 rounded-lg text-xs font-bold transition-all duration-200 ease-out shadow-2xs flex items-center justify-center md:justify-start cursor-pointer whitespace-nowrap overflow-hidden" title="Volver a proyectos">
-              <svg class="w-4 h-4 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-              </svg>
-              <span class="max-w-0 opacity-0 md:group-hover:max-w-[110px] md:group-hover:opacity-100 md:group-hover:ml-1.5 transition-all duration-200 ease-out font-bold overflow-hidden leading-none text-white tracking-tight">Volver a proyectos</span>
-            </button>
-          </div>
-
-          <!-- Pastilla del Proceso Institucional (Reubicada aquí con altura 32px a juego) -->
-          <div id="barra-proceso-proyecto-activo" class="flex items-center flex-shrink-0">
-            <button type="button" id="btn-cambiar-proceso-proy" onclick="abrirSelectorProcesoProyectoActivo()" class="h-8 text-xs font-bold px-2.5 rounded-lg transition cursor-pointer flex items-center space-x-1.5"></button>
-          </div>
+        <!-- Extremo Izquierdo: Casita (desplazada 5px a la derecha) -->
+        <div class="relative flex-shrink-0 z-20 w-8 h-8 ml-[5px]">
+          <button onclick="volverAlHub()" class="group h-8 w-8 md:hover:w-[144px] px-[7px] md:hover:px-2.5 bg-[#0f2a4a] hover:bg-[#1b4573] text-white border border-blue-900/60 rounded-lg text-xs font-bold transition-all duration-200 ease-out shadow-2xs flex items-center justify-center md:justify-start cursor-pointer whitespace-nowrap overflow-hidden" title="Volver a proyectos">
+            <svg class="w-4 h-4 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+            </svg>
+            <span class="max-w-0 opacity-0 md:group-hover:max-w-[110px] md:group-hover:opacity-100 md:group-hover:ml-1.5 transition-all duration-200 ease-out font-bold overflow-hidden leading-none text-white tracking-tight">Volver a proyectos</span>
+          </button>
         </div>
 
         <!-- KPIs Semáforo en Vivo (Diseño ultra-compacto en móvil) -->

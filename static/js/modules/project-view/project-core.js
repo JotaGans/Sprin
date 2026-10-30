@@ -477,19 +477,7 @@ export function aplicarVisibilidadColumnas() {
 // =========================================================================
 
 export function renderizarIndicadorProcesoProyecto(procesoActual) {
-  const btn = document.getElementById("btn-cambiar-proceso-proy");
-  if (!btn) return;
-
-  const procLimpio = (procesoActual || "").trim();
-  if (procLimpio) {
-    btn.className = "h-8 text-xs font-bold px-2.5 rounded-lg bg-white hover:bg-teal-50 text-teal-900 border border-gray-300 shadow-2xs transition cursor-pointer flex items-center space-x-1.5 max-w-[260px] truncate";
-    btn.innerHTML = `<span>⚙️</span><span class="truncate">${procLimpio}</span><span class="text-[10px] text-teal-600 opacity-80 flex-shrink-0">✎</span>`;
-    btn.title = "Proceso o subproceso institucional vinculado (clic para modificar)";
-  } else {
-    btn.className = "h-8 text-xs font-bold px-2.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs animate-pulse transition cursor-pointer flex items-center space-x-1.5";
-    btn.innerHTML = `<span>⚠️</span><span>Vincular proceso</span>`;
-    btn.title = "Este proyecto no tiene un subproceso asignado o fue modificado en el catálogo. Clic para seleccionarlo.";
-  }
+  // Deshabilitado: el proceso solo se administra desde el Hub
 }
 
 export async function abrirSelectorProcesoProyectoActivo() {
