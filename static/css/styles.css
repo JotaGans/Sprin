@@ -3,11 +3,13 @@ body {
   background-color: #f5f6fa;
 }
 
-/* Filas jerárquicas WBS */
+/* Filas jerárquicas WBS (Estilo limpio IMARPE) */
 .tree-row-l1 {
-  background-color: #e8f4f8 !important;
-  font-weight: bold;
-  color: #2c3e50;
+  background-color: #f8fafc !important;
+  font-weight: 800;
+  color: #0f2a4a;
+  border-top: 1px solid #e2e8f0 !important;
+  border-bottom: 1px solid #cbd5e1 !important;
 }
 
 .tree-row-l4 {
@@ -17,11 +19,13 @@ body {
 
 .cell-editable {
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background-color 0.12s ease, box-shadow 0.12s ease;
 }
 
 .cell-editable:hover {
-  background-color: #d6e4f0 !important;
+  background-color: #ffffff !important;
+  box-shadow: inset 0 0 0 1.5px #0d9488 !important;
+  border-radius: 6px;
 }
 
 .row-selected {
@@ -387,4 +391,41 @@ input[type="number"] {
   outline: none !important;
   /* Extensión de 1px a los costados para traslapar y eliminar cualquier rendija subpíxel */
   box-shadow: 0 0 0 1px #0f2a4a !important;
+}
+
+/* ==========================================================================
+   FASE 1 UX/UI: TABLA BORDERLESS Y CONTROLES INTELIGENTES EN HOVER
+   ========================================================================== */
+
+/* 1. Eliminar líneas verticales divisorias en el cuerpo de la tabla */
+#tabla-gantt-main tbody td,
+#lista-actividades td {
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+/* 2. Ocultar los puntos de arrastre (⠿) y mostrarlos únicamente al señalar la fila */
+#lista-actividades tr .drag-handle {
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+#lista-actividades tr:hover .drag-handle {
+  opacity: 0.75;
+}
+
+#lista-actividades tr .drag-handle:hover {
+  opacity: 1 !important;
+  color: #0d9488 !important;
+}
+
+/* 3. Atenuar los botones de acción (+ / eliminar) hasta pasar el mouse por la fila */
+#lista-actividades tr td:last-child button {
+  opacity: 0.15;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+#lista-actividades tr:hover td:last-child button {
+  opacity: 1;
 }

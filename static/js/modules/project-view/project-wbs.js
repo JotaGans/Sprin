@@ -268,24 +268,20 @@ export function renderizarTabla() {
 
     const claseEditable = "cell-editable cursor-pointer";
     const claseBloqueada = "bg-slate-50/80 text-slate-500 cursor-not-allowed select-none";
-    const lockIcon = `
-      <svg class="inline-block w-2.5 h-2.5 text-slate-400 opacity-60 ml-1 -mt-0.5 align-middle select-none" viewBox="0 0 20 20" fill="currentColor" title="Autocalculado por subtareas">
-        <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
-      </svg>
-    `;
+    const lockIcon = "";
 
     const tdResp = state.visibilidadColumnas.responsable 
-      ? `<td class="p-2 border-r border-b border-gray-200 text-center whitespace-nowrap ${state.proyectoEsGestor ? 'cell-editable cursor-pointer' : ''}" ondblclick="${state.proyectoEsGestor ? `editarResponsable('${cod}')` : ''}" title="${state.proyectoEsGestor ? 'Doble clic para asignar responsables' : ''}">${obtenerAvatarHTML(act.responsable)}</td>` 
+      ? `<td class="p-2 border-b border-gray-200 text-center whitespace-nowrap ${state.proyectoEsGestor ? 'cell-editable cursor-pointer' : ''}" ondblclick="${state.proyectoEsGestor ? `editarResponsable('${cod}')` : ''}" title="${state.proyectoEsGestor ? 'Doble clic para asignar responsables' : ''}">${obtenerAvatarHTML(act.responsable)}</td>` 
       : '';
 
     let tdEst = '';
     if (state.visibilidadColumnas.estado) {
       if (esMadre) {
-        tdEst = `<td class="p-2.5 border-r border-b border-gray-200 ${claseBloqueada} whitespace-nowrap">
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${act.estado === 'Ejecutado' ? 'bg-green-100 text-green-800' : (act.estado === 'En proceso' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-200 text-gray-700')}">${act.estado} ${lockIcon}</span>
+        tdEst = `<td class="p-2.5 border-b border-gray-200 ${claseBloqueada} whitespace-nowrap" title="Autocalculado por sus componentes">
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${act.estado === 'Ejecutado' ? 'bg-green-100 text-green-800' : (act.estado === 'En proceso' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-200 text-gray-700')}">${act.estado}</span>
         </td>`;
       } else {
-        tdEst = `<td class="p-2.5 border-r border-b border-gray-200 ${puedeEditarAvance ? claseEditable : ''} whitespace-nowrap" ondblclick="${puedeEditarAvance ? `editarEstado('${cod}')` : ''}">
+        tdEst = `<td class="p-2.5 border-b border-gray-200 ${puedeEditarAvance ? claseEditable : ''} whitespace-nowrap" ondblclick="${puedeEditarAvance ? `editarEstado('${cod}')` : ''}">
           <span class="px-2 py-0.5 rounded text-[11px] font-bold ${act.estado === 'Ejecutado' ? 'bg-green-100 text-green-800' : (act.estado === 'En proceso' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-200 text-gray-700')}">${act.estado}</span>
         </td>`;
       }
@@ -294,9 +290,9 @@ export function renderizarTabla() {
     let tdIni = '';
     if (state.visibilidadColumnas.inicio) {
       if (esMadre) {
-        tdIni = `<td class="p-2.5 border-r border-b border-gray-200 hidden sm:table-cell text-xs ${claseBloqueada} whitespace-nowrap font-medium">${fechaIniVisual} ${lockIcon}</td>`;
+        tdIni = `<td class="p-2.5 border-b border-gray-200 hidden sm:table-cell text-xs ${claseBloqueada} whitespace-nowrap font-medium" title="Autocalculado por sus componentes">${fechaIniVisual}</td>`;
       } else {
-        tdIni = `<td class="p-2.5 border-r border-b border-gray-200 hidden sm:table-cell text-xs ${puedeEditarTiempos ? claseEditable : ''} whitespace-nowrap font-medium" ondblclick="${puedeEditarTiempos ? `editarFechaInicio('${cod}')` : ''}">${fechaIniVisual}</td>`;
+        tdIni = `<td class="p-2.5 border-b border-gray-200 hidden sm:table-cell text-xs ${puedeEditarTiempos ? claseEditable : ''} whitespace-nowrap font-medium" ondblclick="${puedeEditarTiempos ? `editarFechaInicio('${cod}')` : ''}">${fechaIniVisual}</td>`;
       }
     }
 
@@ -310,11 +306,11 @@ export function renderizarTabla() {
     if (state.visibilidadColumnas.fin) {
       const esModoHoras = (state.proyectoModoDuracion === "hours");
       if (esMadre) {
-        tdFin = `<td class="p-2.5 border-r border-b border-gray-200 hidden sm:table-cell text-xs ${claseBloqueada} whitespace-nowrap font-medium">${badgeVencidoHTML} ${lockIcon}</td>`;
+        tdFin = `<td class="p-2.5 border-b border-gray-200 hidden sm:table-cell text-xs ${claseBloqueada} whitespace-nowrap font-medium" title="Autocalculado por sus componentes">${badgeVencidoHTML}</td>`;
       } else if (esModoHoras) {
-        tdFin = `<td class="p-2.5 border-r border-b border-gray-200 hidden sm:table-cell text-xs cursor-not-allowed select-none whitespace-nowrap font-medium" title="Fecha fin calculada por horas netas">${badgeVencidoHTML} ${lockIcon}</td>`;
+        tdFin = `<td class="p-2.5 border-b border-gray-200 hidden sm:table-cell text-xs cursor-not-allowed select-none whitespace-nowrap font-medium" title="Fecha fin calculada por horas netas">${badgeVencidoHTML}</td>`;
       } else {
-        tdFin = `<td class="p-2.5 border-r border-b border-gray-200 hidden sm:table-cell text-xs ${puedeEditarTiempos ? claseEditable : ''} whitespace-nowrap font-medium" ondblclick="${puedeEditarTiempos ? `editarFechaFin('${cod}')` : ''}">${badgeVencidoHTML}</td>`;
+        tdFin = `<td class="p-2.5 border-b border-gray-200 hidden sm:table-cell text-xs ${puedeEditarTiempos ? claseEditable : ''} whitespace-nowrap font-medium" ondblclick="${puedeEditarTiempos ? `editarFechaFin('${cod}')` : ''}">${badgeVencidoHTML}</td>`;
       }
     }
 
@@ -322,23 +318,23 @@ export function renderizarTabla() {
     let tdDias = '';
     if (state.visibilidadColumnas.dias) {
       if (esMadre) {
-        tdDias = `<td class="p-2.5 border-r border-b border-gray-200 text-center font-bold text-xs ${claseBloqueada} whitespace-nowrap">${act.dias}${unidadTexto} ${lockIcon}</td>`;
+        tdDias = `<td class="p-2.5 border-b border-gray-200 text-center font-bold text-xs ${claseBloqueada} whitespace-nowrap" title="Autocalculado por sus componentes">${act.dias}${unidadTexto}</td>`;
       } else {
-        tdDias = `<td class="p-2.5 border-r border-b border-gray-200 text-center font-bold text-xs ${puedeEditarTiempos ? claseEditable : ''} whitespace-nowrap" ondblclick="${puedeEditarTiempos ? `editarDias('${cod}')` : ''}">${act.dias}${unidadTexto}</td>`;
+        tdDias = `<td class="p-2.5 border-b border-gray-200 text-center font-bold text-xs ${puedeEditarTiempos ? claseEditable : ''} whitespace-nowrap" ondblclick="${puedeEditarTiempos ? `editarDias('${cod}')` : ''}">${act.dias}${unidadTexto}</td>`;
       }
     }
 
     let tdAvance = '';
     if (state.visibilidadColumnas.avance) {
       if (esMadre) {
-        tdAvance = `<td class="p-2.5 border-r border-b border-gray-200 text-center font-bold text-xs ${claseBloqueada} whitespace-nowrap">${act.avance}% ${lockIcon}</td>`;
+        tdAvance = `<td class="p-2.5 border-b border-gray-200 text-center font-bold text-xs ${claseBloqueada} whitespace-nowrap" title="Autocalculado por sus componentes">${act.avance}%</td>`;
       } else {
-        tdAvance = `<td class="p-2.5 border-r border-b border-gray-200 text-center font-bold text-xs ${puedeEditarAvance ? claseEditable : ''} whitespace-nowrap" ondblclick="${puedeEditarAvance ? `editarAvance('${cod}')` : ''}">${act.avance}%</td>`;
+        tdAvance = `<td class="p-2.5 border-b border-gray-200 text-center font-bold text-xs ${puedeEditarAvance ? claseEditable : ''} whitespace-nowrap" ondblclick="${puedeEditarAvance ? `editarAvance('${cod}')` : ''}">${act.avance}%</td>`;
       }
     }
 
     const ganttHTML = renderizarGanttFila(act, esMadre, codLimpio);
-    const tdGantt = state.visibilidadColumnas.gantt ? `<td class="p-1 border-r border-b border-gray-200">${ganttHTML}</td>` : '';
+    const tdGantt = state.visibilidadColumnas.gantt ? `<td class="p-1 border-b border-gray-200">${ganttHTML}</td>` : '';
 
     const comsAct = obtenerComentariosDeActividad(cod);
     const cantComs = comsAct.length;
@@ -350,10 +346,10 @@ export function renderizarTabla() {
     const handleDrag = state.proyectoEsGestor ? `<span class="drag-handle text-slate-400 hover:text-slate-800 cursor-grab active:cursor-grabbing mr-2 text-xs select-none inline-block align-middle" title="Arrastrar fila para reubicar">⠿</span>` : '';
 
     tr.innerHTML = `
-      <td class="p-2.5 font-mono font-bold text-xs border-r border-b border-gray-200 whitespace-nowrap">
+      <td class="p-2.5 font-mono font-bold text-xs border-b border-gray-200 whitespace-nowrap">
         <div class="inline-flex items-center">${handleDrag}${iconoColapso}<span>${cod}</span></div>
       </td>
-      <td class="p-2 border-r border-b border-gray-200 ${state.proyectoEsGestor ? 'cell-editable cursor-pointer' : ''} group align-middle" style="padding-left: ${paddingLeft}px;" ondblclick="${state.proyectoEsGestor ? `editarDescripcion('${cod}')` : ''}" title="${descTextoLimpio}">
+      <td class="p-2 border-b border-gray-200 ${state.proyectoEsGestor ? 'cell-editable cursor-pointer' : ''} group align-middle" style="padding-left: ${paddingLeft}px;" ondblclick="${state.proyectoEsGestor ? `editarDescripcion('${cod}')` : ''}" title="${descTextoLimpio}">
         <div class="flex items-center justify-between gap-1 w-full overflow-hidden">
           <span class="text-xs leading-snug break-words text-gray-800 select-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;" title="${descTextoLimpio}">${act.descripcion}</span>
           <div class="flex-shrink-0">${iconoComentarioHTML}</div>
@@ -379,7 +375,7 @@ export function renderizarTabla() {
     const trQuick = document.createElement("tr");
     trQuick.className = "bg-teal-50/40 hover:bg-teal-50/80 transition border-t border-dashed border-teal-300";
     trQuick.innerHTML = `
-      <td class="p-2 text-center font-mono text-xs font-black text-teal-700 border-r border-b border-gray-200">+</td>
+      <td class="p-2 text-center font-mono text-xs font-black text-teal-700 border-b border-gray-200">+</td>>
       <td colspan="9" class="p-1.5 border-b border-gray-200">
         <div class="flex items-center space-x-2 max-w-2xl">
           <input type="text" id="input-quick-add-wbs" 

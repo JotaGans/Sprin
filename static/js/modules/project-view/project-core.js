@@ -60,9 +60,7 @@ export async function ingresarAlProyecto(id, nombre, esGestor) {
 
     const thDias = document.getElementById("th-dias");
     if (thDias) {
-      thDias.innerHTML = (state.proyectoModoDuracion === "hours")
-        ? `Horas <span class="text-[10px] text-teal-300 opacity-80">✎</span>`
-        : `Días <span class="text-[10px] text-teal-300 opacity-80">✎</span>`;
+      thDias.innerText = (state.proyectoModoDuracion === "hours") ? "Horas" : "Días";
     }
 
     const txtNombre = document.getElementById("txt-nombre-proyecto");
