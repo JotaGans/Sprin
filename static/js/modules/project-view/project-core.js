@@ -28,6 +28,11 @@ export async function ingresarAlProyecto(id, nombre, esGestor) {
     state.actividadesGlobal = [];
     state.comentariosGlobal = [];
     state.codigoFilaSeleccionada = null;
+    state.undoStack = [];
+    state.redoStack = [];
+    if (typeof window.actualizarBotonesUndoRedoUI === "function") {
+      window.actualizarBotonesUndoRedoUI();
+    }
     state.nivelMaxVisible = 4;
     if (state.colapsadosSet && typeof state.colapsadosSet.clear === "function") {
       state.colapsadosSet.clear();

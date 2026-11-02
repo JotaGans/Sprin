@@ -14,6 +14,9 @@ export const state = {
   nivelFiltroActivo: 4,
   vistaProyectoActiva: localStorage.getItem("sprin_vista_proyecto") || "split", // 'split' | 'lista' | 'gantt'
   filtroSoloMisActividades: false,
+  undoStack: [],
+  redoStack: [],
+  ejecutandoUndoRedo: false,
 
   modoZoom: "dias",
   zoomNivelEscala: 5,

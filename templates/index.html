@@ -449,13 +449,19 @@
         
         <!-- SECCIÓN IZQUIERDA: + ACTIVIDAD + CONMUTADOR DE 4 VISTAS + FILTROS RÁPIDOS -->
         <div class="flex flex-wrap items-center gap-1.5">
-          <!-- Botón Primario: + Actividad -->
-          <button id="btn-nueva-act-gantt" onclick="botonSuperiorNuevaActividad()" class="h-[30px] bg-[#0d9488] hover:bg-[#0f766e] text-white text-xs font-black px-3 rounded-lg transition shadow-xs flex items-center space-x-1.5 cursor-pointer whitespace-nowrap flex-shrink-0" title="Crear nueva actividad">
-            <svg class="w-3.5 h-3.5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            <span>Actividad</span>
-          </button>
+          <!-- Controles Rápidos: Deshacer (Ctrl+Z) y Rehacer (Ctrl+Y) -->
+          <div class="inline-flex items-center bg-slate-100 border border-slate-300/80 p-0.5 rounded-lg flex-shrink-0">
+            <button type="button" id="btn-undo-proy" onclick="ejecutarDeshacerProyecto()" disabled class="h-[24px] w-[26px] rounded flex items-center justify-center text-slate-400 opacity-40 cursor-not-allowed transition" title="Deshacer última acción (Ctrl + Z)">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+              </svg>
+            </button>
+            <button type="button" id="btn-redo-proy" onclick="ejecutarRehacerProyecto()" disabled class="h-[24px] w-[26px] rounded flex items-center justify-center text-slate-400 opacity-40 cursor-not-allowed transition" title="Rehacer acción (Ctrl + Y)">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" />
+              </svg>
+            </button>
+          </div>
 
           <!-- CONMUTADOR DE 4 VISTAS (Dividida | Lista | Tablero | Gantt) CON ICONOS SVG -->
           <div class="sprin-view-switcher flex-shrink-0">
@@ -2314,6 +2320,6 @@
   </div>
 
     <!-- Carga del Módulo Orquestador Principal ES6 -->
-    <script type="module" src="/static/js/main.js?v=100041"></script>
+    <script type="module" src="/static/js/main.js?v=100042"></script>
 </body>
 </html>

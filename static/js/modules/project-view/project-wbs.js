@@ -431,6 +431,13 @@ export function renderizarTabla() {
   if (typeof window.dibujarFlechasDependenciasGantt === "function") {
     requestAnimationFrame(() => window.dibujarFlechasDependenciasGantt());
   }
+
+  if (!state.ejecutandoUndoRedo && typeof clonarActividadesSnapshot === "function") {
+    state.ultimoSnapshotSincronizado = clonarActividadesSnapshot(state.actividadesGlobal);
+  }
+  if (typeof actualizarBotonesUndoRedoUI === "function") {
+    actualizarBotonesUndoRedoUI();
+  }
 }
 
 export function alternarColapsoNodo(cod) {
@@ -814,6 +821,9 @@ export function editarAvance(cod) {
 }
 
 export async function guardarCambioDirecto(act) {
+  if (!state.ejecutandoUndoRedo && state.ultimoSnapshotSincronizado) {
+    registrarSnapshotEnPilaUndo(`Cambio en actividad [${act.codigo}]`, state.ultimoSnapshotSincronizado);
+  }
   const fIniLimpia = formatearFechaLatina(act.fecha_inicio);
   const fFinLimpia = formatearFechaLatina(act.fecha_fin);
   const pId = parseInt(state.proyectoActualId) || 1;
@@ -963,6 +973,8 @@ export async function soltarFilaArrastre(e, codigoDestino, trElement) {
   finalizarArrastre();
   const confirma = await confirmModal(`¿Desea reubicar la actividad [${codOrigenLimpio}] respecto a [${codDestinoLimpio}]?`, "Confirmar Reubicación", "question");
   if (!confirma) return;
+
+  registrarSnapshotAntesDeAccion(`Reordenar actividad [${codOrigenLimpio}]`);
 
   try {
     const res = await apiFetch(`/proyectos/${state.proyectoActualId}/reordenar-actividades`, {
@@ -1335,6 +1347,8 @@ export async function guardarActividadDesdeWizard() {
     predecesores: document.getElementById("wz-input-pred")?.value.trim() || ""
   };
 
+  registrarSnapshotAntesDeAccion(`Crear actividad [${state.wizardCodigoGenerado}]`);
+
   try {
     const res = await apiFetch(`/actividades`, {
       method: "POST",
@@ -1365,6 +1379,8 @@ export async function eliminarActividad(cod) {
 
   const confirma = await confirmModal(mensaje, "Eliminar Registro", "danger");
   if (!confirma) return;
+
+  registrarSnapshotAntesDeAccion(`Eliminar actividad [${cod}]`);
 
   try {
     const res = await apiFetch(`/proyectos/${state.proyectoActualId}/actividades/${cod}`, { method: "DELETE" });
@@ -1555,6 +1571,8 @@ export async function editarResponsable(cod) {
 
       cerrarAsignarResponsables();
       if (!actRef) return;
+
+      registrarSnapshotAntesDeAccion(`Asignar responsable en [${codAct}]`);
 
       actRef.responsable = respFinal;
       poblarFiltroResponsablesDinamico();
@@ -1826,6 +1844,8 @@ export async function crearActividadRapidaInline() {
 
     const fIniStr = `${String(dtIniHabil.getDate()).padStart(2, '0')}/${String(dtIniHabil.getMonth() + 1).padStart(2, '0')}/${dtIniHabil.getFullYear()}`;
     const fFinStr = `${String(dtFinHabil.getDate()).padStart(2, '0')}/${String(dtFinHabil.getMonth() + 1).padStart(2, '0')}/${dtFinHabil.getFullYear()}`;
+
+    registrarSnapshotAntesDeAccion(`Creación rápida [${nuevoCodigo}]`);
 
     const res = await apiFetch(`/actividades`, {
       method: "POST",
@@ -2235,6 +2255,188 @@ export async function kanbanSoltarActividad(e, nuevoEstado) {
   notificarToast(`Actividad [${cod}] movida a "${nuevoEstado}".`, "success", 2500);
 }
 
+// =========================================================================
+// MOTOR DE DESHACER (CTRL+Z) Y REHACER (CTRL+Y) DE FRICCIÓN CERO
+// =========================================================================
+
+const LIMITE_PILA_UNDO = 20;
+
+export function clonarActividadesSnapshot(lista) {
+  return (lista || []).map(a => ({
+    proyecto_id: parseInt(state.proyectoActualId) || 1,
+    codigo: String(a.codigo || "").replace(/\.+$/, ""),
+    descripcion: String(a.descripcion || ""),
+    responsable: String(a.responsable || "No asignado"),
+    estado: String(a.estado || "No iniciado"),
+    avance: parseInt(a.avance) || 0,
+    fecha_inicio: String(a.fecha_inicio || ""),
+    fecha_fin: String(a.fecha_fin || ""),
+    dias: parseInt(a.dias) || 1,
+    predecesores: String(a.predecesores || "")
+  }));
+}
+
+export function registrarSnapshotEnPilaUndo(etiqueta, snapshotPrevio) {
+  if (state.ejecutandoUndoRedo || !snapshotPrevio) return;
+  const serialPrevio = JSON.stringify(snapshotPrevio);
+  const topeActual = state.undoStack.length > 0 ? JSON.stringify(state.undoStack[state.undoStack.length - 1].actividades) : null;
+  if (serialPrevio === topeActual) return;
+
+  state.undoStack.push({
+    etiqueta: etiqueta || "Acción",
+    actividades: JSON.parse(serialPrevio)
+  });
+
+  if (state.undoStack.length > LIMITE_PILA_UNDO) {
+    state.undoStack.shift();
+  }
+  state.redoStack = [];
+  actualizarBotonesUndoRedoUI();
+}
+
+export function registrarSnapshotAntesDeAccion(etiqueta) {
+  if (state.ejecutandoUndoRedo) return;
+  const foto = state.ultimoSnapshotSincronizado || clonarActividadesSnapshot(state.actividadesGlobal);
+  registrarSnapshotEnPilaUndo(etiqueta, foto);
+}
+
+export function actualizarBotonesUndoRedoUI() {
+  const btnUndo = document.getElementById("btn-undo-proy");
+  const btnRedo = document.getElementById("btn-redo-proy");
+
+  const tieneUndo = (state.undoStack && state.undoStack.length > 0);
+  const tieneRedo = (state.redoStack && state.redoStack.length > 0);
+
+  if (btnUndo) {
+    btnUndo.disabled = !tieneUndo;
+    btnUndo.className = tieneUndo
+      ? "h-[24px] w-[26px] rounded flex items-center justify-center text-[#0f2a4a] hover:bg-white hover:text-teal-700 shadow-2xs cursor-pointer transition"
+      : "h-[24px] w-[26px] rounded flex items-center justify-center text-slate-400 opacity-40 cursor-not-allowed transition";
+    btnUndo.title = tieneUndo
+      ? `Deshacer: ${state.undoStack[state.undoStack.length - 1].etiqueta} (Ctrl + Z)`
+      : "Deshacer última acción (Ctrl + Z)";
+  }
+
+  if (btnRedo) {
+    btnRedo.disabled = !tieneRedo;
+    btnRedo.className = tieneRedo
+      ? "h-[24px] w-[26px] rounded flex items-center justify-center text-[#0f2a4a] hover:bg-white hover:text-teal-700 shadow-2xs cursor-pointer transition"
+      : "h-[24px] w-[26px] rounded flex items-center justify-center text-slate-400 opacity-40 cursor-not-allowed transition";
+    btnRedo.title = tieneRedo
+      ? `Rehacer: ${state.redoStack[state.redoStack.length - 1].etiqueta} (Ctrl + Y)`
+      : "Rehacer acción (Ctrl + Y)";
+  }
+}
+
+export async function ejecutarDeshacerProyecto() {
+  if (!state.proyectoActualId || state.ejecutandoUndoRedo || !state.undoStack || state.undoStack.length === 0) return;
+
+  state.ejecutandoUndoRedo = true;
+  const itemUndo = state.undoStack.pop();
+
+  // Guardar foto actual en la pila de Rehacer (Redo)
+  state.redoStack.push({
+    etiqueta: itemUndo.etiqueta,
+    actividades: clonarActividadesSnapshot(state.actividadesGlobal)
+  });
+
+  try {
+    const res = await apiFetch(`/proyectos/${state.proyectoActualId}/restaurar-snapshot`, {
+      method: "POST",
+      body: JSON.stringify({
+        etiqueta_accion: itemUndo.etiqueta,
+        operacion: "DESHACER",
+        actividades: itemUndo.actividades
+      })
+    });
+
+    if (res.ok) {
+      await sincronizarDatosProyecto(state.proyectoActualId);
+      state.ultimoSnapshotSincronizado = clonarActividadesSnapshot(state.actividadesGlobal);
+      if (state.vistaProyectoActiva === "kanban") renderizarTableroKanban();
+      notificarToast(`↶ Deshecho: ${itemUndo.etiqueta}`, "info", 2200);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.detail || "No se pudo deshacer la acción.");
+    }
+  } catch (e) {
+    console.error("Error en Deshacer:", e);
+  } finally {
+    state.ejecutandoUndoRedo = false;
+    actualizarBotonesUndoRedoUI();
+  }
+}
+
+export async function ejecutarRehacerProyecto() {
+  if (!state.proyectoActualId || state.ejecutandoUndoRedo || !state.redoStack || state.redoStack.length === 0) return;
+
+  state.ejecutandoUndoRedo = true;
+  const itemRedo = state.redoStack.pop();
+
+  // Guardar foto actual de vuelta en la pila de Deshacer (Undo)
+  state.undoStack.push({
+    etiqueta: itemRedo.etiqueta,
+    actividades: clonarActividadesSnapshot(state.actividadesGlobal)
+  });
+
+  try {
+    const res = await apiFetch(`/proyectos/${state.proyectoActualId}/restaurar-snapshot`, {
+      method: "POST",
+      body: JSON.stringify({
+        etiqueta_accion: itemRedo.etiqueta,
+        operacion: "REHACER",
+        actividades: itemRedo.actividades
+      })
+    });
+
+    if (res.ok) {
+      await sincronizarDatosProyecto(state.proyectoActualId);
+      state.ultimoSnapshotSincronizado = clonarActividadesSnapshot(state.actividadesGlobal);
+      if (state.vistaProyectoActiva === "kanban") renderizarTableroKanban();
+      notificarToast(`↷ Rehecho: ${itemRedo.etiqueta}`, "info", 2200);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.detail || "No se pudo rehacer la acción.");
+    }
+  } catch (e) {
+    console.error("Error en Rehacer:", e);
+  } finally {
+    state.ejecutandoUndoRedo = false;
+    actualizarBotonesUndoRedoUI();
+  }
+}
+
+// Escucha global inteligente de teclado para Ctrl+Z y Ctrl+Y / Ctrl+Shift+Z
+if (typeof window !== "undefined") {
+  window.addEventListener("keydown", (e) => {
+    const dashboard = document.getElementById("view-dashboard");
+    if (!dashboard || dashboard.classList.contains("hidden")) return;
+
+    // Si el usuario está escribiendo dentro de un input, textarea o select, respetar el Ctrl+Z nativo del texto
+    const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
+    if (tag === "input" || tag === "textarea" || tag === "select" || e.target?.isContentEditable) {
+      return;
+    }
+
+    // No disparar si hay algún modal abierto por encima
+    const hayModalAbierto = Array.from(document.querySelectorAll(".fixed")).some(el =>
+      el.id && el.id.startsWith("modal-") && !el.classList.contains("hidden")
+    );
+    if (hayModalAbierto) return;
+
+    if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) {
+        e.preventDefault();
+        ejecutarDeshacerProyecto();
+      } else if (k === "y" || (k === "z" && e.shiftKey)) {
+        e.preventDefault();
+        ejecutarRehacerProyecto();
+      }
+    }
+  });
+}
+
 window.cambiarVistaProyecto = cambiarVistaProyecto;
 window.alternarFiltroMisActividades = alternarFiltroMisActividades;
 window.alternarCheckRapidoActividad = alternarCheckRapidoActividad;
@@ -2244,3 +2446,7 @@ window.renderizarTableroKanban = renderizarTableroKanban;
 window.kanbanPermitirSoltar = kanbanPermitirSoltar;
 window.kanbanSalirZona = kanbanSalirZona;
 window.kanbanSoltarActividad = kanbanSoltarActividad;
+window.ejecutarDeshacerProyecto = ejecutarDeshacerProyecto;
+window.ejecutarRehacerProyecto = ejecutarRehacerProyecto;
+window.actualizarBotonesUndoRedoUI = actualizarBotonesUndoRedoUI;
+window.registrarSnapshotAntesDeAccion = registrarSnapshotAntesDeAccion;

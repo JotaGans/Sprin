@@ -219,3 +219,9 @@ class ActividadesLoteModel(BaseModel):
     lineas: List[str]
     dias_por_defecto: Optional[int] = 3
     encadenar_secuencialmente: Optional[bool] = True
+
+    # 14. Modelo de Restauración Instantánea para Deshacer / Rehacer (Ctrl+Z / Ctrl+Y)
+class RestaurarSnapshotProyectoModel(BaseModel):
+    etiqueta_accion: Optional[str] = "Acción"
+    operacion: Optional[str] = "DESHACER"  # 'DESHACER' | 'REHACER'
+    actividades: List[ActividadModel]

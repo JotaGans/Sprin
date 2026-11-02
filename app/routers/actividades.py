@@ -11,7 +11,8 @@ from app.models.schemas import (
     ReordenarActividadesModel,
     ComentarioCreate,
     ComentarioUpdate,
-    ActividadesLoteModel
+    ActividadesLoteModel,
+    RestaurarSnapshotProyectoModel
 )
 
 router = APIRouter(tags=["Actividades y WBS"])
@@ -661,3 +662,74 @@ def crear_actividades_en_lote(
         db.commit()
 
     return {"status": "success", "creadas": len(nuevas_filas), "mensaje": f"Se crearon {len(nuevas_filas)} actividades automáticamente."}
+
+    # 9. Motor Transaccional para Deshacer (Ctrl+Z) y Rehacer (Ctrl+Y) sin fricción
+@router.post("/proyectos/{proyecto_id}/restaurar-snapshot")
+def restaurar_snapshot_proyecto(
+    proyecto_id: int,
+    data: RestaurarSnapshotProyectoModel,
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    es_gestor = db.execute("""
+        SELECT 1 FROM proyectos p 
+        LEFT JOIN proyecto_usuarios pu ON p.id = pu.proyecto_id AND pu.usuario_id = ?
+        WHERE p.id = ? AND (p.creador_id = ? OR pu.es_gestor = 1 OR pu.permiso = 'GESTOR')
+    """, (user["id"], proyecto_id, user["id"])).fetchone()
+
+    es_admin_o_gestor = bool(es_gestor or user.get("rol") == "ADMIN_TI")
+
+    try:
+        if es_admin_o_gestor:
+            # El Gestor puede deshacer/rehacer cambios estructurales completos (incluso restaurar tareas eliminadas o reordenadas)
+            filas_restaurar = []
+            for a in data.actividades:
+                cod_limpio = str(a.codigo).strip().rstrip(".")
+                filas_restaurar.append((
+                    proyecto_id,
+                    cod_limpio,
+                    str(a.descripcion or "").strip(),
+                    str(a.responsable or "No asignado").strip(),
+                    str(a.estado or "No iniciado").strip(),
+                    int(a.avance or 0),
+                    str(a.fecha_inicio or "").strip(),
+                    str(a.fecha_fin or "").strip(),
+                    int(a.dias or 1),
+                    str(a.predecesores or "").strip()
+                ))
+
+            db.execute("DELETE FROM actividades WHERE proyecto_id = ?", (proyecto_id,))
+            if filas_restaurar:
+                db.executemany("""
+                    INSERT INTO actividades (proyecto_id, codigo, descripcion, responsable, estado, avance, fecha_inicio, fecha_fin, dias, predecesores)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, filas_restaurar)
+        else:
+            # Un Responsable Asignado solo puede deshacer/rehacer el estado y avance de sus propias actividades
+            u_nombre = (user.get("nombre_completo") or "").strip().lower()
+            u_user = (user.get("username") or "").strip().lower()
+
+            existentes = db.execute("SELECT codigo, responsable FROM actividades WHERE proyecto_id = ?", (proyecto_id,)).fetchall()
+            mapa_resp = {str(r["codigo"]).rstrip("."): (r["responsable"] or "").lower() for r in existentes}
+
+            for a in data.actividades:
+                cod_limpio = str(a.codigo).strip().rstrip(".")
+                resp_db = mapa_resp.get(cod_limpio, "")
+                if (u_nombre and u_nombre in resp_db) or (u_user and u_user in resp_db):
+                    db.execute("""
+                        UPDATE actividades
+                        SET estado = ?, avance = ?
+                        WHERE proyecto_id = ? AND (codigo = ? OR codigo = ?)
+                    """, (str(a.estado or "No iniciado"), int(a.avance or 0), proyecto_id, cod_limpio, f"{cod_limpio}."))
+
+        accion_hist = "Deshacer (Ctrl+Z)" if data.operacion == "DESHACER" else "Rehacer (Ctrl+Y)"
+        db.execute("""
+            INSERT INTO historial (proyecto_id, timestamp, usuario, accion, detalle)
+            VALUES (?, ?, ?, ?, ?)
+        """, (proyecto_id, ahora_peru_str(), user["username"], accion_hist, f"{accion_hist}: {data.etiqueta_accion}"))
+
+        db.commit()
+        return {"status": "success", "mensaje": f"{accion_hist} aplicado correctamente"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"No se pudo revertir la acción: {str(e)}")
