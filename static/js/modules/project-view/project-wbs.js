@@ -2095,6 +2095,14 @@ export function renderizarBarraAvataresEquipoToolbar() {
   cont.innerHTML = htmlAvatares;
 }
 
+export function filtrarPorAvatarToolbar(nombre) {
+  const sel = document.getElementById("filtro-responsable-select");
+  if (!sel) return;
+  sel.value = (sel.value === nombre) ? "" : nombre;
+  aplicarFiltrosGlobales();
+  renderizarBarraAvataresEquipoToolbar();
+}
+
 export function alternarMenuAvataresExtras(e) {
   if (e) e.stopPropagation();
   const menu = document.getElementById("dropdown-avatares-extras");
@@ -2218,9 +2226,10 @@ export function renderizarTableroKanban() {
   const txtBusq = (document.getElementById("filtro-busqueda")?.value || "").toLowerCase().trim();
   const respFiltro = document.getElementById("filtro-responsable-select")?.value || "";
 
-  // Filtrar tareas operativas (hojas) respetando los filtros activos del toolbar
+  // Filtrar tareas operativas (hojas) respetando los filtros activos del toolbar y KPIs
   const operativas = (state.actividadesGlobal || []).filter(act => {
     if (tieneHijos(act.codigo)) return false;
+    if (state.filtroEstadoKPI && act.estado !== state.filtroEstadoKPI) return false;
     if (txtBusq && !act.descripcion.toLowerCase().includes(txtBusq) && !act.codigo.toLowerCase().includes(txtBusq)) return false;
     if (respFiltro && !(act.responsable || "").includes(respFiltro)) return false;
     if (state.filtroSoloMisActividades && !esResponsableDeActividad(act)) return false;
@@ -2530,7 +2539,7 @@ if (typeof window !== "undefined") {
   });
 }
 
-// Exposición de funciones al ámbito global (requerido por templates/index.html)
+// Exposición de funciones clave al ámbito global
 window.cambiarVistaProyecto = cambiarVistaProyecto;
 window.alternarFiltroMisActividades = alternarFiltroMisActividades;
 window.alternarCheckRapidoActividad = alternarCheckRapidoActividad;
@@ -2538,6 +2547,7 @@ window.renderizarBarraAvataresEquipoToolbar = renderizarBarraAvataresEquipoToolb
 window.filtrarPorAvatarToolbar = filtrarPorAvatarToolbar;
 window.alternarMenuAvataresExtras = alternarMenuAvataresExtras;
 window.cerrarMenuAvataresExtras = cerrarMenuAvataresExtras;
+window.filtrarPorEstadoKPI = filtrarPorEstadoKPI;
 window.renderizarTableroKanban = renderizarTableroKanban;
 window.kanbanPermitirSoltar = kanbanPermitirSoltar;
 window.kanbanSalirZona = kanbanSalirZona;
@@ -2546,30 +2556,3 @@ window.ejecutarDeshacerProyecto = ejecutarDeshacerProyecto;
 window.ejecutarRehacerProyecto = ejecutarRehacerProyecto;
 window.actualizarBotonesUndoRedoUI = actualizarBotonesUndoRedoUI;
 window.registrarSnapshotAntesDeAccion = registrarSnapshotAntesDeAccion;
-window.botonSuperiorNuevaActividad = botonSuperiorNuevaActividad;
-window.abrirWizardCreacion = abrirWizardCreacion;
-window.cerrarWizardCreacion = cerrarWizardCreacion;
-window.irAPasoWizard = irAPasoWizard;
-window.avanzarPasoWizard = avanzarPasoWizard;
-window.retrocederPasoWizard = retrocederPasoWizard;
-window.guardarActividadDesdeWizard = guardarActividadDesdeWizard;
-window.cambiarTipoCreacionDesdeNivel1 = cambiarTipoCreacionDesdeNivel1;
-window.evaluarEstadoWizard = evaluarEstadoWizard;
-window.eliminarActividad = eliminarActividad;
-window.editarDescripcion = editarDescripcion;
-window.editarEstado = editarEstado;
-window.editarFechaInicio = editarFechaInicio;
-window.editarFechaFin = editarFechaFin;
-window.editarDias = editarDias;
-window.editarAvance = editarAvance;
-window.editarResponsable = editarResponsable;
-window.cerrarAsignarResponsables = cerrarAsignarResponsables;
-window.solicitarDesmarcarResponsable = solicitarDesmarcarResponsable;
-window.autocompletarResponsableActividad = autocompletarResponsableActividad;
-window.abrirModalNotificacionCorreo = abrirModalNotificacionCorreo;
-window.cerrarModalNotificacionCorreo = cerrarModalNotificacionCorreo;
-window.confirmarEnvioNotificaciones = confirmarEnvioNotificaciones;
-window.abrirMenuContextual = abrirMenuContextual;
-window.abrirMenuContextualVacio = abrirMenuContextualVacio;
-window.cerrarMenuContextual = cerrarMenuContextual;
-window.ejecutarAccionContextual = ejecutarAccionContextual;
