@@ -33,7 +33,23 @@ function clasificarEventoAuditoria(log) {
 }
 
 export async function abrirHistorial() {
-  const res = await apiFetch(`/proyectos/${state.proyectoActualId}/historial`); if (!res.ok) return;  logsAuditoriaCache = await res.json(); categoriaHistorialActiva = "todos"; const inpBusq = document.getElementById("input-busq-historial"); if (inpBusq) inpBusq.value = "";  filtrarCategoriaHistorial("todos"); document.getElementById("modal-historial")?.classList.remove("hidden"); }  export function filtrarCategoriaHistorial(cat) { categoriaHistorialActiva = cat \vert{}\vert{} "todos"; const cats = ["todos", "creacion", "progreso", "plazos", "equipo", "reversion"]; cats.forEach(c => { const btn = document.getElementById(`btn-hist-cat-${c}`);
+  const res = await apiFetch(`/proyectos/${state.proyectoActualId}/historial`);
+  if (!res.ok) return;
+
+  logsAuditoriaCache = await res.json();
+  categoriaHistorialActiva = "todos";
+  const inpBusq = document.getElementById("input-busq-historial");
+  if (inpBusq) inpBusq.value = "";
+
+  filtrarCategoriaHistorial("todos");
+  document.getElementById("modal-historial")?.classList.remove("hidden");
+}
+
+export function filtrarCategoriaHistorial(cat) {
+  categoriaHistorialActiva = cat || "todos";
+  const cats = ["todos", "creacion", "progreso", "plazos", "equipo", "reversion"];
+  cats.forEach(c => {
+    const btn = document.getElementById(`btn-hist-cat-${c}`);
     if (btn) {
       btn.className = (c === categoriaHistorialActiva)
         ? "px-2.5 py-1 rounded-lg text-[11px] font-black bg-[#0f2a4a] text-white cursor-pointer transition shadow-2xs"
