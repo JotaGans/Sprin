@@ -350,6 +350,10 @@ export async function guardarTodasDependencias() {
     notificarToast(`✓ Dependencias y cronograma actualizados (${modificadas.size} tarea(s) sincronizadas).`, "success");
     if (state.capaCpmActiva) await recalcularSilenciosoCpm();
   }
+  
+  if (typeof window.refrescarDatosInspectorActivo === "function") {
+      window.refrescarDatosInspectorActivo();
+    }
 }
 
 export async function recalcularSilenciosoCpm() {

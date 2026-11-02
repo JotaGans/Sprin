@@ -733,3 +733,24 @@ body.is-connecting-gantt .gantt-connect-handle {
 .kanban-card-dropped {
   animation: kanbanDropPulse 0.28s ease-out;
 }
+
+/* Eliminar bordes negros bruscos nativos del navegador al hacer clic en botones del proyecto */
+#bloque-superior-gantt button:focus,
+#bloque-superior-gantt select:focus,
+#view-dashboard button:focus,
+#modal-inspector-actividad button:focus {
+  outline: none !important;
+  box-shadow: none;
+}
+
+/* Quitar flechitas internas en el cuadro numérico */
+#insp-input-avance-num::-webkit-outer-spin-button,
+#insp-input-avance-num::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+#insp-input-avance-num {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

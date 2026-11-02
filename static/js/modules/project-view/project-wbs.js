@@ -1621,6 +1621,11 @@ export async function editarResponsable(cod) {
       actRef.responsable = respFinal;
       poblarFiltroResponsablesDinamico();
       renderizarTabla();
+      if (state.vistaProyectoActiva === "kanban") renderizarTableroKanban();
+      const boxInspResp = document.getElementById("insp-box-responsables");
+      if (boxInspResp && codigoActividadInspectorActual === String(codAct).replace(/\.+$/, "")) {
+        boxInspResp.innerText = respFinal;
+      }
 
       try {
         const res = await apiFetch("/actividades/responsable", {
@@ -2401,7 +2406,7 @@ export async function kanbanSoltarActividad(e, nuevoEstado) {
   }
 }
 
-// --- VENTANA INSPECTOR INTEGRAL DE ACTIVIDAD (DOBLE CLIC EN KANBAN) ---
+// --- VENTANA EDITAR ACTIVIDAD (CON PORCENTAJE EDITABLE EXACTO Y SUB-MODALES APILADOS) ---
 export function abrirInspectorActividad(cod) {
   const codLimpio = String(cod).replace(/\.+$/, "");
   const act = state.actividadesGlobal.find(a => String(a.codigo).replace(/\.+$/, "") === codLimpio);
@@ -2414,7 +2419,7 @@ export function abrirInspectorActividad(cod) {
 
   const raizCod = codLimpio.split(".")[0];
   const madreRaiz = state.actividadesGlobal.find(a => String(a.codigo).replace(/\.+$/, "") === raizCod);
-  const nombreFase = (madreRaiz && madreRaiz.codigo !== codLimpio) ? `Fase: [${raizCod}] ${madreRaiz.descripcion}` : "Actividad Operativa";
+  const nombreFase = (madreRaiz && madreRaiz.codigo !== codLimpio) ? `Fase: [${raizCod}] ${madreRaiz.descripcion}` : "Actividad operativa";
 
   document.getElementById("insp-badge-codigo").innerText = `[${codLimpio}]`;
   document.getElementById("insp-txt-fase-madre").innerText = nombreFase;
@@ -2425,16 +2430,20 @@ export function abrirInspectorActividad(cod) {
 
   const selEst = document.getElementById("insp-select-estado");
   const rngAv = document.getElementById("insp-range-avance");
-  const lblAv = document.getElementById("insp-lbl-avance-val");
+  const numAv = document.getElementById("insp-input-avance-num");
 
+  const avActual = parseInt(act.avance) || 0;
   selEst.value = act.estado || "No iniciado";
   selEst.disabled = !puedeEditarProgreso;
-  rngAv.value = parseInt(act.avance) || 0;
+  rngAv.value = avActual;
   rngAv.disabled = !puedeEditarProgreso;
-  lblAv.innerText = `${rngAv.value}%`;
+  if (numAv) {
+    numAv.value = avActual;
+    numAv.disabled = !puedeEditarProgreso;
+  }
 
   const esHoras = (state.proyectoModoDuracion === "hours");
-  document.getElementById("insp-lbl-unidad-duracion").innerText = esHoras ? "⏱️ Duración (Horas)" : "⏱️ Duración (Días hábiles)";
+  document.getElementById("insp-lbl-unidad-duracion").innerText = esHoras ? "⏱️ Duración (horas)" : "⏱️ Duración (días hábiles)";
 
   const inpIni = document.getElementById("insp-input-inicio");
   const inpDias = document.getElementById("insp-input-dias");
@@ -2451,17 +2460,16 @@ export function abrirInspectorActividad(cod) {
   document.getElementById("insp-box-responsables").innerText = act.responsable || "No asignado";
   document.getElementById("insp-box-predecesoras").innerText = act.predecesores ? `Depende de: [${act.predecesores}]` : "Sin predecesoras";
 
+  // Abrir sub-modales ENCIMA sin cerrar "Editar actividad"
   const btnResp = document.getElementById("insp-btn-cambiar-resp");
   btnResp.classList.toggle("hidden", !puedeEditarTodo);
   btnResp.onclick = () => {
-    cerrarInspectorActividad();
     editarResponsable(codLimpio);
   };
 
   const btnPred = document.getElementById("insp-btn-cambiar-pred");
   btnPred.classList.toggle("hidden", !puedeEditarTodo);
   btnPred.onclick = () => {
-    cerrarInspectorActividad();
     if (typeof window.abrirModalDependencias === "function") window.abrirModalDependencias(codLimpio);
   };
 
@@ -2469,15 +2477,15 @@ export function abrirInspectorActividad(cod) {
   const btnComs = document.getElementById("insp-btn-comentarios");
   btnComs.innerText = `💬 Comentarios (${coms})`;
   btnComs.onclick = () => {
-    cerrarInspectorActividad();
     abrirModalComentarios(codLimpio);
   };
 
   const btnElim = document.getElementById("insp-btn-eliminar");
   btnElim.classList.toggle("hidden", !puedeEditarTodo);
-  btnElim.onclick = () => {
+  btnElim.onclick = async () => {
     cerrarInspectorActividad();
-    eliminarActividad(codLimpio);
+    await eliminarActividad(codLimpio);
+    if (state.vistaProyectoActiva === "kanban") renderizarTableroKanban();
   };
 
   document.getElementById("modal-inspector-actividad")?.classList.remove("hidden");
@@ -2486,20 +2494,69 @@ export function abrirInspectorActividad(cod) {
 export function sincronizarEstadoAvanceInspector(origen) {
   const selEst = document.getElementById("insp-select-estado");
   const rngAv = document.getElementById("insp-range-avance");
-  const lblAv = document.getElementById("insp-lbl-avance-val");
-  if (!selEst || !rngAv || !lblAv) return;
+  const numAv = document.getElementById("insp-input-avance-num");
+  if (!selEst || !rngAv || !numAv) return;
 
   if (origen === "estado") {
-    if (selEst.value === "Ejecutado") rngAv.value = 100;
-    else if (selEst.value === "No iniciado") rngAv.value = 0;
-    else if (selEst.value === "En proceso" && (parseInt(rngAv.value) === 0 || parseInt(rngAv.value) === 100)) rngAv.value = 50;
-  } else {
+    if (selEst.value === "Ejecutado") {
+      rngAv.value = 100;
+      numAv.value = 100;
+    } else if (selEst.value === "No iniciado") {
+      rngAv.value = 0;
+      numAv.value = 0;
+    } else if (selEst.value === "En proceso" && (parseInt(numAv.value) === 0 || parseInt(numAv.value) === 100)) {
+      rngAv.value = 50;
+      numAv.value = 50;
+    }
+  } else if (origen === "rango") {
     const val = parseInt(rngAv.value) || 0;
+    numAv.value = val;
+    if (val === 100) selEst.value = "Ejecutado";
+    else if (val === 0) selEst.value = "No iniciado";
+    else selEst.value = "En proceso";
+  } else if (origen === "numero") {
+    if (numAv.value === "") return;
+    let val = parseInt(numAv.value);
+    if (isNaN(val)) return;
+    if (val > 100) { val = 100; numAv.value = 100; }
+    if (val < 0) { val = 0; numAv.value = 0; }
+    rngAv.value = val;
     if (val === 100) selEst.value = "Ejecutado";
     else if (val === 0) selEst.value = "No iniciado";
     else selEst.value = "En proceso";
   }
-  lblAv.innerText = `${rngAv.value}%`;
+}
+
+export function normalizarInputPorcentajeInspector() {
+  const numAv = document.getElementById("insp-input-avance-num");
+  const rngAv = document.getElementById("insp-range-avance");
+  if (!numAv || !rngAv) return;
+  let val = parseInt(numAv.value);
+  if (isNaN(val) || val < 0) val = 0;
+  if (val > 100) val = 100;
+  numAv.value = val;
+  rngAv.value = val;
+  sincronizarEstadoAvanceInspector("numero");
+}
+
+export function refrescarDatosInspectorActivo() {
+  if (!codigoActividadInspectorActual) return;
+  const act = state.actividadesGlobal.find(a => String(a.codigo).replace(/\.+$/, "") === codigoActividadInspectorActual);
+  if (!act) return;
+  const boxResp = document.getElementById("insp-box-responsables");
+  const boxPred = document.getElementById("insp-box-predecesoras");
+  const inpIni = document.getElementById("insp-input-inicio");
+  const inpFin = document.getElementById("insp-input-fin");
+  const btnComs = document.getElementById("insp-btn-comentarios");
+
+  if (boxResp) boxResp.innerText = act.responsable || "No asignado";
+  if (boxPred) boxPred.innerText = act.predecesores ? `Depende de: [${act.predecesores}]` : "Sin predecesoras";
+  if (inpIni && act.fecha_inicio) inpIni.value = formatearFechaISO(act.fecha_inicio);
+  if (inpFin && act.fecha_fin) inpFin.value = formatearFechaISO(act.fecha_fin);
+  if (btnComs) {
+    const coms = obtenerComentariosDeActividad(codigoActividadInspectorActual).length;
+    btnComs.innerText = `💬 Comentarios (${coms})`;
+  }
 }
 
 export function recalcularPlazoEnInspector(campoModificado) {
@@ -2541,6 +2598,8 @@ export async function guardarCambiosInspectorActividad() {
     return;
   }
 
+  normalizarInputPorcentajeInspector();
+
   if (state.proyectoEsGestor) {
     act.descripcion = nuevaDesc;
     const valIni = document.getElementById("insp-input-inicio")?.value;
@@ -2552,7 +2611,7 @@ export async function guardarCambiosInspectorActividad() {
   }
 
   act.estado = document.getElementById("insp-select-estado")?.value || act.estado;
-  act.avance = parseInt(document.getElementById("insp-range-avance")?.value) || 0;
+  act.avance = parseInt(document.getElementById("insp-input-avance-num")?.value) || 0;
 
   cerrarInspectorActividad();
   await guardarCambioDirecto(act);
@@ -2762,5 +2821,7 @@ window.registrarSnapshotAntesDeAccion = registrarSnapshotAntesDeAccion;
 window.abrirInspectorActividad = abrirInspectorActividad;
 window.cerrarInspectorActividad = cerrarInspectorActividad;
 window.sincronizarEstadoAvanceInspector = sincronizarEstadoAvanceInspector;
+window.normalizarInputPorcentajeInspector = normalizarInputPorcentajeInspector;
+window.refrescarDatosInspectorActivo = refrescarDatosInspectorActivo;
 window.recalcularPlazoEnInspector = recalcularPlazoEnInspector;
 window.guardarCambiosInspectorActividad = guardarCambiosInspectorActividad;

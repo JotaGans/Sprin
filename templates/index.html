@@ -334,81 +334,79 @@
     </main>
   </div>
 
-  <!-- VISTA: GANTT Y CONTROL DE PROYECTO -->
-  <div id="bloque-superior-gantt" class="hidden flex-shrink-0 z-30 bg-[#f5f6fa] shadow-sm">
-    <!-- PISO 1: HEADER INSTITUCIONAL (#0f2a4a) CON TÍTULO QUE NO COLISIONA -->
-    <header class="bg-[#0f2a4a] text-white shadow-md relative flex-shrink-0 z-30">
-      <div class="max-w-[1920px] mx-auto px-3 sm:px-6 h-[56px] flex items-center justify-between gap-2">
+  <!-- BLOQUE SUPERIOR CONGELADO DEL PROYECTO (3 PISOS CON EJE CENTRAL COMPARTIDO ENTRE TÍTULO Y KPIS) -->
+  <div id="bloque-superior-gantt" class="hidden sticky top-0 z-50 shadow-md bg-[#f4f7f6]">
+    
+    <!-- PISO 1: HEADER INSTITUCIONAL CON GRILLA SIMÉTRICA DE 3 COLUMNAS (EL TÍTULO COMPARTE EL MISMO EJE CENTRAL QUE LOS KPIS) -->
+    <header class="bg-[#0f2a4a] text-white shadow-xs border-b border-blue-900/60">
+      <div class="max-w-[1920px] w-full mx-auto px-2 sm:px-6 min-h-[50px] py-1 grid grid-cols-[auto_1fr_auto] lg:grid-cols-[1fr_auto_1fr] items-center gap-2">
         
-        <!-- Extremo Izquierdo: Logotipo IMARPE con ancho protegido -->
-        <div class="flex items-center space-x-2 flex-shrink-0 z-10">
-          <img src="/static/IMARPE%20IMAGOTIPO.png" alt="IMARPE" class="h-8 sm:h-9 w-auto object-contain flex-shrink-0" onerror="this.outerHTML='<span class=\'text-lg sm:text-xl font-black tracking-widest text-white\'>IMARPE</span>'">
-        </div>
-        
-        <!-- Centro: Únicamente el Título del proyecto (Centrado verticalmente y sin desplazamientos) -->
-        <div class="flex-1 min-w-0 max-w-2xl mx-2 sm:mx-4 flex items-center justify-center text-center relative">
-          <div class="w-full flex items-center justify-center space-x-1.5">
-            <textarea id="txt-nombre-proyecto" 
-                      rows="1"
-                      maxlength="80"
-                      title="Modificar el texto (máximo 80 caracteres)"
-                      oninput="ajustarAlturaTituloProyecto(this)"
-                      placeholder="Nombre del proyecto"
-                      class="w-full bg-transparent text-white font-black text-sm sm:text-base md:text-lg text-center border-b border-transparent hover:border-teal-400/50 focus:border-teal-400 outline-none px-2 py-1 transition tracking-tight leading-snug resize-none cursor-text overflow-hidden"></textarea>
-            <span id="contador-titulo-proyecto" class="hidden text-[10px] font-mono font-bold text-teal-300 bg-blue-950/90 px-1.5 py-0.5 rounded border border-teal-500/40 whitespace-nowrap flex-shrink-0">0/80</span>
+        <!-- Columna 1 (Izquierda): Logo IMARPE -->
+        <div class="flex items-center space-x-2.5 flex-shrink-0 justify-start">
+          <img src="/static/img/logo-imarpe.png" alt="Logo IMARPE" class="h-7 sm:h-8 w-auto object-contain">
+          <div class="hidden sm:flex flex-col justify-center">
+            <span class="font-extrabold text-sm tracking-wider leading-none block text-white">IMARPE</span>
+            <span class="text-[7px] text-gray-200 tracking-tight uppercase leading-none mt-0.5 block">Instituto del Mar del Perú</span>
           </div>
         </div>
-        
-        <!-- Extremo Derecho: Badge de Rol (sólo icono en móvil) y Perfil -->
-        <div id="user-info" class="flex items-center space-x-1.5 sm:space-x-2.5 flex-shrink-0 z-10">
-          <div id="badge-rol-gantt" class="bg-amber-100 text-amber-900 border border-amber-300 text-[10.5px] font-black uppercase px-2 sm:px-2.5 rounded shadow-2xs flex items-center justify-center whitespace-nowrap cursor-help" style="height: 26px !important; min-height: 26px !important; max-height: 26px !important;" title="Rol en este proyecto">
-            <span id="badge-rol-gantt-ico" class="text-xs leading-none">👑</span>
-            <span id="badge-rol-gantt-txt" class="hidden md:inline leading-none tracking-tight ml-1">GESTOR DE PROYECTO</span>
+
+        <!-- Columna 2 (Centro Exacto): Título del Proyecto alineado verticalmente con el Scorecard de KPIs -->
+        <div class="flex items-center justify-center min-w-0 px-1 sm:px-4">
+          <textarea id="txt-nombre-proyecto" rows="1" maxlength="80"
+                    oninput="ajustarAlturaTituloProyecto(this)"
+                    onchange="guardarNombreProyectoInline()"
+                    onkeydown="if(event.key === 'Enter') { event.preventDefault(); this.blur(); }"
+                    class="bg-transparent text-white font-black text-sm sm:text-base md:text-lg lg:text-[20px] tracking-tight px-2 py-0.5 rounded border border-transparent hover:border-blue-700/80 focus:border-teal-400 focus:bg-[#0a1c33] outline-none transition w-full sm:w-[360px] md:w-[480px] lg:w-[560px] text-center resize-none overflow-hidden leading-tight block my-auto"
+                    title="Clic para editar el nombre del proyecto"></textarea>
+        </div>
+
+        <!-- Columna 3 (Derecha): Rol en Proyecto + Usuario + Salir -->
+        <div class="flex items-center justify-end space-x-1.5 sm:space-x-2.5 flex-shrink-0">
+          <div class="flex items-center border-r border-blue-800/80 pr-1.5 sm:pr-2.5 h-7">
+            <span id="badge-rol-gantt" class="h-7 px-2 sm:px-2.5 rounded flex items-center justify-center"></span>
           </div>
 
-          <div class="text-right hidden sm:block border-l border-blue-900/60 pl-2.5">
-            <p id="user-display" class="text-xs font-bold text-gray-100 leading-tight">admin</p>
-            <p id="role-display" class="text-[9px] text-teal-300 uppercase font-semibold leading-tight">ADMINISTRADOR TI</p>
+          <div class="text-right leading-tight hidden xl:block">
+            <p class="text-xs font-bold text-white gantt-user-nombre">Cargando...</p>
+            <p class="text-[9px] text-teal-300 font-bold uppercase tracking-wider gantt-user-rol">ROL</p>
           </div>
-          <button onclick="cerrarSesion()" class="bg-red-600 hover:bg-red-700 text-white text-[11px] px-2.5 py-1 rounded-md font-bold transition shadow-xs cursor-pointer flex-shrink-0">Salir</button>
+          <button onclick="cerrarSesion()" class="h-7 bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold px-2.5 rounded transition shadow-2xs cursor-pointer flex items-center justify-center">
+            Salir
+          </button>
         </div>
       </div>
     </header>
 
-    <!-- PISO 2: GRILLA SIMÉTRICA DE 3 COLUMNAS (CENTRADO MATEMÁTICO DEL SCORECARD DE KPIS BAJO EL TÍTULO) -->
-    <div class="max-w-[1920px] w-full mx-auto px-2 sm:px-6 py-1.5 bg-slate-100/90 border-b border-gray-200 relative z-45">
-      <div class="flex flex-wrap lg:grid lg:grid-cols-[1fr_auto_1fr] items-center justify-between min-h-[38px] gap-2 w-full">
+    <!-- PISO 2: NAVEGACIÓN AL HUB + SCORECARD EJECUTIVO DE KPIS + GESTIÓN (ESCALADO RESPONSIVO FLUIDO) -->
+    <div class="max-w-[1920px] w-full mx-auto px-2 sm:px-6 py-1.5 bg-slate-100/95 border-b border-gray-200 relative z-45">
+      <div class="grid grid-cols-[auto_1fr_auto] lg:grid-cols-[1fr_auto_1fr] items-center min-h-[36px] gap-1.5 sm:gap-2 w-full">
         
-        <!-- Columna Izquierda (1fr): Casita + Badge de Filtro Activo (No empuja ni descuadra los KPIs centrales) -->
-        <div class="flex items-center space-x-2.5 justify-start min-w-0">
+        <!-- Columna 1 (Izquierda): Botón Casita sin tooltip nativo duplicado y con espacio libre para expandirse -->
+        <div class="flex items-center justify-start">
           <div class="relative flex-shrink-0 z-20 w-8 h-8 ml-[5px]">
-            <button onclick="volverAlHub()" class="group h-8 w-8 md:hover:w-[144px] px-[7px] md:hover:px-2.5 bg-[#0f2a4a] hover:bg-[#1b4573] text-white border border-blue-900/60 rounded-lg text-xs font-bold transition-all duration-200 ease-out shadow-2xs flex items-center justify-center md:justify-start cursor-pointer whitespace-nowrap overflow-hidden" title="Volver a proyectos">
+            <button type="button" onclick="volverAlHub()" class="group h-8 w-8 md:hover:w-[148px] px-[7px] md:hover:px-2.5 bg-[#0f2a4a] hover:bg-[#1b4573] text-white border border-blue-900/60 rounded-lg text-xs font-bold transition-all duration-200 ease-out shadow-2xs flex items-center justify-center md:justify-start cursor-pointer whitespace-nowrap overflow-hidden">
               <svg class="w-4 h-4 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
               </svg>
-              <span class="max-w-0 opacity-0 md:group-hover:max-w-[110px] md:group-hover:opacity-100 md:group-hover:ml-1.5 transition-all duration-200 ease-out font-bold overflow-hidden leading-none text-white tracking-tight">Volver a proyectos</span>
+              <span class="max-w-0 opacity-0 md:group-hover:max-w-[115px] md:group-hover:opacity-100 md:group-hover:ml-1.5 transition-all duration-200 ease-out font-bold overflow-hidden leading-none text-white tracking-tight">Volver a proyectos</span>
             </button>
-          </div>
-
-          <!-- Pastilla de Filtro Activo ubicada a la izquierda para no mover los KPIs del centro -->
-          <div id="badge-filtro-activo" class="hidden items-center bg-teal-50 text-teal-900 border border-teal-300/90 text-[10.5px] font-bold px-2.5 h-7 rounded-full shadow-2xs space-x-1.5 whitespace-nowrap max-w-[230px] sm:max-w-[280px]">
-            <span class="w-1.5 h-1.5 rounded-full bg-teal-600 animate-pulse flex-shrink-0"></span>
-            <span id="badge-filtro-texto" class="truncate leading-none">Filtro</span>
-            <button onclick="limpiarTodosFiltros()" class="text-teal-700 hover:text-rose-600 font-black ml-1 text-xs cursor-pointer leading-none flex-shrink-0" title="Quitar todos los filtros">✕</button>
           </div>
         </div>
 
-        <!-- Columna Central (auto): Scorecard Ejecutivo Perfectamente Centrado con el Título del Proyecto -->
-        <div class="flex items-center justify-center order-3 lg:order-none w-full lg:w-auto overflow-x-auto no-scrollbar py-0.5 lg:py-0">
-          <div class="inline-flex items-center bg-white border border-slate-200/95 rounded-xl p-1 shadow-2xs gap-1">
+        <!-- Columna 2 (Centro Exacto): Scorecard Ejecutivo Unificado (Alineado con el Título Superior) -->
+        <div class="flex items-center justify-center min-w-0 overflow-x-auto no-scrollbar">
+          <div class="inline-flex items-center bg-white border border-slate-200/95 rounded-xl p-0.5 sm:p-1 shadow-2xs gap-0.5 sm:gap-1 flex-shrink-0">
             
             <!-- KPI 1: Avance Global -->
-            <button type="button" onclick="filtrarPorEstadoKPI('')" class="kpi-pill-btn px-3 py-1 flex items-center space-x-2.5 hover:bg-slate-50 transition cursor-pointer group" title="Avance global ponderado (Clic para ver todas las actividades)">
+            <button type="button" onclick="filtrarPorEstadoKPI('')" class="kpi-pill-btn px-2 sm:px-3 py-1 flex items-center space-x-1.5 sm:space-x-2.5 hover:bg-slate-50 transition cursor-pointer group" title="Avance global ponderado (Clic para mostrar todas las actividades)">
               <div class="text-left">
-                <span class="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400 group-hover:text-[#0f2a4a] leading-none">Avance Global</span>
-                <div class="flex items-center space-x-2 mt-1">
+                <span class="block text-[8.5px] sm:text-[9px] font-extrabold uppercase tracking-wider text-slate-400 group-hover:text-[#0f2a4a] leading-none">
+                  <span class="hidden sm:inline">Avance Global</span>
+                  <span class="sm:hidden">Avance</span>
+                </span>
+                <div class="flex items-center space-x-1.5 sm:space-x-2 mt-1">
                   <span id="kpi-avance" class="text-xs sm:text-sm font-black text-[#0f2a4a] leading-none">0%</span>
-                  <div class="w-12 sm:w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60">
+                  <div class="w-10 sm:w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60 hidden xs:block sm:block">
                     <div id="kpi-avance-barra" class="h-full bg-teal-600 rounded-full transition-all duration-300" style="width: 0%"></div>
                   </div>
                 </div>
@@ -418,10 +416,13 @@
             <div class="h-6 w-px bg-slate-200/80"></div>
 
             <!-- KPI 2: Ejecutado -->
-            <button type="button" id="kpi-card-ejecutado" onclick="filtrarPorEstadoKPI('Ejecutado')" class="kpi-pill-btn px-3 py-1 flex items-center space-x-2 hover:bg-emerald-50/50 transition cursor-pointer" title="Filtrar tareas Ejecutadas">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-emerald-500/15 flex-shrink-0"></span>
+            <button type="button" id="kpi-card-ejecutado" onclick="filtrarPorEstadoKPI('Ejecutado')" class="kpi-pill-btn px-2 sm:px-3 py-1 flex items-center space-x-1.5 sm:space-x-2 hover:bg-emerald-50/50 transition cursor-pointer" title="Filtrar tareas Ejecutadas">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 ring-3 ring-emerald-500/15 flex-shrink-0"></span>
               <div class="text-left">
-                <span class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-none">Ejecutado</span>
+                <span class="block text-[8.5px] sm:text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-none">
+                  <span class="hidden md:inline">Ejecutado</span>
+                  <span class="md:hidden">Ejec.</span>
+                </span>
                 <span id="kpi-ejecutado" class="text-xs sm:text-sm font-black text-emerald-700 leading-none mt-0.5 block">0</span>
               </div>
             </button>
@@ -429,10 +430,13 @@
             <div class="h-6 w-px bg-slate-200/80"></div>
 
             <!-- KPI 3: En Proceso -->
-            <button type="button" id="kpi-card-proceso" onclick="filtrarPorEstadoKPI('En proceso')" class="kpi-pill-btn px-3 py-1 flex items-center space-x-2 hover:bg-amber-50/50 transition cursor-pointer" title="Filtrar tareas En proceso">
-              <span class="w-2 h-2 rounded-full bg-amber-500 ring-4 ring-amber-500/15 flex-shrink-0"></span>
+            <button type="button" id="kpi-card-proceso" onclick="filtrarPorEstadoKPI('En proceso')" class="kpi-pill-btn px-2 sm:px-3 py-1 flex items-center space-x-1.5 sm:space-x-2 hover:bg-amber-50/50 transition cursor-pointer" title="Filtrar tareas En proceso">
+              <span class="w-2 h-2 rounded-full bg-amber-500 ring-3 ring-amber-500/15 flex-shrink-0"></span>
               <div class="text-left">
-                <span class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-none">En Proceso</span>
+                <span class="block text-[8.5px] sm:text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-none">
+                  <span class="hidden md:inline">En Proceso</span>
+                  <span class="md:hidden">Proc.</span>
+                </span>
                 <span id="kpi-proceso" class="text-xs sm:text-sm font-black text-amber-700 leading-none mt-0.5 block">0</span>
               </div>
             </button>
@@ -440,45 +444,55 @@
             <div class="h-6 w-px bg-slate-200/80"></div>
 
             <!-- KPI 4: No Iniciado -->
-            <button type="button" id="kpi-card-pendiente" onclick="filtrarPorEstadoKPI('No iniciado')" class="kpi-pill-btn px-3 py-1 flex items-center space-x-2 hover:bg-rose-50/50 transition cursor-pointer" title="Filtrar tareas No iniciadas">
-              <span class="w-2 h-2 rounded-full bg-rose-500 ring-4 ring-rose-500/15 flex-shrink-0"></span>
+            <button type="button" id="kpi-card-pendiente" onclick="filtrarPorEstadoKPI('No iniciado')" class="kpi-pill-btn px-2 sm:px-3 py-1 flex items-center space-x-1.5 sm:space-x-2 hover:bg-rose-50/50 transition cursor-pointer" title="Filtrar tareas No iniciadas">
+              <span class="w-2 h-2 rounded-full bg-rose-500 ring-3 ring-rose-500/15 flex-shrink-0"></span>
               <div class="text-left">
-                <span class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-none">No Iniciado</span>
+                <span class="block text-[8.5px] sm:text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-none">
+                  <span class="hidden md:inline">No Iniciado</span>
+                  <span class="md:hidden">Pend.</span>
+                </span>
                 <span id="kpi-pendiente" class="text-xs sm:text-sm font-black text-rose-700 leading-none mt-0.5 block">0</span>
               </div>
             </button>
           </div>
         </div>
 
-        <!-- Columna Derecha (1fr): Personal, Carga de trabajo e Historial -->
-        <div class="flex items-center justify-end space-x-1.5 flex-shrink-0">
-          <button id="btn-personal-gantt" onclick="abrirResponsables()" class="h-8 px-2.5 bg-white hover:bg-slate-200 text-[#0f2a4a] border border-gray-300 rounded-lg text-xs font-bold transition shadow-2xs flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap" title="Asignación de Personal y Roles">
-            <span>👥</span>
+        <!-- Columna 3 (Derecha): Personal, Carga de trabajo e Historial con Textos Escalonados Responsivos -->
+        <div class="flex items-center justify-end space-x-1 sm:space-x-1.5 flex-shrink-0">
+          <button type="button" id="btn-personal-gantt" onclick="abrirResponsables()" class="h-8 px-2 sm:px-2.5 bg-white hover:bg-slate-200 text-[#0f2a4a] border border-gray-300 rounded-lg text-xs font-bold transition shadow-2xs flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap" title="Administración de personal y roles del proyecto">
+            <svg class="w-3.5 h-3.5 text-[#0f2a4a] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+            </svg>
             <span class="hidden sm:inline">Personal</span>
           </button>
 
-          <button id="btn-workload-gantt" onclick="abrirModalCargaTrabajo()" class="h-8 px-2.5 bg-white hover:bg-slate-200 text-teal-800 border border-gray-300 rounded-lg text-xs font-bold transition shadow-2xs flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap" title="Ver balance y carga de trabajo del equipo">
-            <span>📊</span>
-            <span class="hidden md:inline">Carga de trabajo</span>
+          <button type="button" id="btn-workload-gantt" onclick="abrirModalCargaTrabajo()" class="h-8 px-2 sm:px-2.5 bg-white hover:bg-slate-200 text-teal-800 border border-gray-300 rounded-lg text-xs font-bold transition shadow-2xs flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap" title="Balance y carga de trabajo del equipo">
+            <svg class="w-3.5 h-3.5 text-teal-700 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+            </svg>
+            <span class="hidden xl:inline">Carga de trabajo</span>
+            <span class="hidden sm:inline xl:hidden">Carga</span>
           </button>
 
-          <button id="btn-historial-gantt" onclick="abrirHistorial()" class="h-8 px-2.5 bg-white hover:bg-slate-200 text-slate-700 border border-gray-300 rounded-lg text-xs font-bold transition shadow-2xs flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap" title="Centro de Auditoría e Historial de Cambios">
-            <span>📜</span>
+          <button type="button" id="btn-historial-gantt" onclick="abrirHistorial()" class="h-8 px-2 sm:px-2.5 bg-white hover:bg-slate-200 text-slate-700 border border-gray-300 rounded-lg text-xs font-bold transition shadow-2xs flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap" title="Centro de auditoría e historial de cambios">
+            <svg class="w-3.5 h-3.5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             <span class="hidden sm:inline">Historial</span>
           </button>
         </div>
       </div>
     </div>
 
-    <!-- PISO 3: TOOLBAR OPERATIVO FLUIDO Y RESPONSIVO (SIN FILTRO DUPLICADO DE COLABORADORES) -->
+    <!-- PISO 3: TOOLBAR OPERATIVO FLUIDO + CHIP DE FILTROS INTEGRADO EN ZONA DE FILTROS + ICONOS SVG UNIFICADOS -->
     <div class="relative z-40 max-w-[1920px] w-full mx-auto px-2 sm:px-6 py-1.5">
       <div class="relative z-40 flex items-center justify-between gap-2 bg-white px-2.5 py-1.5 rounded-xl shadow-xs border border-gray-200/90 overflow-x-auto lg:overflow-visible no-scrollbar">
         
-        <!-- SECCIÓN IZQUIERDA: + ACTIVIDAD + UNDO/REDO + 3 VISTAS + BUSCADOR + AVATARES INTERACTIVOS -->
+        <!-- SECCIÓN IZQUIERDA: + ACTIVIDAD + UNDO/REDO + 3 VISTAS + BUSCADOR + AVATARES + FILTROS -->
         <div class="flex items-center gap-1.5 flex-nowrap">
           
           <!-- 1. Botón Primario: + Actividad -->
-          <button type="button" id="btn-nueva-act-gantt" onclick="botonSuperiorNuevaActividad()" class="h-[30px] bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-black px-3 rounded-lg transition shadow-xs flex items-center space-x-1.5 cursor-pointer whitespace-nowrap flex-shrink-0" title="Crear nueva actividad">
+          <button type="button" id="btn-nueva-act-gantt" onclick="botonSuperiorNuevaActividad()" class="h-[30px] bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-black px-2.5 sm:px-3 rounded-lg transition shadow-xs flex items-center space-x-1 cursor-pointer whitespace-nowrap flex-shrink-0" title="Crear nueva actividad">
             <span class="text-sm leading-none font-black">+</span>
             <span>Actividad</span>
           </button>
@@ -533,12 +547,11 @@
             <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
             </svg>
-            <input type="text" id="filtro-busqueda" oninput="aplicarFiltrosGlobales()" placeholder="Buscar tarea..." class="w-[125px] sm:w-[155px] text-xs bg-slate-50 border border-slate-300 rounded-lg pl-7 pr-2 h-[30px] outline-none focus:border-[#0f2a4a] focus:bg-white font-semibold text-gray-700 transition" title="Buscar por código o descripción">
+            <input type="text" id="filtro-busqueda" oninput="aplicarFiltrosGlobales()" placeholder="Buscar tarea..." class="w-[115px] sm:w-[145px] text-xs bg-slate-50 border border-slate-300 rounded-lg pl-7 pr-2 h-[30px] outline-none focus:border-[#0f2a4a] focus:bg-white font-semibold text-gray-700 transition" title="Buscar por código o descripción">
           </div>
 
-          <!-- 5. Filtro Único Interactivo de Avatares del Equipo (Visible en todas las pantallas con desplegable +N) -->
+          <!-- 5. Filtro Único Interactivo de Avatares del Equipo -->
           <div id="toolbar-avatares-equipo" class="flex items-center -space-x-1.5 px-1 relative flex-shrink-0"></div>
-          <!-- Select oculto de respaldo para compatibilidad interna -->
           <select id="filtro-responsable-select" onchange="aplicarFiltrosGlobales()" class="hidden">
             <option value="">Colaboradores (Todos)</option>
           </select>
@@ -548,10 +561,10 @@
             <svg class="w-3.5 h-3.5 text-teal-700 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
             </svg>
-            <span class="hidden sm:inline">Mis tareas</span>
+            <span class="hidden md:inline">Mis tareas</span>
           </button>
 
-          <!-- 7. Selector de Desglose por Niveles (Solo para Lista y Gantt) -->
+          <!-- 7. Selector de Desglose por Niveles -->
           <div id="contenedor-filtro-niveles-wbs" class="relative flex items-center h-[30px] bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-lg px-2 cursor-pointer group flex-shrink-0" title="Controlar nivel de desglose jerárquico WBS">
             <div class="flex items-center space-x-1 pointer-events-none select-none">
               <svg class="w-3.5 h-3.5 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -569,13 +582,24 @@
               <option value="3" class="bg-white text-gray-800 text-xs py-1.5">Hasta Nivel 3 (Incluir Subtareas)</option>
             </select>
           </div>
+
+          <!-- 8. Chip de Filtros Aplicados (Ubicado inmediatamente al lado de los filtros para visibilidad instantánea y sin chocar con la casita) -->
+          <div id="badge-filtro-activo" class="hidden items-center bg-[#0f2a4a]/5 text-[#0f2a4a] border border-[#0f2a4a]/20 text-[11px] font-bold pl-2.5 pr-1.5 h-[30px] rounded-lg shadow-2xs space-x-1.5 whitespace-nowrap flex-shrink-0">
+            <svg class="w-3.5 h-3.5 text-teal-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+            </svg>
+            <span id="badge-filtro-texto" class="truncate max-w-[160px] xl:max-w-[220px] leading-none font-extrabold">Filtro</span>
+            <button type="button" onclick="limpiarTodosFiltros()" class="w-5 h-5 rounded-md bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 font-black text-[10px] flex items-center justify-center transition cursor-pointer flex-shrink-0" title="Limpiar todos los filtros">✕</button>
+          </div>
         </div>
 
-        <!-- SECCIÓN DERECHA: CONTROLES CONTEXTUALES DEL GANTT + RUTA CRÍTICA + OPCIONES -->
+        <!-- SECCIÓN DERECHA: CONTROLES CONTEXTUALES DEL GANTT + RUTA CRÍTICA + OPCIONES CON ICONOS SVG -->
         <div class="flex items-center gap-1.5 flex-shrink-0 flex-nowrap">
-          <!-- Botón Rápido: Pegar lista (solo proyectos vacíos) -->
-          <button type="button" id="btn-pegar-lista-toolbar" onclick="abrirModalPegarListaTareas()" class="h-[30px] bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold px-2.5 rounded-lg transition flex items-center space-x-1 cursor-pointer whitespace-nowrap flex-shrink-0" title="Pegar lista de actividades desde Word o Excel">
-            <span>📋</span>
+          <!-- Botón Rápido: Pegar lista -->
+          <button type="button" id="btn-pegar-lista-toolbar" onclick="abrirModalPegarListaTareas()" class="h-[30px] bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold px-2.5 rounded-lg transition flex items-center space-x-1.5 cursor-pointer whitespace-nowrap flex-shrink-0" title="Pegar lista de actividades desde Word o Excel">
+            <svg class="w-3.5 h-3.5 text-amber-700 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
+            </svg>
             <span class="hidden xl:inline">Pegar lista</span>
           </button>
 
@@ -608,51 +632,63 @@
 
           <div class="h-5 w-px bg-gray-200 mx-0.5 flex-shrink-0"></div>
 
-          <!-- Botón CPM -->
+          <!-- Botón CPM con Iconos SVG Armonizados -->
           <div class="relative z-[200] flex items-center flex-shrink-0" onmouseenter="cancelarCierreMenuCpm()" onmouseleave="iniciarCierreMenuCpm()">
-            <button type="button" id="btn-menu-cpm" onclick="document.getElementById('menu-desplegable-cpm').classList.toggle('hidden')" class="h-[30px] px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 rounded-lg transition flex items-center gap-1 cursor-pointer text-xs font-bold" title="Ruta crítica y dependencias">
+            <button type="button" id="btn-menu-cpm" onclick="document.getElementById('menu-desplegable-cpm').classList.toggle('hidden')" class="h-[30px] px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 rounded-lg transition flex items-center gap-1 cursor-pointer text-xs font-bold focus:outline-none" title="Ruta crítica y dependencias">
               <svg class="w-3.5 h-3.5 text-rose-600 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M13 2L3 14h7v8l10-12h-7z" />
               </svg>
               <span class="hidden sm:inline">CPM</span>
             </button>
 
-            <div id="menu-desplegable-cpm" class="hidden absolute right-0 top-full pt-1.5 w-52 z-[250]" onmouseenter="cancelarCierreMenuCpm()" onmouseleave="iniciarCierreMenuCpm()">
-              <div class="bg-white border border-gray-200 rounded-xl shadow-2xl py-1">
-                <button type="button" onclick="alternarCapaRutaCritica(); cerrarMenuCpmInmediato()" class="w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-rose-50 hover:text-rose-700 flex items-center space-x-2 transition cursor-pointer">
-                  <span>🔥</span>
-                  <span id="txt-menu-cpm-toggle">Activar Ruta Crítica</span>
+            <div id="menu-desplegable-cpm" class="hidden absolute right-0 top-full pt-1.5 w-56 z-[250]" onmouseenter="cancelarCierreMenuCpm()" onmouseleave="iniciarCierreMenuCpm()">
+              <div class="bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 text-xs font-semibold text-slate-700">
+                <button type="button" onclick="alternarCapaRutaCritica(); cerrarMenuCpmInmediato()" class="w-full text-left px-3.5 py-2 hover:bg-rose-50 hover:text-rose-700 flex items-center space-x-2.5 transition cursor-pointer">
+                  <svg class="w-4 h-4 text-rose-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                  </svg>
+                  <span id="txt-menu-cpm-toggle">Activar ruta crítica</span>
                 </button>
-                <button type="button" onclick="abrirModalDependencias(); cerrarMenuCpmInmediato()" class="w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-slate-50 hover:text-[#0f2a4a] flex items-center space-x-2 transition cursor-pointer border-t border-gray-100">
-                  <span>🔗</span>
+                <button type="button" onclick="abrirModalDependencias(); cerrarMenuCpmInmediato()" class="w-full text-left px-3.5 py-2 hover:bg-slate-50 hover:text-[#0f2a4a] flex items-center space-x-2.5 transition cursor-pointer border-t border-slate-100">
+                  <svg class="w-4 h-4 text-teal-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                  </svg>
                   <span>Configurar predecesoras</span>
                 </button>
               </div>
             </div>
           </div>
 
-          <!-- Menú Agrupado de Opciones -->
+          <!-- Menú Agrupado de Opciones (100% Iconos SVG Minimalistas y sin borde negro brusco) -->
           <div class="relative z-[200] flex items-center flex-shrink-0" onmouseenter="cancelarCierreMenuOpciones()" onmouseleave="iniciarCierreMenuOpciones()">
-            <button type="button" onclick="document.getElementById('menu-herramientas-vista').classList.toggle('hidden')" class="h-[30px] px-2.5 bg-slate-100 hover:bg-slate-200 text-[#0f2a4a] border border-slate-300 rounded-lg text-xs font-bold transition flex items-center space-x-1 cursor-pointer" title="Más opciones del proyecto">
+            <button type="button" onclick="document.getElementById('menu-herramientas-vista').classList.toggle('hidden')" class="h-[30px] px-2.5 bg-slate-100 hover:bg-slate-200 text-[#0f2a4a] border border-slate-300 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer focus:outline-none" title="Opciones de visualización y exportación">
               <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
               </svg>
               <span class="hidden sm:inline">Opciones</span>
             </button>
 
-            <div id="menu-herramientas-vista" class="hidden absolute right-0 top-full pt-1.5 w-56 z-[250]" onmouseenter="cancelarCierreMenuOpciones()" onmouseleave="iniciarCierreMenuOpciones()">
-              <div class="bg-white border border-gray-200 rounded-xl shadow-2xl py-1.5 text-xs font-bold text-gray-700">
-                <button type="button" onclick="abrirModalColumnas(); cerrarMenuOpcionesInmediato()" class="w-full text-left px-3.5 py-2 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-2.5 transition cursor-pointer">
-                  <span>👁️</span>
+            <div id="menu-herramientas-vista" class="hidden absolute right-0 top-full pt-1.5 w-60 z-[250]" onmouseenter="cancelarCierreMenuOpciones()" onmouseleave="iniciarCierreMenuOpciones()">
+              <div class="bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 text-xs font-semibold text-slate-700">
+                <button type="button" onclick="abrirModalColumnas(); cerrarMenuOpcionesInmediato()" class="w-full text-left px-3.5 py-2.5 hover:bg-slate-50 hover:text-[#0f2a4a] flex items-center space-x-2.5 transition cursor-pointer">
+                  <svg class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z" />
+                  </svg>
                   <span>Personalizar columnas y barras</span>
                 </button>
-                <button type="button" onclick="exportarExcelCSV(); cerrarMenuOpcionesInmediato()" class="w-full text-left px-3.5 py-2 hover:bg-emerald-50 hover:text-emerald-700 flex items-center space-x-2.5 transition cursor-pointer">
-                  <span>📊</span>
+                <button type="button" onclick="exportarExcelCSV(); cerrarMenuOpcionesInmediato()" class="w-full text-left px-3.5 py-2.5 hover:bg-emerald-50/70 hover:text-emerald-800 flex items-center space-x-2.5 transition cursor-pointer">
+                  <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
                   <span>Exportar a Excel (CSV)</span>
                 </button>
-                <button type="button" id="btn-accion-plantilla-dinamico" onclick="gestionarAccionPlantillaDinamica(); cerrarMenuOpcionesInmediato()" class="w-full text-left px-3.5 py-2 hover:bg-indigo-50 hover:text-indigo-700 flex items-center space-x-2.5 transition cursor-pointer border-t border-gray-100">
-                  <span id="ico-accion-plantilla">📥</span>
-                  <span id="txt-accion-plantilla">Guardar o usar plantilla</span>
+                <button type="button" id="btn-accion-plantilla-dinamico" onclick="gestionarAccionPlantillaDinamica(); cerrarMenuOpcionesInmediato()" class="w-full text-left px-3.5 py-2.5 hover:bg-indigo-50/70 hover:text-indigo-800 flex items-center space-x-2.5 transition cursor-pointer border-t border-slate-100">
+                  <span id="ico-accion-plantilla" class="flex-shrink-0 text-indigo-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.75V16.5L12 14.25 7.5 16.5V3.75m9 0H18A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6A2.25 2.25 0 016 3.75h1.5m9 0h-9" />
+                    </svg>
+                  </span>
+                  <span id="txt-accion-plantilla">Guardar como plantilla</span>
                 </button>
               </div>
             </div>
@@ -1890,34 +1926,35 @@
     </div>
   </div>
 
-  <!-- MODAL: INSPECTOR INTEGRAL DE ACTIVIDAD (EDICIÓN COMPLETA DESDE TABLERO KANBAN / WBS) -->
+  <!-- MODAL: EDITAR ACTIVIDAD (CON INPUT NUMÉRICO DE PORCENTAJE EXACTO Y SUB-MODALES APILADOS) -->
   <div id="modal-inspector-actividad" onclick="if(event.target === this) cerrarInspectorActividad()" class="hidden fixed inset-0 bg-slate-900/60 z-[80] flex items-center justify-center p-3 sm:p-4 backdrop-blur-[2px]">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
-      <!-- Cabecera del Inspector -->
+      
+      <!-- Cabecera con ortografía correcta en español -->
       <div class="bg-[#0f2a4a] text-white px-5 py-3.5 flex items-center justify-between">
         <div class="flex items-center space-x-2.5 min-w-0">
           <span id="insp-badge-codigo" class="font-mono font-black text-xs bg-teal-400 text-[#0f2a4a] px-2.5 py-0.5 rounded-md shadow-2xs">[1.1]</span>
           <div class="min-w-0">
-            <h3 class="font-black text-sm truncate">Ficha Integral de Actividad</h3>
+            <h3 class="font-black text-sm truncate">Editar actividad</h3>
             <p id="insp-txt-fase-madre" class="text-[10px] text-teal-300 font-semibold truncate">Fase principal</p>
           </div>
         </div>
         <button type="button" onclick="cerrarInspectorActividad()" class="text-white/80 hover:text-white text-2xl font-bold leading-none px-1 cursor-pointer">&times;</button>
       </div>
 
-      <!-- Cuerpo Editable Ordenado -->
+      <!-- Cuerpo Editable -->
       <div class="p-5 overflow-y-auto flex-1 space-y-4 text-xs">
         
-        <!-- 1. Descripción de la Actividad -->
+        <!-- 1. Descripción de la actividad -->
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">Nombre / Entregable de la Actividad</label>
+          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">Nombre / entregable de la actividad</label>
           <textarea id="insp-input-descripcion" rows="2" class="w-full p-2.5 bg-slate-50 focus:bg-white border border-slate-300 focus:border-[#0f2a4a] rounded-xl font-bold text-slate-800 text-xs outline-none transition resize-none"></textarea>
         </div>
 
-        <!-- 2. Estado y Barra Interactiva de Progreso -->
+        <!-- 2. Estado operativo + Potenciómetro y Cuadro Numérico Editable (0% a 100%) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">Estado Operativo</label>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">Estado operativo</label>
             <select id="insp-select-estado" onchange="sincronizarEstadoAvanceInspector('estado')" class="w-full p-2 bg-white border border-slate-300 rounded-lg font-black text-slate-800 text-xs outline-none focus:border-[#0f2a4a] cursor-pointer">
               <option value="No iniciado">⚪ No iniciado (0%)</option>
               <option value="En proceso">🔵 En proceso (1% - 99%)</option>
@@ -1926,35 +1963,46 @@
           </div>
           <div>
             <div class="flex items-center justify-between mb-1">
-              <label class="text-[10px] font-black uppercase tracking-wider text-slate-500">Porcentaje de Avance</label>
-              <span id="insp-lbl-avance-val" class="text-xs font-black text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">0%</span>
+              <label for="insp-input-avance-num" class="text-[10px] font-black uppercase tracking-wider text-slate-500">Porcentaje de avance</label>
+              <!-- Cuadrito editable manualmente para escribir cualquier porcentaje exacto (ej. 33%, 47%) -->
+              <div class="inline-flex items-center bg-white border border-teal-400 focus-within:border-[#0f2a4a] focus-within:ring-2 focus-within:ring-teal-500/20 rounded-lg px-2 py-0.5 shadow-2xs">
+                <input type="number" id="insp-input-avance-num" min="0" max="100" step="1"
+                       oninput="sincronizarEstadoAvanceInspector('numero')"
+                       onblur="normalizarInputPorcentajeInspector()"
+                       class="w-9 text-right text-xs font-black text-teal-800 bg-transparent outline-none"
+                       title="Escriba un porcentaje exacto entre 0 y 100">
+                <span class="text-xs font-black text-teal-700 ml-0.5 select-none">%</span>
+              </div>
             </div>
-            <input type="range" id="insp-range-avance" min="0" max="100" step="5" oninput="sincronizarEstadoAvanceInspector('rango')" class="w-full accent-[#0d9488] cursor-pointer h-2 bg-slate-200 rounded-lg mt-1.5">
+            <input type="range" id="insp-range-avance" min="0" max="100" step="5"
+                   oninput="sincronizarEstadoAvanceInspector('rango')"
+                   class="w-full accent-[#0d9488] cursor-pointer h-2 bg-slate-200 rounded-lg mt-1.5"
+                   title="Deslice de 5 en 5 o escriba el valor exacto en el recuadro superior">
           </div>
         </div>
 
-        <!-- 3. Cronograma: Fecha Inicio, Duración y Vencimiento -->
+        <!-- 3. Cronograma: Fecha de inicio, duración y fecha de vencimiento -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3.5 rounded-xl border border-slate-200">
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">📅 Fecha de Inicio</label>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">📅 Fecha de inicio</label>
             <input type="date" id="insp-input-inicio" onchange="recalcularPlazoEnInspector('inicio')" class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg font-bold text-slate-800 text-xs outline-none focus:border-[#0f2a4a]">
           </div>
           <div>
-            <label id="insp-lbl-unidad-duracion" class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">⏱️ Duración (Días hábiles)</label>
+            <label id="insp-lbl-unidad-duracion" class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">⏱️ Duración (días hábiles)</label>
             <input type="number" id="insp-input-dias" min="1" oninput="recalcularPlazoEnInspector('dias')" class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg font-black text-teal-900 text-xs outline-none focus:border-[#0f2a4a]">
           </div>
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">🏁 Fecha de Vencimiento</label>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">🏁 Fecha de vencimiento</label>
             <input type="date" id="insp-input-fin" onchange="recalcularPlazoEnInspector('fin')" class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg font-bold text-slate-800 text-xs outline-none focus:border-[#0f2a4a]">
           </div>
         </div>
 
-        <!-- 4. Responsables y Predecesoras -->
+        <!-- 4. Responsables y actividades predecesoras (Se abren encima sin cerrar Editar actividad) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col justify-between">
             <div>
-              <span class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">👥 Responsable(s) Asignado(s)</span>
-              <div id="insp-box-responsables" class="text-xs font-bold text-slate-800 break-words mb-2">Sin asignar</div>
+              <span class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">👥 Responsable(s) asignado(s)</span>
+              <div id="insp-box-responsables" class="text-xs font-bold text-slate-800 break-words mb-2.5">Sin asignar</div>
             </div>
             <button type="button" id="insp-btn-cambiar-resp" class="self-start text-[11px] font-bold text-[#0f2a4a] bg-white hover:bg-teal-50 border border-slate-300 px-2.5 py-1 rounded-lg shadow-2xs transition cursor-pointer">
               ✏️ Gestionar responsables
@@ -1963,8 +2011,8 @@
 
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col justify-between">
             <div>
-              <span class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">🔗 Actividades Predecesoras</span>
-              <div id="insp-box-predecesoras" class="text-xs font-bold text-slate-800 mb-2">Ninguna</div>
+              <span class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">🔗 Actividades predecesoras</span>
+              <div id="insp-box-predecesoras" class="text-xs font-bold text-slate-800 mb-2.5">Sin predecesoras</div>
             </div>
             <button type="button" id="insp-btn-cambiar-pred" class="self-start text-[11px] font-bold text-[#0f2a4a] bg-white hover:bg-teal-50 border border-slate-300 px-2.5 py-1 rounded-lg shadow-2xs transition cursor-pointer">
               🔗 Configurar dependencias
@@ -1974,7 +2022,7 @@
 
       </div>
 
-      <!-- Pie del Inspector con Acciones -->
+      <!-- Pie del Modal -->
       <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center space-x-2">
           <button type="button" id="insp-btn-comentarios" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-lg text-xs font-bold transition cursor-pointer">
@@ -1986,73 +2034,97 @@
         </div>
         <div class="flex items-center space-x-2">
           <button type="button" onclick="cerrarInspectorActividad()" class="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold transition cursor-pointer">Cancelar</button>
-          <button type="button" onclick="guardarCambiosInspectorActividad()" class="px-5 py-2 bg-[#0d9488] hover:bg-[#0f766e] text-white rounded-xl text-xs font-black shadow-sm transition cursor-pointer">✓ Guardar Cambios</button>
+          <button type="button" onclick="guardarCambiosInspectorActividad()" class="px-5 py-2 bg-[#0d9488] hover:bg-[#0f766e] text-white rounded-xl text-xs font-black shadow-sm transition cursor-pointer">✓ Guardar cambios</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- MODAL: PERSONAL Y ROLES DEL PROYECTO -->
-  <div id="modal-responsables" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-    <div class="bg-[#f8f9fa] rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden border border-gray-300 max-h-[88vh] flex flex-col">
-      <div class="bg-[#0f2a4a] text-white p-4 flex justify-between items-center flex-shrink-0">
-        <div class="flex items-center space-x-2">
-          <span class="text-xl">⚙️</span>
-          <h3 class="font-bold text-sm">Administración de Personal y Roles del Proyecto</h3>
+  <!-- MODAL: ADMINISTRACIÓN DE PERSONAL Y ROLES DEL PROYECTO (WORLD-CLASS TEAM & ACCESS MANAGER) -->
+  <div id="modal-responsables" onclick="if(event.target === this) cerrarResponsables()" class="hidden fixed inset-0 bg-slate-900/60 z-[90] flex items-center justify-center p-3 sm:p-4 backdrop-blur-[2px]">
+    <div class="bg-[#f8fafc] rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden border border-slate-300 flex flex-col max-h-[88vh]">
+      
+      <!-- Cabecera -->
+      <div class="bg-[#0f2a4a] text-white px-5 py-3.5 flex justify-between items-center">
+        <div class="flex items-center space-x-2.5">
+          <span class="w-8 h-8 rounded-lg bg-teal-500/20 border border-teal-400/30 flex items-center justify-center">
+            <svg class="w-4 h-4 text-teal-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+            </svg>
+          </span>
+          <div>
+            <h3 class="font-black text-sm tracking-tight">Administración de personal y roles del proyecto</h3>
+            <p class="text-[10.5px] text-teal-300 font-medium">Gestione quiénes dirigen el proyecto, quiénes tienen acceso de lectura y quiénes ejecutan tareas</p>
+          </div>
         </div>
-        <button onclick="cerrarResponsables()" class="text-white text-2xl font-bold hover:text-gray-300 leading-none">&times;</button>
+        <button type="button" onclick="cerrarResponsables()" class="text-white/80 hover:text-white text-2xl font-bold leading-none px-1.5 cursor-pointer">&times;</button>
       </div>
 
-      <div class="p-4 bg-blue-50/80 border-b border-blue-100 text-xs text-blue-950 font-medium leading-relaxed">
-        Agregue usuarios para concederles el rol de <strong>Gestor de Proyecto</strong> (edición total) o <strong>Visualizador del Proyecto</strong> (solo lectura). Los responsables con actividades asignadas ya cuentan con acceso operativo automático.
-      </div>
-
-      <div class="p-5 overflow-y-auto space-y-5 flex-1 bg-[#f8f9fa]">
-        <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
-          <h4 class="text-xs font-bold uppercase text-gray-700 tracking-wider">Otorgar Rol o Acceso a un Trabajador</h4>
-          <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div class="relative md:col-span-6">
-              <label class="block text-[11px] font-bold text-gray-600 uppercase mb-1">Buscar Trabajador (Nombre o Usuario):</label>
-              <input type="text" id="inp-buscar-usuario-rol" oninput="autocompletarBusquedaUsuarios(this.value)" placeholder="Escriba nombres o @usuario..." class="w-full p-2 text-xs bg-gray-50 border border-gray-300 rounded-lg font-semibold outline-none focus:border-[#0f2a4a] focus:bg-white" autocomplete="off">
-              <div id="sugerencias-usuarios-rol" class="hidden absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-xl mt-1 max-h-48 overflow-y-auto z-50 text-xs divide-y divide-gray-100"></div>
+      <div class="p-5 overflow-y-auto flex-1 space-y-5 text-xs">
+        
+        <!-- Panel para conceder rol -->
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-[10.5px] font-black uppercase tracking-wider text-[#0f2a4a]">Otorgar acceso o rol directivo a un trabajador</span>
+            <span class="text-[10px] text-slate-400 font-semibold">Los cambios se registran en auditoría</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+            <div class="sm:col-span-6 relative">
+              <label class="block text-[10px] font-bold text-slate-500 mb-1">Buscar trabajador (apellidos, nombres o @usuario)</label>
+              <input type="text" id="inp-buscar-usuario-rol" oninput="autocompletarBusquedaUsuarios(this.value)" placeholder="Ej. Salas Guerrero o @jsalas..." class="w-full p-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-[#0f2a4a]">
+              <div id="sugerencias-usuarios-rol" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50"></div>
             </div>
-
-            <div class="md:col-span-4">
-              <label class="block text-[11px] font-bold text-gray-600 uppercase mb-1">Privilegio a Otorgar:</label>
-              <select id="sel-rol-asignar" class="w-full p-2 text-xs font-bold bg-gray-50 border border-gray-300 rounded-lg outline-none focus:border-[#0f2a4a]">
-                <option value="GESTOR">👑 Gestor de Proyecto</option>
-                <option value="VISUALIZADOR">👁️ Visualizador del Proyecto</option>
+            <div class="sm:col-span-4">
+              <label class="block text-[10px] font-bold text-slate-500 mb-1">Nivel de privilegio</label>
+              <select id="sel-rol-asignar" class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-[#0f2a4a] cursor-pointer">
+                <option value="GESTOR">👑 Gestor de proyecto (Control total)</option>
+                <option value="LECTOR">👁️ Visualizador (Solo lectura)</option>
               </select>
             </div>
-
-            <div class="md:col-span-2">
-              <button onclick="confirmarAsignacionRolUsuario()" class="w-full p-2 bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white font-bold text-xs rounded-lg transition shadow">
-                + Asignar
+            <div class="sm:col-span-2">
+              <button type="button" onclick="confirmarAsignacionRolUsuario()" class="w-full h-[34px] bg-[#0d9488] hover:bg-[#0f766e] text-white font-black rounded-lg shadow-xs transition cursor-pointer flex items-center justify-center space-x-1">
+                <span>+</span>
+                <span>Asignar</span>
               </button>
             </div>
           </div>
         </div>
 
-        <div>
-          <h4 class="text-xs font-bold uppercase text-gray-700 tracking-wider mb-2">Miembros y Roles Configurados en este Proyecto</h4>
-          <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-            <table class="w-full text-xs text-left border-separate border-spacing-0">
-              <thead class="bg-[#0f2a4a] text-white font-bold">
+        <!-- Tabla 1: Gestores y Visualizadores configurados -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <h4 class="text-[10.5px] font-black uppercase tracking-wider text-slate-500">1. Miembros con rol de gobierno o acceso global</h4>
+            <span id="badge-count-miembros-rol" class="text-[10px] font-bold text-slate-500 bg-slate-200/70 px-2 py-0.5 rounded-full">0 miembros</span>
+          </div>
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-slate-600 border-b border-slate-200 text-[10px] font-black uppercase tracking-wider">
                 <tr>
-                  <th class="p-2.5 text-white border-b border-blue-900">Trabajador (Apellidos y Nombres)</th>
-                  <th class="p-2.5 text-white border-b border-blue-900">Usuario</th>
-                  <th class="p-2.5 text-white border-b border-blue-900 text-center">Rol en Proyecto</th>
-                  <th class="p-2.5 text-white border-b border-blue-900 text-center w-20">Acción</th>
+                  <th class="p-3">Trabajador</th>
+                  <th class="p-3">Usuario</th>
+                  <th class="p-3 text-center">Nivel de acceso (Editable)</th>
+                  <th class="p-3 text-center w-20">Acción</th>
                 </tr>
               </thead>
-              <tbody id="personal-permisos-tabla-body" class="divide-y divide-gray-100 font-medium"></tbody>
+              <tbody id="personal-permisos-tabla-body" class="divide-y divide-slate-100"></tbody>
             </table>
           </div>
         </div>
+
+        <!-- Tabla 2: Responsables operativos detectados automáticamente en el cronograma -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <h4 class="text-[10.5px] font-black uppercase tracking-wider text-slate-500">2. Responsables operativos con tareas asignadas en el cronograma</h4>
+            <span class="text-[10px] text-teal-700 font-semibold">Cuentan con permiso automático para reportar avances en sus tareas</span>
+          </div>
+          <div id="personal-operativo-resumen-box" class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap gap-2"></div>
+        </div>
+
       </div>
 
-      <div class="p-3 bg-gray-100 border-t border-gray-200 flex justify-end">
-        <button onclick="cerrarResponsables()" class="px-5 py-2 bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white text-xs font-bold rounded-lg transition shadow">Listo</button>
+      <!-- Pie -->
+      <div class="px-5 py-3 bg-white border-t border-slate-200 flex justify-end">
+        <button type="button" onclick="cerrarResponsables()" class="px-5 py-1.5 bg-[#0f2a4a] hover:bg-[#1b4573] text-white text-xs font-bold rounded-lg transition cursor-pointer">Listo</button>
       </div>
     </div>
   </div>
@@ -2475,6 +2547,6 @@
   </div>
 
     <!-- Carga del Módulo Orquestador Principal ES6 -->
-    <script type="module" src="/static/js/main.js?v=100044"></script>
+    <script type="module" src="/static/js/main.js?v=100045"></script>
 </body>
 </html>

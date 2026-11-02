@@ -130,7 +130,7 @@ export function cerrarHistorial() {
   document.getElementById("modal-historial")?.classList.add("hidden");
 }
 
-// --- PERSONAL Y ROLES DEL PROYECTO ---
+// --- PERSONAL Y ROLES DEL PROYECTO (WORLD-CLASS TEAM & ACCESS MANAGER) ---
 export async function abrirResponsables() {
   if (!state.proyectoEsGestor && state.currentUser.rol !== "ADMIN_TI") {
     alert("Solo un Gestor del Proyecto puede administrar los roles y el personal.");
@@ -146,7 +146,7 @@ export async function abrirResponsables() {
   const modal = document.getElementById("modal-responsables");
   const tbody = document.getElementById("personal-permisos-tabla-body");
   if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-gray-400 font-semibold animate-pulse">Sincronizando miembros y permisos...</td></tr>`;
-  modal.classList.remove("hidden");
+  modal?.classList.remove("hidden");
 
   await recargarDatosPersonalProyecto();
 }
@@ -161,6 +161,7 @@ export async function recargarDatosPersonalProyecto() {
     if (!res.ok) throw new Error("Error cargando permisos");
     state.dataPersonalProyecto = await res.json();
     renderizarTablaMiembrosProyecto();
+    renderizarResumenEquipoOperativo();
   } catch (e) {
     alert("No se pudo cargar la lista de personal del proyecto.");
   }
@@ -168,31 +169,113 @@ export async function recargarDatosPersonalProyecto() {
 
 export function renderizarTablaMiembrosProyecto() {
   const tbody = document.getElementById("personal-permisos-tabla-body");
+  const badgeCount = document.getElementById("badge-count-miembros-rol");
   if (!tbody) return;
   tbody.innerHTML = "";
 
-  if (!state.dataPersonalProyecto.miembros || state.dataPersonalProyecto.miembros.length === 0) {
+  const miembros = state.dataPersonalProyecto?.miembros || [];
+  const creadorId = state.dataPersonalProyecto?.creador_id;
+  if (badgeCount) badgeCount.innerText = `${miembros.length} miembro(s) con rol`;
+
+  if (miembros.length === 0) {
     tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-gray-400 font-semibold">No hay roles especiales asignados. Utilice el buscador superior para agregar gestores o visualizadores.</td></tr>`;
     return;
   }
 
-  state.dataPersonalProyecto.miembros.forEach(m => {
+  miembros.forEach(m => {
     const esGestor = (m.nivel_permiso === "GESTOR" || m.es_gestor === 1);
+    const esCreador = (creadorId && Number(m.id) === Number(creadorId));
+    const esMiPropioUsuario = (Number(m.id) === Number(state.currentUser?.id));
+    const protegido = esCreador || (esMiPropioUsuario && state.currentUser?.rol !== "ADMIN_TI");
+
+    const nomMostrar = m.nombre_completo || m.username || "Usuario";
+    const ini = nomMostrar.includes(",")
+      ? (nomMostrar.split(",")[0].trim()[0] + (nomMostrar.split(",")[1]?.trim()[0] || "")).toUpperCase()
+      : (nomMostrar.split(" ")[0][0] + (nomMostrar.split(" ")[1]?.[0] || "")).toUpperCase();
+
+    const selectorRolHTML = protegido
+      ? `<span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300" title="${esCreador ? 'Creador original del proyecto (Rol protegido)' : 'Tu sesión activa'}">
+           <span>👑 Gestor de proyecto</span>
+           ${esCreador ? '<span class="ml-1 text-[9px] bg-amber-800 text-white px-1.5 py-0.2 rounded uppercase">Creador</span>' : '<span class="ml-1 text-[9px] bg-[#0f2a4a] text-white px-1.5 py-0.2 rounded uppercase">Tú</span>'}
+         </span>`
+      : `<select onchange="cambiarRolMiembroInline(${m.id}, this.value)" class="px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer outline-none transition ${esGestor ? 'bg-amber-50 text-amber-900 border-amber-300' : 'bg-blue-50 text-blue-900 border-blue-200'}">
+           <option value="GESTOR" ${esGestor ? 'selected' : ''}>👑 Gestor de proyecto</option>
+           <option value="LECTOR" ${!esGestor ? 'selected' : ''}>👁️ Visualizador (Solo lectura)</option>
+         </select>`;
+
+    const btnAccionHTML = protegido
+      ? `<span class="text-[10px] text-slate-400 font-bold" title="Rol protegido por seguridad">🔒 Fijo</span>`
+      : `<button type="button" onclick="removerRolProyecto(${m.id}, '${nomMostrar.replace(/'/g, "\\'")}')" class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg p-1.5 transition cursor-pointer" title="Revocar rol en este proyecto">
+           <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+             <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+           </svg>
+         </button>`;
+
     tbody.innerHTML += `
-      <tr class="hover:bg-gray-50 transition border-b border-gray-100">
-        <td class="p-2.5 font-bold text-gray-800">${m.nombre_completo || '-'}</td>
-        <td class="p-2.5 font-mono text-gray-500 text-xs">@${m.username}</td>
-        <td class="p-2.5 text-center">
-          <span class="px-2.5 py-1 rounded-md text-[11px] font-bold ${esGestor ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-blue-100 text-blue-900 border border-blue-300'}">
-            ${esGestor ? '👑 Gestor de Proyecto' : '👁️ Visualizador del Proyecto'}
-          </span>
+      <tr class="hover:bg-slate-50 transition">
+        <td class="p-2.5">
+          <div class="flex items-center space-x-2.5">
+            <span class="w-7 h-7 rounded-full bg-[#0f2a4a] text-white text-[10px] font-black flex items-center justify-center flex-shrink-0">${ini}</span>
+            <div>
+              <div class="font-bold text-slate-800">${nomMostrar}</div>
+              ${m.unidad_organica ? `<div class="text-[10px] text-teal-700 font-semibold">${m.unidad_organica}</div>` : ''}
+            </div>
+          </div>
         </td>
-        <td class="p-2.5 text-center">
-          <button onclick="removerRolProyecto(${m.id}, '${m.nombre_completo || m.username}')" class="text-red-500 hover:text-red-700 font-bold px-2 py-1 cursor-pointer" title="Quitar rol">🗑️</button>
-        </td>
+        <td class="p-2.5 font-mono text-slate-500 text-xs">@${m.username}</td>
+        <td class="p-2.5 text-center">${selectorRolHTML}</td>
+        <td class="p-2.5 text-center">${btnAccionHTML}</td>
       </tr>
     `;
   });
+}
+
+export function renderizarResumenEquipoOperativo() {
+  const box = document.getElementById("personal-operativo-resumen-box");
+  if (!box) return;
+
+  const conteo = {};
+  (state.actividadesGlobal || []).forEach(a => {
+    const rStr = (a.responsable || "").trim();
+    if (rStr && rStr !== "No asignado") {
+      rStr.split(";").map(s => s.trim()).filter(Boolean).forEach(nom => {
+        conteo[nom] = (conteo[nom] || 0) + 1;
+      });
+    }
+  });
+
+  const nombres = Object.keys(conteo).sort();
+  if (nombres.length === 0) {
+    box.innerHTML = `<span class="text-[11px] text-slate-400 italic">Aún no hay responsables asignados en las actividades del cronograma.</span>`;
+    return;
+  }
+
+  box.innerHTML = nombres.map(nom => `
+    <span class="inline-flex items-center space-x-1.5 bg-slate-50 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-lg text-[11px] font-bold">
+      <span class="w-2 h-2 rounded-full bg-teal-500"></span>
+      <span>${nom}</span>
+      <span class="text-[10px] font-black bg-teal-50 text-teal-800 px-1.5 py-0.2 rounded border border-teal-200">${conteo[nom]} tarea(s)</span>
+    </span>
+  `).join("");
+}
+
+export async function cambiarRolMiembroInline(usuarioId, nuevoNivel) {
+  try {
+    const res = await apiFetch(`/proyectos/${state.proyectoActualId}/personal_permisos`, {
+      method: "POST",
+      body: JSON.stringify({ usuario_id: usuarioId, nivel: nuevoNivel })
+    });
+    if (res.ok) {
+      notificarToast(`Nivel de acceso actualizado a ${nuevoNivel === 'GESTOR' ? 'Gestor' : 'Visualizador'}.`, "success");
+      await recargarDatosPersonalProyecto();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.detail || "No se pudo cambiar el rol.");
+      await recargarDatosPersonalProyecto();
+    }
+  } catch (e) {
+    alert("Error de conexión al cambiar el rol.");
+  }
 }
 
 export function autocompletarBusquedaUsuarios(termino) {
@@ -231,7 +314,7 @@ export function autocompletarBusquedaUsuarios(termino) {
         if (inp) inp.value = `${u.nombre_completo || u.username} (@${u.username})`;
         divSugerencias.classList.add("hidden");
       };
-      divSug.appendChild(item);
+      divSugerencias.appendChild(item);
     });
   }
   divSugerencias.classList.remove("hidden");
@@ -252,7 +335,7 @@ export async function confirmarAsignacionRolUsuario() {
       body: JSON.stringify({ usuario_id: u.id, nivel: rolElegido })
     });
     if (res.ok) {
-      notificarToast(`Rol asignado con éxito.`, "success");
+      notificarToast(`Rol asignado con éxito a ${u.nombre_completo || u.username}.`, "success");
       document.getElementById("inp-buscar-usuario-rol").value = "";
       state.usuarioSeleccionadoParaRol = null;
       await recargarDatosPersonalProyecto();
@@ -266,7 +349,7 @@ export async function confirmarAsignacionRolUsuario() {
 }
 
 export async function removerRolProyecto(usuarioId, nombre) {
-  const seguro = await confirmModal(`¿Desea remover los privilegios especiales de ${nombre} en este proyecto?`, "Confirmar Retiro", "warning");
+  const seguro = await confirmModal(`¿Desea remover los privilegios especiales de ${nombre} en este proyecto?`, "Confirmar retiro de rol", "warning");
   if (!seguro) return;
 
   try {
@@ -277,11 +360,16 @@ export async function removerRolProyecto(usuarioId, nombre) {
     if (res.ok) {
       notificarToast(`Privilegios removidos para ${nombre}.`, "info");
       await recargarDatosPersonalProyecto();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.detail || "No se pudo retirar el rol.");
     }
   } catch (e) {
     alert("Error al remover permisos.");
   }
 }
+
+window.cambiarRolMiembroInline = cambiarRolMiembroInline;
 
 // --- COMENTARIOS COLABORATIVOS TIPO WORD 365 ---
 export async function cargarComentariosProyecto() {
@@ -457,6 +545,7 @@ export async function eliminarComentario(id) {
     if (res.ok) {
       notificarToast("Comentario eliminado.", "info");
       await cargarComentariosProyecto();
+      if (typeof window.refrescarDatosInspectorActivo === "function") window.refrescarDatosInspectorActivo();
       renderizarTarjetasComentarios();
     }
   } catch (e) {
@@ -762,3 +851,4 @@ window.cerrarModalCargaTrabajo = cerrarModalCargaTrabajo;
 window.filtrarCategoriaHistorial = filtrarCategoriaHistorial;
 window.renderizarVistaHistorialAuditoria = renderizarVistaHistorialAuditoria;
 window.exportarHistorialAuditoriaCSV = exportarHistorialAuditoriaCSV;
+window.cambiarRolMiembroInline = cambiarRolMiembroInline;

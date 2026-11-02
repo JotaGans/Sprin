@@ -342,7 +342,7 @@ def ver_historial(
         print(f"Error consultando historial: {e}")
         return []
 
-# 9. Administración de personal y roles dentro del proyecto
+# 9. Administración de personal y roles dentro del proyecto (Con protección de Creador y Unidad Orgánica)
 @router.get("/proyectos/{proyecto_id}/personal_permisos")
 def listar_personal_proyecto(
     proyecto_id: int, 
@@ -350,20 +350,41 @@ def listar_personal_proyecto(
     db: sqlite3.Connection = Depends(get_db)
 ):
     p_id = int(proyecto_id)
-    
+    proy = db.execute("SELECT creador_id FROM proyectos WHERE id = ?", (p_id,)).fetchone()
+    creador_id = proy["creador_id"] if proy else None
+
     miembros = db.execute("""
-        SELECT u.id, u.username, u.nombre_completo, u.rol,
+        SELECT u.id, u.username, 
+               COALESCE(t.nombre_completo, u.nombre_completo, u.username) as nombre_completo, 
+               COALESCE(t.unidad_organica, '') as unidad_organica,
+               u.rol,
                pu.es_gestor,
-               COALESCE(pu.permiso, CASE WHEN pu.es_gestor = 1 OR p.creador_id = u.id THEN 'GESTOR' ELSE 'VISUALIZADOR' END) as nivel_permiso
+               CASE WHEN pu.es_gestor = 1 OR p.creador_id = u.id THEN 'GESTOR' ELSE 'LECTOR' END as nivel_permiso
         FROM proyecto_usuarios pu
         JOIN usuarios u ON pu.usuario_id = u.id
         JOIN proyectos p ON p.id = pu.proyecto_id
+        LEFT JOIN trabajadores t ON (
+            u.nombre_completo = t.nombre_completo 
+            OR t.correo LIKE u.username || '@%'
+            OR u.username = t.correo
+        )
         WHERE pu.proyecto_id = ? AND u.estado = 'ACTIVO'
-        ORDER BY u.nombre_completo ASC
+        ORDER BY pu.es_gestor DESC, nombre_completo ASC
     """, (p_id,)).fetchall()
 
     todos = db.execute("""
-        SELECT id, username, nombre_completo, rol FROM usuarios WHERE estado = 'ACTIVO' ORDER BY nombre_completo ASC
+        SELECT u.id, u.username, 
+               COALESCE(t.nombre_completo, u.nombre_completo, u.username) as nombre_completo, 
+               COALESCE(t.unidad_organica, '') as unidad_organica,
+               u.rol, u.estado
+        FROM usuarios u
+        LEFT JOIN trabajadores t ON (
+            u.nombre_completo = t.nombre_completo 
+            OR t.correo LIKE u.username || '@%'
+            OR u.username = t.correo
+        )
+        WHERE u.estado = 'ACTIVO'
+        ORDER BY nombre_completo ASC
     """).fetchall()
 
     acts = db.execute("SELECT DISTINCT responsable FROM actividades WHERE proyecto_id = ? AND responsable IS NOT NULL", (p_id,)).fetchall()
@@ -375,6 +396,7 @@ def listar_personal_proyecto(
                 responsables_en_acts.append(limpio)
 
     return {
+        "creador_id": creador_id,
         "miembros": [dict(m) for m in miembros],
         "todos_usuarios": [dict(u) for u in todos],
         "responsables_en_actividades": responsables_en_acts
@@ -399,24 +421,47 @@ def actualizar_permiso_personal(
     if not permiso_admin and user.get("rol") != "ADMIN_TI":
         raise HTTPException(status_code=403, detail="Solo un Gestor del Proyecto puede asignar permisos.")
 
-    es_gestor_val = 1 if data.nivel == 'GESTOR' else 0
+    proy = db.execute("SELECT creador_id FROM proyectos WHERE id = ?", (p_id,)).fetchone()
+    creador_id = proy["creador_id"] if proy else None
 
-    if data.nivel == 'NINGUNO':
-        db.execute("DELETE FROM proyecto_usuarios WHERE proyecto_id = ? AND usuario_id = ?", (p_id, data.usuario_id))
-    else:
-        db.execute("""
-            INSERT INTO proyecto_usuarios (proyecto_id, usuario_id, es_gestor, permiso)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(proyecto_id, usuario_id) DO UPDATE SET es_gestor = excluded.es_gestor, permiso = excluded.permiso
-        """, (p_id, data.usuario_id, es_gestor_val, data.nivel))
+    nivel_norm = (data.nivel or "").upper().strip()
+    if nivel_norm in ("NINGUNO", "LECTOR", "VISUALIZADOR"):
+        if creador_id and int(data.usuario_id) == int(creador_id):
+            raise HTTPException(status_code=400, detail="Por seguridad, el Creador original del proyecto siempre conserva el rol de Gestor.")
+        if int(data.usuario_id) == u_id and user.get("rol") != "ADMIN_TI":
+            raise HTTPException(status_code=400, detail="Por seguridad, no puedes revocar ni degradar tu propio permiso de Gestor.")
 
     u_target = db.execute("SELECT username, nombre_completo FROM usuarios WHERE id = ?", (data.usuario_id,)).fetchone()
     target_info = u_target["nombre_completo"] if u_target and u_target["nombre_completo"] else f"@{u_target['username']}"
-    
+
+    if nivel_norm == "NINGUNO":
+        db.execute("DELETE FROM proyecto_usuarios WHERE proyecto_id = ? AND usuario_id = ?", (p_id, data.usuario_id))
+        accion_hist = "Retiro de Rol en Proyecto"
+        detalle_hist = f"Retiró el acceso especial de: {target_info}"
+    else:
+        es_gestor_val = 1 if nivel_norm == "GESTOR" else 0
+        permiso_bd = "GESTOR" if es_gestor_val == 1 else "VISUALIZADOR"
+        existe = db.execute("SELECT 1 FROM proyecto_usuarios WHERE proyecto_id = ? AND usuario_id = ?", (p_id, data.usuario_id)).fetchone()
+        if existe:
+            db.execute("""
+                UPDATE proyecto_usuarios 
+                SET es_gestor = ?, permiso = ? 
+                WHERE proyecto_id = ? AND usuario_id = ?
+            """, (es_gestor_val, permiso_bd, p_id, data.usuario_id))
+        else:
+            db.execute("""
+                INSERT INTO proyecto_usuarios (proyecto_id, usuario_id, es_gestor, permiso)
+                VALUES (?, ?, ?, ?)
+            """, (p_id, data.usuario_id, es_gestor_val, permiso_bd))
+
+        etiqueta_amigable = "Gestor de proyecto" if es_gestor_val == 1 else "Visualizador (Solo lectura)"
+        accion_hist = "Asignación de Rol en Proyecto"
+        detalle_hist = f"Asignó rol '{etiqueta_amigable}' a: {target_info}"
+
     db.execute("""
         INSERT INTO historial (proyecto_id, timestamp, usuario, accion, detalle)
-        VALUES (?, ?, ?, 'Permisos Proyecto', ?)
-    """, (p_id, ahora_peru_str(), user["username"], f"Asignó rol '{data.nivel}' a: {target_info}"))
+        VALUES (?, ?, ?, ?, ?)
+    """, (p_id, ahora_peru_str(), user["username"], accion_hist, detalle_hist))
 
     db.commit()
     return {"mensaje": "Permiso actualizado exitosamente"}
