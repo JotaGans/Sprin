@@ -697,26 +697,62 @@ body.is-connecting-gantt .gantt-connect-handle {
   scrollbar-width: none;
 }
 
-/* Estados activos estéticos (Soft Pill) para las tarjetas KPI sin bordes negros bruscos */
+/* Estados activos estéticos (Soft Pill) con subrayado instantáneo desde el primer clic */
 .kpi-pill-btn {
   position: relative;
-  transition: all 0.18s ease;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
   border-radius: 10px;
 }
 
-.kpi-pill-active-emerald {
+.kpi-pill-active-emerald,
+.kpi-pill-active-emerald:focus {
   background-color: #ecfdf5 !important;
-  box-shadow: inset 0 -2.5px 0 #10b981, 0 1px 2px rgba(16, 185, 129, 0.12);
+  box-shadow: inset 0 -3px 0 #10b981 !important;
 }
 
-.kpi-pill-active-amber {
+.kpi-pill-active-amber,
+.kpi-pill-active-amber:focus {
   background-color: #fffbeb !important;
-  box-shadow: inset 0 -2.5px 0 #f59e0b, 0 1px 2px rgba(245, 158, 11, 0.12);
+  box-shadow: inset 0 -3px 0 #f59e0b !important;
 }
 
-.kpi-pill-active-rose {
+.kpi-pill-active-rose,
+.kpi-pill-active-rose:focus {
   background-color: #fff1f2 !important;
-  box-shadow: inset 0 -2.5px 0 #f43f5e, 0 1px 2px rgba(244, 63, 94, 0.12);
+  box-shadow: inset 0 -3px 0 #f43f5e !important;
+}
+
+/* Animación sutil de borde ámbar/naranja tenue intermitente para el indicador de filtros activos */
+@keyframes filterBorderPulse {
+  0%, 100% {
+    border-color: #fbbf24;
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+  50% {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.22);
+  }
+}
+
+.filter-active-pill-animated {
+  background-color: #fffbeb;
+  color: #92400e;
+  border: 1.5px solid #f59e0b;
+  animation: filterBorderPulse 2.2s infinite ease-in-out;
+}
+
+/* Garantizar que los sub-modales (Responsables, Predecesoras, Comentarios, Alertas) SIEMPRE se abran DELANTE de "Editar actividad" */
+#modal-inspector-actividad {
+  z-index: 68 !important;
+}
+
+#modal-asignar-responsables,
+#modal-dependencias,
+#modal-comentarios,
+#modal-notificacion-correo,
+#modal-dialog-imarpe,
+#modal-input-custom {
+  z-index: 110 !important;
 }
 
 /* Animación suave para inserción de tarjetas en Kanban sin parpadeo */
@@ -734,13 +770,12 @@ body.is-connecting-gantt .gantt-connect-handle {
   animation: kanbanDropPulse 0.28s ease-out;
 }
 
-/* Eliminar bordes negros bruscos nativos del navegador al hacer clic en botones del proyecto */
+/* Eliminar únicamente el outline negro nativo del navegador SIN borrar el box-shadow de los KPIs */
 #bloque-superior-gantt button:focus,
 #bloque-superior-gantt select:focus,
 #view-dashboard button:focus,
 #modal-inspector-actividad button:focus {
   outline: none !important;
-  box-shadow: none;
 }
 
 /* Quitar flechitas internas en el cuadro numérico */

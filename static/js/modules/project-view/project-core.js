@@ -565,8 +565,31 @@ export async function confirmarReasignacionProcesoProyecto() {
   }
 }
 
+export function mostrarContadorTituloProyecto(el) {
+  const cont = document.getElementById("contador-titulo-proy");
+  if (!cont || !el) return;
+  cont.innerText = `${(el.value || "").length}/80`;
+  cont.classList.remove("hidden");
+}
+
+export function ocultarContadorTituloProyecto() {
+  const cont = document.getElementById("contador-titulo-proy");
+  if (cont) cont.classList.add("hidden");
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("input", (e) => {
+    if (e.target && e.target.id === "txt-nombre-proyecto") {
+      const cont = document.getElementById("contador-titulo-proy");
+      if (cont) cont.innerText = `${(e.target.value || "").length}/80`;
+    }
+  });
+}
+
 // Exposición al objeto window para eventos onclick del HTML
 window.renderizarIndicadorProcesoProyecto = renderizarIndicadorProcesoProyecto;
 window.abrirSelectorProcesoProyectoActivo = abrirSelectorProcesoProyectoActivo;
 window.cerrarSelectorProcesoProyectoActivo = cerrarSelectorProcesoProyectoActivo;
 window.confirmarReasignacionProcesoProyecto = confirmarReasignacionProcesoProyecto;
+window.mostrarContadorTituloProyecto = mostrarContadorTituloProyecto;
+window.ocultarContadorTituloProyecto = ocultarContadorTituloProyecto;

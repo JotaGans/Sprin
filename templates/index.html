@@ -337,59 +337,65 @@
   <!-- BLOQUE SUPERIOR CONGELADO DEL PROYECTO (3 PISOS CON EJE CENTRAL COMPARTIDO ENTRE TÍTULO Y KPIS) -->
   <div id="bloque-superior-gantt" class="hidden sticky top-0 z-50 shadow-md bg-[#f4f7f6]">
     
-    <!-- PISO 1: HEADER INSTITUCIONAL CON GRILLA SIMÉTRICA DE 3 COLUMNAS (EL TÍTULO COMPARTE EL MISMO EJE CENTRAL QUE LOS KPIS) -->
+    <!-- PISO 1: HEADER INSTITUCIONAL CON LOGO REAL, CONTADOR xy/80 Y DATOS DE USUARIO SINCRONIZADOS -->
     <header class="bg-[#0f2a4a] text-white shadow-xs border-b border-blue-900/60">
       <div class="max-w-[1920px] w-full mx-auto px-2 sm:px-6 min-h-[50px] py-1 grid grid-cols-[auto_1fr_auto] lg:grid-cols-[1fr_auto_1fr] items-center gap-2">
         
-        <!-- Columna 1 (Izquierda): Logo IMARPE -->
+        <!-- Columna 1 (Izquierda): Imagotipo Oficial del IMARPE -->
         <div class="flex items-center space-x-2.5 flex-shrink-0 justify-start">
-          <img src="/static/img/logo-imarpe.png" alt="Logo IMARPE" class="h-7 sm:h-8 w-auto object-contain">
-          <div class="hidden sm:flex flex-col justify-center">
-            <span class="font-extrabold text-sm tracking-wider leading-none block text-white">IMARPE</span>
-            <span class="text-[7px] text-gray-200 tracking-tight uppercase leading-none mt-0.5 block">Instituto del Mar del Perú</span>
-          </div>
+          <img src="/static/IMARPE%20IMAGOTIPO.png" alt="IMARPE" class="h-8 sm:h-9 w-auto object-contain drop-shadow-2xs">
         </div>
 
-        <!-- Columna 2 (Centro Exacto): Título del Proyecto alineado verticalmente con el Scorecard de KPIs -->
-        <div class="flex items-center justify-center min-w-0 px-1 sm:px-4">
+        <!-- Columna 2 (Centro Exacto): Título del Proyecto con Indicador de Caracteres (xy/80) al Editar -->
+        <div class="relative flex items-center justify-center min-w-0 px-1 sm:px-4 group">
           <textarea id="txt-nombre-proyecto" rows="1" maxlength="80"
+                    onfocus="mostrarContadorTituloProyecto(this)"
+                    onblur="ocultarContadorTituloProyecto()"
                     oninput="ajustarAlturaTituloProyecto(this)"
                     onchange="guardarNombreProyectoInline()"
                     onkeydown="if(event.key === 'Enter') { event.preventDefault(); this.blur(); }"
-                    class="bg-transparent text-white font-black text-sm sm:text-base md:text-lg lg:text-[20px] tracking-tight px-2 py-0.5 rounded border border-transparent hover:border-blue-700/80 focus:border-teal-400 focus:bg-[#0a1c33] outline-none transition w-full sm:w-[360px] md:w-[480px] lg:w-[560px] text-center resize-none overflow-hidden leading-tight block my-auto"
-                    title="Clic para editar el nombre del proyecto"></textarea>
+                    class="bg-transparent text-white font-black text-sm sm:text-base md:text-lg lg:text-[20px] tracking-tight px-2.5 py-0.5 rounded-lg border border-transparent hover:border-blue-700/80 focus:border-teal-400 focus:bg-[#0a1c33] outline-none transition w-full sm:w-[360px] md:w-[480px] lg:w-[560px] text-center resize-none overflow-hidden leading-tight block my-auto"
+                    title="Clic para editar el nombre del proyecto (máximo 80 caracteres)"></textarea>
+          <span id="contador-titulo-proy" class="hidden absolute -bottom-4 right-4 bg-[#0a1c33] text-teal-300 border border-teal-500/40 text-[9.5px] font-mono font-bold px-1.5 py-0.2 rounded shadow-sm pointer-events-none z-30">0/80</span>
         </div>
 
-        <!-- Columna 3 (Derecha): Rol en Proyecto + Usuario + Salir -->
+        <!-- Columna 3 (Derecha): Rol en Proyecto + Usuario Real + Salir -->
         <div class="flex items-center justify-end space-x-1.5 sm:space-x-2.5 flex-shrink-0">
           <div class="flex items-center border-r border-blue-800/80 pr-1.5 sm:pr-2.5 h-7">
             <span id="badge-rol-gantt" class="h-7 px-2 sm:px-2.5 rounded flex items-center justify-center"></span>
           </div>
 
-          <div class="text-right leading-tight hidden xl:block">
-            <p class="text-xs font-bold text-white gantt-user-nombre">Cargando...</p>
-            <p class="text-[9px] text-teal-300 font-bold uppercase tracking-wider gantt-user-rol">ROL</p>
+          <div class="text-right leading-tight hidden sm:block">
+            <p id="gantt-user-nombre" class="text-xs font-bold text-white gantt-user-nombre hub-user-nombre">admin</p>
+            <p id="gantt-user-rol" class="text-[9px] text-teal-300 font-bold uppercase tracking-wider gantt-user-rol hub-user-rol">ADMINISTRADOR TI</p>
           </div>
-          <button onclick="cerrarSesion()" class="h-7 bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold px-2.5 rounded transition shadow-2xs cursor-pointer flex items-center justify-center">
+          <button type="button" onclick="cerrarSesion()" class="h-7 bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold px-2.5 rounded transition shadow-2xs cursor-pointer flex items-center justify-center">
             Salir
           </button>
         </div>
       </div>
     </header>
 
-    <!-- PISO 2: NAVEGACIÓN AL HUB + SCORECARD EJECUTIVO DE KPIS + GESTIÓN (ESCALADO RESPONSIVO FLUIDO) -->
+    <!-- PISO 2: NAVEGACIÓN AL HUB + SCORECARD EJECUTIVO DE KPIS + GESTIÓN -->
     <div class="max-w-[1920px] w-full mx-auto px-2 sm:px-6 py-1.5 bg-slate-100/95 border-b border-gray-200 relative z-45">
       <div class="grid grid-cols-[auto_1fr_auto] lg:grid-cols-[1fr_auto_1fr] items-center min-h-[36px] gap-1.5 sm:gap-2 w-full">
         
-        <!-- Columna 1 (Izquierda): Botón Casita sin tooltip nativo duplicado y con espacio libre para expandirse -->
-        <div class="flex items-center justify-start">
+        <!-- Columna 1 (Izquierda): Casita + Chip Animado de Filtros Activos (Ubicado a distancia segura para que la casita nunca lo tape al expandirse) -->
+        <div class="flex items-center justify-start min-w-0">
           <div class="relative flex-shrink-0 z-20 w-8 h-8 ml-[5px]">
-            <button type="button" onclick="volverAlHub()" class="group h-8 w-8 md:hover:w-[148px] px-[7px] md:hover:px-2.5 bg-[#0f2a4a] hover:bg-[#1b4573] text-white border border-blue-900/60 rounded-lg text-xs font-bold transition-all duration-200 ease-out shadow-2xs flex items-center justify-center md:justify-start cursor-pointer whitespace-nowrap overflow-hidden">
+            <button type="button" onclick="volverAlHub()" class="group h-8 w-8 md:hover:w-[146px] px-[7px] md:hover:px-2.5 bg-[#0f2a4a] hover:bg-[#1b4573] text-white border border-blue-900/60 rounded-lg text-xs font-bold transition-all duration-200 ease-out shadow-2xs flex items-center justify-center md:justify-start cursor-pointer whitespace-nowrap overflow-hidden">
               <svg class="w-4 h-4 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
               </svg>
               <span class="max-w-0 opacity-0 md:group-hover:max-w-[115px] md:group-hover:opacity-100 md:group-hover:ml-1.5 transition-all duration-200 ease-out font-bold overflow-hidden leading-none text-white tracking-tight">Volver a proyectos</span>
             </button>
+          </div>
+
+          <!-- Indicador Temporal de Filtros con Borde Naranja/Ámbar Tenue Intermitente (Separado 118px en desktop para no chocar jamás con la casita expandida ni con el Gantt) -->
+          <div id="badge-filtro-activo" class="hidden items-center filter-active-pill-animated text-[10.5px] font-bold pl-2.5 pr-1.5 h-7 rounded-full space-x-1.5 whitespace-nowrap ml-2 md:ml-[118px] max-w-[200px] xl:max-w-[270px] transition-all">
+            <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping flex-shrink-0" style="animation-duration: 1.8s;"></span>
+            <span id="badge-filtro-texto" class="truncate leading-none font-extrabold text-amber-950">Filtro</span>
+            <button type="button" onclick="limpiarTodosFiltros()" class="w-4 h-4 rounded-full bg-amber-200/80 hover:bg-rose-500 text-amber-900 hover:text-white font-black text-[9.5px] flex items-center justify-center transition cursor-pointer flex-shrink-0 ml-0.5" title="Quitar todos los filtros de golpe">✕</button>
           </div>
         </div>
 
@@ -406,7 +412,7 @@
                 </span>
                 <div class="flex items-center space-x-1.5 sm:space-x-2 mt-1">
                   <span id="kpi-avance" class="text-xs sm:text-sm font-black text-[#0f2a4a] leading-none">0%</span>
-                  <div class="w-10 sm:w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60 hidden xs:block sm:block">
+                  <div class="w-10 sm:w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60 hidden sm:block">
                     <div id="kpi-avance-barra" class="h-full bg-teal-600 rounded-full transition-all duration-300" style="width: 0%"></div>
                   </div>
                 </div>
@@ -457,7 +463,7 @@
           </div>
         </div>
 
-        <!-- Columna 3 (Derecha): Personal, Carga de trabajo e Historial con Textos Escalonados Responsivos -->
+        <!-- Columna 3 (Derecha): Personal, Carga de trabajo e Historial -->
         <div class="flex items-center justify-end space-x-1 sm:space-x-1.5 flex-shrink-0">
           <button type="button" id="btn-personal-gantt" onclick="abrirResponsables()" class="h-8 px-2 sm:px-2.5 bg-white hover:bg-slate-200 text-[#0f2a4a] border border-gray-300 rounded-lg text-xs font-bold transition shadow-2xs flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap" title="Administración de personal y roles del proyecto">
             <svg class="w-3.5 h-3.5 text-[#0f2a4a] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -484,7 +490,7 @@
       </div>
     </div>
 
-    <!-- PISO 3: TOOLBAR OPERATIVO FLUIDO + CHIP DE FILTROS INTEGRADO EN ZONA DE FILTROS + ICONOS SVG UNIFICADOS -->
+    <!-- PISO 3: TOOLBAR OPERATIVO FLUIDO (SIN SOLAPAMIENTOS CON EL GANTT) -->
     <div class="relative z-40 max-w-[1920px] w-full mx-auto px-2 sm:px-6 py-1.5">
       <div class="relative z-40 flex items-center justify-between gap-2 bg-white px-2.5 py-1.5 rounded-xl shadow-xs border border-gray-200/90 overflow-x-auto lg:overflow-visible no-scrollbar">
         
@@ -582,18 +588,9 @@
               <option value="3" class="bg-white text-gray-800 text-xs py-1.5">Hasta Nivel 3 (Incluir Subtareas)</option>
             </select>
           </div>
-
-          <!-- 8. Chip de Filtros Aplicados (Ubicado inmediatamente al lado de los filtros para visibilidad instantánea y sin chocar con la casita) -->
-          <div id="badge-filtro-activo" class="hidden items-center bg-[#0f2a4a]/5 text-[#0f2a4a] border border-[#0f2a4a]/20 text-[11px] font-bold pl-2.5 pr-1.5 h-[30px] rounded-lg shadow-2xs space-x-1.5 whitespace-nowrap flex-shrink-0">
-            <svg class="w-3.5 h-3.5 text-teal-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
-            </svg>
-            <span id="badge-filtro-texto" class="truncate max-w-[160px] xl:max-w-[220px] leading-none font-extrabold">Filtro</span>
-            <button type="button" onclick="limpiarTodosFiltros()" class="w-5 h-5 rounded-md bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 font-black text-[10px] flex items-center justify-center transition cursor-pointer flex-shrink-0" title="Limpiar todos los filtros">✕</button>
-          </div>
         </div>
 
-        <!-- SECCIÓN DERECHA: CONTROLES CONTEXTUALES DEL GANTT + RUTA CRÍTICA + OPCIONES CON ICONOS SVG -->
+        <!-- SECCIÓN DERECHA: CONTROLES CONTEXTUALES DEL GANTT + RUTA CRÍTICA + OPCIONES -->
         <div class="flex items-center gap-1.5 flex-shrink-0 flex-nowrap">
           <!-- Botón Rápido: Pegar lista -->
           <button type="button" id="btn-pegar-lista-toolbar" onclick="abrirModalPegarListaTareas()" class="h-[30px] bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold px-2.5 rounded-lg transition flex items-center space-x-1.5 cursor-pointer whitespace-nowrap flex-shrink-0" title="Pegar lista de actividades desde Word o Excel">
@@ -659,7 +656,7 @@
             </div>
           </div>
 
-          <!-- Menú Agrupado de Opciones (100% Iconos SVG Minimalistas y sin borde negro brusco) -->
+          <!-- Menú Agrupado de Opciones (100% Iconos SVG Minimalistas) -->
           <div class="relative z-[200] flex items-center flex-shrink-0" onmouseenter="cancelarCierreMenuOpciones()" onmouseleave="iniciarCierreMenuOpciones()">
             <button type="button" onclick="document.getElementById('menu-herramientas-vista').classList.toggle('hidden')" class="h-[30px] px-2.5 bg-slate-100 hover:bg-slate-200 text-[#0f2a4a] border border-slate-300 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer focus:outline-none" title="Opciones de visualización y exportación">
               <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -2547,6 +2544,6 @@
   </div>
 
     <!-- Carga del Módulo Orquestador Principal ES6 -->
-    <script type="module" src="/static/js/main.js?v=100045"></script>
+    <script type="module" src="/static/js/main.js?v=100046"></script>
 </body>
 </html>
