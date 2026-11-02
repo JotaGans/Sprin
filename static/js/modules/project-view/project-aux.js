@@ -4,36 +4,110 @@ import { notificarToast, confirmModal, formatearFechaLatina } from "../../core/u
 import { renderizarTabla } from "./project-wbs.js";
 
 // --- HISTORIAL DE AUDITORÍA ---
-export async function abrirHistorial() {
-  if (!state.proyectoActualId) return;
-  const modal = document.getElementById("modal-historial");
-  const tbody = document.getElementById("historial-tabla-body");
-  if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-gray-400 font-semibold animate-pulse">Cargando registros de auditoría...</td></tr>`;
-  modal.classList.remove("hidden");
+let logsAuditoriaCache = [];
+let categoriaHistorialActiva = "todos";
 
-  try {
-    const res = await apiFetch(`/proyectos/${state.proyectoActualId}/historial`);
-    if (!res.ok) throw new Error("No se pudo cargar el historial");
-    const data = await res.json();
-    tbody.innerHTML = "";
+function clasificarEventoAuditoria(log) {
+  const acc = (log.accion || "").toLowerCase();
+  const det = (log.detalle || "").toLowerCase();
 
-    if (data && data.length > 0) {
-      data.forEach(h => {
-        tbody.innerHTML += `
-          <tr class="hover:bg-gray-50 transition">
-            <td class="p-2.5 text-gray-500 font-mono text-[11px] whitespace-nowrap border-b border-gray-100">${h.timestamp || '-'}</td>
-            <td class="p-2.5 font-bold text-teal-700 font-mono text-xs whitespace-nowrap border-b border-gray-100">@${h.usuario || 'admin'}</td>
-            <td class="p-2.5 font-bold text-[#0f2a4a] whitespace-nowrap border-b border-gray-100">${h.accion || '-'}</td>
-            <td class="p-2.5 text-gray-800 border-b border-gray-100">${h.detalle || '-'}</td>
-          </tr>
-        `;
-      });
-    } else {
-      tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-gray-400 font-semibold">Sin registros de auditoría en este proyecto.</td></tr>`;
-    }
-  } catch (err) {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-red-500 font-semibold">Error al consultar el historial de auditoría.</td></tr>`;
+  if (acc.includes("deshacer") || acc.includes("rehacer")) {
+    return { cat: "reversion", badge: "bg-purple-50 text-purple-800 border-purple-200", icono: "↶", label: log.accion };
   }
+  if (acc.includes("nueva") || acc.includes("creó") || acc.includes("lote") || acc.includes("plantilla")) {
+    return { cat: "creacion", badge: "bg-emerald-50 text-emerald-800 border-emerald-200", icono: "✨", label: log.accion };
+  }
+  if (acc.includes("elimina")) {
+    return { cat: "creacion", badge: "bg-rose-50 text-rose-800 border-rose-200", icono: "🗑️", label: log.accion };
+  }
+  if (acc.includes("responsable") || acc.includes("personal") || det.includes("responsable:")) {
+    return { cat: "equipo", badge: "bg-indigo-50 text-indigo-800 border-indigo-200", icono: "👥", label: log.accion };
+  }
+  if (det.includes("plazo:") || det.includes("fechas:") || acc.includes("reorden")) {
+    return { cat: "plazos", badge: "bg-amber-50 text-amber-900 border-amber-200", icono: "📅", label: log.accion };
+  }
+  if (det.includes("estado") || det.includes("avance") || det.includes("progreso")) {
+    return { cat: "progreso", badge: "bg-blue-50 text-blue-800 border-blue-200", icono: "📈", label: log.accion };
+  }
+  return { cat: "progreso", badge: "bg-slate-100 text-slate-700 border-slate-200", icono: "📝", label: log.accion };
+}
+
+export async function abrirHistorial() {
+  const res = await apiFetch(`/proyectos/${state.proyectoActualId}/historial`); if (!res.ok) return;  logsAuditoriaCache = await res.json(); categoriaHistorialActiva = "todos"; const inpBusq = document.getElementById("input-busq-historial"); if (inpBusq) inpBusq.value = "";  filtrarCategoriaHistorial("todos"); document.getElementById("modal-historial")?.classList.remove("hidden"); }  export function filtrarCategoriaHistorial(cat) { categoriaHistorialActiva = cat \vert{}\vert{} "todos"; const cats = ["todos", "creacion", "progreso", "plazos", "equipo", "reversion"]; cats.forEach(c => { const btn = document.getElementById(`btn-hist-cat-${c}`);
+    if (btn) {
+      btn.className = (c === categoriaHistorialActiva)
+        ? "px-2.5 py-1 rounded-lg text-[11px] font-black bg-[#0f2a4a] text-white cursor-pointer transition shadow-2xs"
+        : "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition";
+    }
+  });
+  renderizarVistaHistorialAuditoria();
+}
+
+export function renderizarVistaHistorialAuditoria() {
+  const tbody = document.getElementById("tabla-historial-body");
+  const txtResumen = document.getElementById("txt-resumen-registros-historial");
+  if (!tbody) return;
+
+  const q = (document.getElementById("input-busq-historial")?.value || "").toLowerCase().trim();
+
+  const filtrados = (logsAuditoriaCache || []).filter(l => {
+    const info = clasificarEventoAuditoria(l);
+    if (categoriaHistorialActiva !== "todos" && info.cat !== categoriaHistorialActiva) return false;
+    if (q) {
+      const texto = `${l.timestamp}${l.usuario} ${l.accion}${l.detalle}`.toLowerCase();
+      if (!texto.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (txtResumen) {
+    txtResumen.innerText = `Mostrando ${filtrados.length} de${logsAuditoriaCache.length} evento(s) auditados`;
+  }
+
+  if (filtrados.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-400 italic font-semibold">No se encontraron registros de auditoría con los criterios seleccionados.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtrados.map(l => {
+    const info = clasificarEventoAuditoria(l);
+    const ini = (l.usuario || "U").substring(0, 2).toUpperCase();
+    // Resaltar códigos entre corchetes [1.1] y flechas de cambio →
+    const detalleEnriquecido = String(l.detalle || "")
+      .replace(/\[([\d.]+)\]/g, '<span class="font-mono font-black text-[#0f2a4a] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">[$1]</span>')
+      .replace(/→/g, '<span class="text-teal-600 font-black mx-0.5">→</span>');
+
+    return `
+      <tr class="hover:bg-slate-50/90 transition">
+        <td class="p-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">${l.timestamp}</td>
+        <td class="p-3 whitespace-nowrap">
+          <div class="inline-flex items-center space-x-2">
+            <span class="w-6 h-6 rounded-full bg-[#0f2a4a] text-white text-[9.5px] font-black flex items-center justify-center">${ini}</span>
+            <span class="font-bold text-slate-800">@${l.usuario}</span>
+          </div>
+        </td>
+        <td class="p-3 whitespace-nowrap">
+          <span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold border ${info.badge}">
+            <span>${info.icono}</span>
+            <span>${info.label}</span>
+          </span>
+        </td>
+        <td class="p-3 text-slate-700 font-medium leading-relaxed">${detalleEnriquecido}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+export function exportarHistorialAuditoriaCSV() {
+  if (!logsAuditoriaCache || logsAuditoriaCache.length === 0) {
+    alert("No hay registros de auditoría para exportar.");
+    return;
+  }
+  let csv = "\uFEFFFecha y Hora;Usuario;Acción;Detalle\n";
+  logsAuditoriaCache.forEach(l => {
+    const detLimpio = String(l.detalle || "").replace(/;/g, ",").replace(/\r?\n/g, " ");
+    csv += `"${l.timestamp}";"@${l.usuario}";"${l.accion}";"${detLimpio}"\n`; }); const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `Auditoria_Proyecto_${state.proyectoActualId}.csv`;
+  link.click();
 }
 
 export function cerrarHistorial() {
@@ -669,3 +743,6 @@ window.cerrarModalImportarPlantillaProyecto = cerrarModalImportarPlantillaProyec
 window.ejecutarImportacionEnProyectoActivo = ejecutarImportacionEnProyectoActivo;
 window.abrirModalCargaTrabajo = abrirModalCargaTrabajo;
 window.cerrarModalCargaTrabajo = cerrarModalCargaTrabajo;
+window.filtrarCategoriaHistorial = filtrarCategoriaHistorial;
+window.renderizarVistaHistorialAuditoria = renderizarVistaHistorialAuditoria;
+window.exportarHistorialAuditoriaCSV = exportarHistorialAuditoriaCSV;

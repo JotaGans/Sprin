@@ -159,7 +159,10 @@ function calcularVentanaTemporal() {
   if (modo === "dias") {
     const ventanaDias = 28;
     const maxOffset = Math.max(0, state.diasTotalesAnio.length - ventanaDias);
-    const startIdx = Math.min(maxOffset, offset * 7);
+    // Si existe un índice de día exacto calculado por los botones Hoy/Inicio, usarlo con precisión; si se mueve con flechas, avanza de 7 en 7 días
+    const startIdx = (typeof state.diaInicioIndexExacto === "number")
+      ? Math.min(maxOffset, Math.max(0, state.diaInicioIndexExacto))
+      : Math.min(maxOffset, offset * 7);
     const dias = state.diasTotalesAnio.slice(startIdx, startIdx + ventanaDias);
     if (!dias.length) return null;
     const tIni = dias[0].fecha.getTime();
@@ -169,9 +172,8 @@ function calcularVentanaTemporal() {
   }
 
   if (modo === "meses") {
-    // 1 unidad de scroll = 1 mes desplazado
-    const baseYear = new Date().getFullYear();
-    const startMonthTotal = (baseYear * 12) + Math.floor(offset / 4);
+    const minAnioCal = state.diasTotalesAnio.length > 0 ? state.diasTotalesAnio[0].anio : new Date().getFullYear();
+    const startMonthTotal = (minAnioCal * 12) + Math.floor(offset / 4);
     const mesesItems = [];
     for (let i = 0; i < 12; i++) {
       const currentMonthTotal = startMonthTotal + i;
@@ -185,9 +187,8 @@ function calcularVentanaTemporal() {
   }
 
   if (modo === "trimestres") {
-    // 1 unidad de scroll = 1 trimestre desplazado
-    const baseYear = new Date().getFullYear();
-    const startQTotal = (baseYear * 4) + Math.floor(offset / 12);
+    const minAnioCal = state.diasTotalesAnio.length > 0 ? state.diasTotalesAnio[0].anio : new Date().getFullYear();
+    const startQTotal = (minAnioCal * 4) + Math.floor(offset / 12);
     const trimestresItems = [];
     for (let i = 0; i < 8; i++) {
       const currQ = startQTotal + i;
@@ -201,9 +202,8 @@ function calcularVentanaTemporal() {
   }
 
   if (modo === "semestres") {
-    // 1 unidad de scroll = 1 semestre desplazado
-    const baseYear = new Date().getFullYear();
-    const startSTotal = (baseYear * 2) + Math.floor(offset / 24);
+    const minAnioCal = state.diasTotalesAnio.length > 0 ? state.diasTotalesAnio[0].anio : new Date().getFullYear();
+    const startSTotal = (minAnioCal * 2) + Math.floor(offset / 24);
     const semestresItems = [];
     for (let i = 0; i < 6; i++) {
       const currS = startSTotal + i;
@@ -216,7 +216,6 @@ function calcularVentanaTemporal() {
     return { modo, items: semestresItems, tIni, tFin, duracion: tFin - tIni };
   }
 
-  // Semanas (modo por defecto)
   const ventanaSemanas = 16;
   const maxOffset = Math.max(0, state.semanasTotales.length - ventanaSemanas);
   const startIdx = Math.min(maxOffset, offset);
@@ -701,27 +700,17 @@ export function actualizarEstadoBotonesNavegacionGantt(modoActivo) {
   if (btnHoy) btnHoy.className = (modoActivo === "hoy") ? claseActiva : claseInactiva;
 }
 
-export function obtenerIndiceSemanaInicioProyecto() {
-  if (!state.actividadesGlobal || state.actividadesGlobal.length === 0) return 1;
+export function obtenerTimestampMinimoProyecto() {
+  if (!state.actividadesGlobal || state.actividadesGlobal.length === 0) return null;
   let minTimestamp = null;
   state.actividadesGlobal.forEach(a => {
     const dt = parsearFechaUniversal(a.fecha_inicio);
     if (dt) {
-      const t = dt.getTime();
+      const t = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
       if (minTimestamp === null || t < minTimestamp) minTimestamp = t;
     }
   });
-
-  if (minTimestamp !== null && state.semanasTotales.length > 0) {
-    for (let i = 0; i < state.semanasTotales.length; i++) {
-      const tLunes = new Date(state.semanasTotales[i].fechaLunes).setHours(0, 0, 0, 0);
-      const tDomingo = new Date(state.semanasTotales[i].fechaDomingo).setHours(23, 59, 59, 999);
-      if (minTimestamp >= tLunes && minTimestamp <= tDomingo) {
-        return Math.max(1, i + 1);
-      }
-    }
-  }
-  return 1;
+  return minTimestamp;
 }
 
 export function autoAjustarSemanaInicio() {
@@ -729,35 +718,93 @@ export function autoAjustarSemanaInicio() {
     irASemanaActual();
     return;
   }
-  const idx = obtenerIndiceSemanaInicioProyecto();
-  fijarSemanaInicio(idx, "inicio");
+  irAInicioProyecto();
 }
 
 export function irAInicioProyecto() {
-  const modo = state.modoZoom || "dias";
-  if (modo === "meses" || modo === "trimestres" || modo === "semestres") {
-    fijarSemanaInicio(1, "inicio");
-  } else {
-    const idx = obtenerIndiceSemanaInicioProyecto();
-    fijarSemanaInicio(idx, "inicio");
-  }
-}
-
-export function irASemanaActual() {
-  const modo = state.modoZoom || "dias";
-  if (modo === "meses" || modo === "trimestres" || modo === "semestres") {
-    // En Meses, Trimestres y Semestres el índice 1 parte del año actual mostrando Hoy en pantalla
-    fijarSemanaInicio(1, "hoy");
+  const minTs = obtenerTimestampMinimoProyecto();
+  if (minTs === null) {
+    irASemanaActual();
     return;
   }
 
-  const ahora = new Date().getTime();
+  const dtIni = new Date(minTs);
+  const minAnioCal = state.diasTotalesAnio.length > 0 ? state.diasTotalesAnio[0].anio : dtIni.getFullYear();
+  const modo = state.modoZoom || "dias";
+
+  if (modo === "dias") {
+    const idxDia = state.diasTotalesAnio.findIndex(d => d.fecha.getTime() >= minTs);
+    state.diaInicioIndexExacto = Math.max(0, idxDia);
+    fijarSemanaInicio(Math.floor(state.diaInicioIndexExacto / 7) + 1, "inicio");
+    return;
+  }
+
+  state.diaInicioIndexExacto = null;
+
+  if (modo === "meses") {
+    const mesesDiff = (dtIni.getFullYear() - minAnioCal) * 12 + dtIni.getMonth();
+    fijarSemanaInicio(Math.max(0, mesesDiff) * 4 + 1, "inicio");
+    return;
+  }
+  if (modo === "trimestres") {
+    const qDiff = (dtIni.getFullYear() - minAnioCal) * 4 + Math.floor(dtIni.getMonth() / 3);
+    fijarSemanaInicio(Math.max(0, qDiff) * 12 + 1, "inicio");
+    return;
+  }
+  if (modo === "semestres") {
+    const sDiff = (dtIni.getFullYear() - minAnioCal) * 2 + Math.floor(dtIni.getMonth() / 6);
+    fijarSemanaInicio(Math.max(0, sDiff) * 24 + 1, "inicio");
+    return;
+  }
+
+  // Modo Semanas
+  const idxSem = state.semanasTotales.findIndex(s => {
+    const tIni = new Date(s.fechaLunes).setHours(0, 0, 0, 0);
+    const tFin = new Date(s.fechaDomingo).setHours(23, 59, 59, 999);
+    return minTs >= tIni && minTs <= tFin;
+  });
+  fijarSemanaInicio(idxSem >= 0 ? idxSem + 1 : 1, "inicio");
+}
+
+export function irASemanaActual() {
+  const ahora = new Date();
+  const minAnioCal = state.diasTotalesAnio.length > 0 ? state.diasTotalesAnio[0].anio : ahora.getFullYear();
+  const modo = state.modoZoom || "dias";
+
+  if (modo === "dias") {
+    const idxHoyDia = state.diasTotalesAnio.findIndex(d => d.esHoy);
+    // Dejamos 3 días previos de margen a la izquierda para que la columna turquesa de Hoy se vea centrada y clara
+    state.diaInicioIndexExacto = idxHoyDia >= 0 ? Math.max(0, idxHoyDia - 3) : 0;
+    fijarSemanaInicio(Math.floor(state.diaInicioIndexExacto / 7) + 1, "hoy");
+    return;
+  }
+
+  state.diaInicioIndexExacto = null;
+
+  if (modo === "meses") {
+    const mesesDiff = (ahora.getFullYear() - minAnioCal) * 12 + Math.max(0, ahora.getMonth() - 1);
+    fijarSemanaInicio(Math.max(0, mesesDiff) * 4 + 1, "hoy");
+    return;
+  }
+  if (modo === "trimestres") {
+    const qDiff = (ahora.getFullYear() - minAnioCal) * 4 + Math.floor(ahora.getMonth() / 3);
+    fijarSemanaInicio(Math.max(0, qDiff) * 12 + 1, "hoy");
+    return;
+  }
+  if (modo === "semestres") {
+    const sDiff = (ahora.getFullYear() - minAnioCal) * 2 + Math.floor(ahora.getMonth() / 6);
+    fijarSemanaInicio(Math.max(0, sDiff) * 24 + 1, "hoy");
+    return;
+  }
+
+  // Modo Semanas
+  const tAhora = ahora.getTime();
   const indexHoy = state.semanasTotales.findIndex(s => {
     const tIni = new Date(s.fechaLunes).setHours(0, 0, 0, 0);
     const tFin = new Date(s.fechaDomingo).setHours(23, 59, 59, 999);
-    return ahora >= tIni && ahora <= tFin;
+    return tAhora >= tIni && tAhora <= tFin;
   });
-  fijarSemanaInicio(indexHoy >= 0 ? Math.max(1, indexHoy + 1) : 1, "hoy");
+  fijarSemanaInicio(indexHoy >= 0 ? Math.max(1, indexHoy) : 1, "hoy");
 }
 
 export function fijarSemanaInicio(val, origenBoton = "manual") {
@@ -772,6 +819,12 @@ export function fijarSemanaInicio(val, origenBoton = "manual") {
 }
 
 export function cambiarSemanaInicio(delta) {
+  if ((state.modoZoom || "dias") === "dias" && typeof state.diaInicioIndexExacto === "number") {
+    state.diaInicioIndexExacto = Math.max(0, state.diaInicioIndexExacto + (delta * 7));
+    fijarSemanaInicio(Math.floor(state.diaInicioIndexExacto / 7) + 1, "manual");
+    return;
+  }
+  state.diaInicioIndexExacto = null;
   const baseActual = (state.semanaInicioIndex || 0) + 1;
   let val = baseActual + delta;
   if (val < 1) val = 1;
@@ -789,6 +842,7 @@ export function desplazarGanttPorEscala(direccion) {
 
 export function fijarModoZoomDirecto(modo) {
   state.modoZoom = modo;
+  state.diaInicioIndexExacto = null;
   const labelEscala = document.getElementById("txt-escala-activa-label");
   if (labelEscala) labelEscala.innerText = modo.charAt(0).toUpperCase() + modo.slice(1);
   irASemanaActual();

@@ -561,18 +561,19 @@ export function filtrarPorEstadoKPI(estado) {
     state.filtroEstadoKPI = estado;
   }
 
-  const mapIds = {
-    "Ejecutado": "kpi-card-ejecutado",
-    "En proceso": "kpi-card-proceso",
-    "No iniciado": "kpi-card-pendiente"
+  const mapEstilos = {
+    "Ejecutado": { id: "kpi-card-ejecutado", cls: "kpi-pill-active-emerald" },
+    "En proceso": { id: "kpi-card-proceso", cls: "kpi-pill-active-amber" },
+    "No iniciado": { id: "kpi-card-pendiente", cls: "kpi-pill-active-rose" }
   };
 
-  Object.entries(mapIds).forEach(([est, idEl]) => {
-    const el = document.getElementById(idEl);
+  Object.entries(mapEstilos).forEach(([est, conf]) => {
+    const el = document.getElementById(conf.id);
     if (el) {
-      el.classList.toggle("bg-slate-100", state.filtroEstadoKPI === est);
-      el.classList.toggle("ring-2", state.filtroEstadoKPI === est);
-      el.classList.toggle("ring-[#0f2a4a]", state.filtroEstadoKPI === est);
+      el.classList.remove("bg-slate-100", "ring-2", "ring-[#0f2a4a]", "kpi-pill-active-emerald", "kpi-pill-active-amber", "kpi-pill-active-rose");
+      if (state.filtroEstadoKPI === est) {
+        el.classList.add(conf.cls);
+      }
     }
   });
 
@@ -591,9 +592,12 @@ export function aplicarFiltrosGlobales() {
 
   const partes = [];
   if (niv < 4) partes.push(`Hasta Nivel ${niv}`);
-  if (resp) partes.push(`👤 ${resp}`);
+  if (resp) {
+    const nomCorto = resp.includes(",") ? resp.split(",")[0].trim() : resp.split(" ")[0];
+    partes.push(`👤 ${nomCorto}`);
+  }
   if (state.filtroSoloMisActividades) partes.push("Mis tareas");
-  if (state.filtroEstadoKPI) partes.push(`Estado: ${state.filtroEstadoKPI}`);
+  if (state.filtroEstadoKPI) partes.push(`${state.filtroEstadoKPI}`);
   if (busq) partes.push(`"${busq}"`);
 
   if (partes.length > 0) {
@@ -636,7 +640,7 @@ export function limpiarTodosFiltros() {
   }
 
   ["kpi-card-ejecutado", "kpi-card-proceso", "kpi-card-pendiente"].forEach(idEl => {
-    document.getElementById(idEl)?.classList.remove("bg-slate-100", "ring-2", "ring-[#0f2a4a]");
+    document.getElementById(idEl)?.classList.remove("bg-slate-100", "ring-2", "ring-[#0f2a4a]", "kpi-pill-active-emerald", "kpi-pill-active-amber", "kpi-pill-active-rose");
   });
 
   actualizarAparienciaBotonesFiltro();
@@ -2210,8 +2214,10 @@ export function alternarFiltroMisActividades() {
   }
 }
 
-// --- MOTOR INTERACTIVO DEL TABLERO KANBAN (ESTILO JIRA BOARD) ---
+// --- MOTOR INTERACTIVO DEL TABLERO KANBAN + INSPECTOR INTEGRAL DE ACTIVIDAD ---
 let codigoArrastradoKanban = null;
+let codigoUltimoSoltadoKanban = null;
+let codigoActividadInspectorActual = null;
 
 export function renderizarTableroKanban() {
   const zonaPend = document.getElementById("kanban-dropzone-pendiente");
@@ -2226,7 +2232,6 @@ export function renderizarTableroKanban() {
   const txtBusq = (document.getElementById("filtro-busqueda")?.value || "").toLowerCase().trim();
   const respFiltro = document.getElementById("filtro-responsable-select")?.value || "";
 
-  // Filtrar tareas operativas (hojas) respetando los filtros activos del toolbar y KPIs
   const operativas = (state.actividadesGlobal || []).filter(act => {
     if (tieneHijos(act.codigo)) return false;
     if (state.filtroEstadoKPI && act.estado !== state.filtroEstadoKPI) return false;
@@ -2256,14 +2261,16 @@ export function renderizarTableroKanban() {
     const puedeEditar = state.proyectoEsGestor || esMio;
 
     const card = document.createElement("div");
-    card.className = "kanban-card-item group";
+    const animDrop = (codigoUltimoSoltadoKanban === codLimpio) ? "kanban-card-dropped" : "";
+    card.className = `kanban-card-item group ${animDrop}`;
     card.draggable = puedeEditar;
 
     if (puedeEditar) {
       card.ondragstart = (e) => {
         codigoArrastradoKanban = codLimpio;
-        card.classList.add("is-dragging");
+        e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", codLimpio);
+        requestAnimationFrame(() => card.classList.add("is-dragging"));
       };
       card.ondragend = () => {
         card.classList.remove("is-dragging");
@@ -2271,31 +2278,32 @@ export function renderizarTableroKanban() {
       };
     }
 
+    // Doble clic abre la Ficha Inspector Integral de Actividad (estilo Jira / Linear)
     card.ondblclick = () => {
-      if (puedeEditar) editarEstado(codLimpio);
+      abrirInspectorActividad(codLimpio);
     };
 
     const coms = obtenerComentariosDeActividad(codLimpio).length;
 
     card.innerHTML = `
-      <!-- Descripción de la Tarea -->
-      <p class="text-xs font-bold text-slate-800 leading-snug mb-2.5 group-hover:text-[#0f2a4a] transition">${act.descripcion}</p>
-
-      <!-- Etiqueta de Fase Madre (Estilo Epic Tag de Jira) -->
-      <div class="mb-3">
-        <span class="inline-block text-[9.5px] font-black uppercase px-2 py-0.5 rounded border truncate max-w-full ${estiloFase}" title="Fase: ${nombreFase}">
-          ${nombreFase}
-        </span>
+      <div class="flex items-start justify-between gap-2 mb-2">
+        <p class="text-xs font-bold text-slate-800 leading-snug group-hover:text-[#0f2a4a] transition">${act.descripcion}</p>
+        <button type="button" onclick="event.stopPropagation(); abrirInspectorActividad('${codLimpio}')" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[#0f2a4a] text-xs px-1 rounded transition cursor-pointer flex-shrink-0" title="Abrir ficha completa de la actividad">✏️</button>
       </div>
 
-      <!-- Barra de Progreso sutil cuando está En Proceso -->
+      <div class="mb-3 flex items-center justify-between gap-1">
+        <span class="inline-block text-[9.5px] font-black uppercase px-2 py-0.5 rounded border truncate max-w-[80%] ${estiloFase}" title="Fase: ${nombreFase}">
+          ${nombreFase}
+        </span>
+        <span class="text-[10px] font-black ${act.avance === 100 ? 'text-emerald-700' : (act.avance > 0 ? 'text-blue-700' : 'text-slate-400')}">${act.avance}%</span>
+      </div>
+
       ${act.estado === "En proceso" ? `
         <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mb-2.5">
-          <div class="bg-blue-600 h-1.5 rounded-full" style="width: ${act.avance}%"></div>
+          <div class="bg-blue-600 h-1.5 rounded-full transition-all duration-300" style="width: ${act.avance}%"></div>
         </div>
       ` : ''}
 
-      <!-- Pie de Tarjeta: Código + Plazo + Comentarios + Avatar -->
       <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[10.5px] text-slate-500">
         <div class="flex items-center space-x-2">
           <span class="font-mono font-black text-[#0f2a4a] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${codLimpio}</span>
@@ -2320,6 +2328,8 @@ export function renderizarTableroKanban() {
     }
   });
 
+  codigoUltimoSoltadoKanban = null;
+
   const bPend = document.getElementById("kanban-count-pendiente");
   const bProc = document.getElementById("kanban-count-proceso");
   const bEjec = document.getElementById("kanban-count-ejecutado");
@@ -2330,10 +2340,15 @@ export function renderizarTableroKanban() {
 
 export function kanbanPermitirSoltar(e) {
   e.preventDefault();
-  e.currentTarget.classList.add("drag-over");
+  e.dataTransfer.dropEffect = "move";
+  if (!e.currentTarget.classList.contains("drag-over")) {
+    e.currentTarget.classList.add("drag-over");
+  }
 }
 
 export function kanbanSalirZona(e) {
+  // Evitar parpadeo cuando el cursor pasa sobre elementos hijos dentro de la columna
+  if (e.currentTarget.contains(e.relatedTarget)) return;
   e.currentTarget.classList.remove("drag-over");
 }
 
@@ -2347,14 +2362,202 @@ export async function kanbanSoltarActividad(e, nuevoEstado) {
   const act = state.actividadesGlobal.find(a => String(a.codigo).replace(/\.+$/, "") === cod);
   if (!act || act.estado === nuevoEstado) return;
 
+  if (!state.ejecutandoUndoRedo && state.ultimoSnapshotSincronizado) {
+    registrarSnapshotEnPilaUndo(`Mover [${cod}] a ${nuevoEstado}`, state.ultimoSnapshotSincronizado);
+  }
+
   act.estado = nuevoEstado;
   if (nuevoEstado === "Ejecutado") act.avance = 100;
   else if (nuevoEstado === "No iniciado") act.avance = 0;
   else if (nuevoEstado === "En proceso" && (act.avance === 0 || act.avance === 100)) act.avance = 50;
 
+  codigoUltimoSoltadoKanban = cod;
+
+  // Actualización optimista instantánea sin parpadeo de recarga completa
+  recalcularJerarquiaWBS();
   renderizarTableroKanban();
+  renderizarTabla();
+
+  try {
+    await apiFetch(`/actividades`, {
+      method: "POST",
+      body: JSON.stringify({
+        proyecto_id: parseInt(state.proyectoActualId) || 1,
+        codigo: String(act.codigo).trim(),
+        descripcion: String(act.descripcion || "").trim(),
+        responsable: String(act.responsable || "No asignado").trim(),
+        estado: act.estado,
+        avance: parseInt(act.avance) || 0,
+        fecha_inicio: formatearFechaLatina(act.fecha_inicio),
+        fecha_fin: formatearFechaLatina(act.fecha_fin),
+        dias: parseInt(act.dias) || 1,
+        predecesores: String(act.predecesores || "").trim()
+      })
+    });
+    state.ultimoSnapshotSincronizado = clonarActividadesSnapshot(state.actividadesGlobal);
+    notificarToast(`✓ [${cod}] movida a "${nuevoEstado}" (${act.avance}%)`, "success", 2000);
+  } catch (err) {
+    console.error("Error sincronizando Kanban:", err);
+  }
+}
+
+// --- VENTANA INSPECTOR INTEGRAL DE ACTIVIDAD (DOBLE CLIC EN KANBAN) ---
+export function abrirInspectorActividad(cod) {
+  const codLimpio = String(cod).replace(/\.+$/, "");
+  const act = state.actividadesGlobal.find(a => String(a.codigo).replace(/\.+$/, "") === codLimpio);
+  if (!act) return;
+
+  codigoActividadInspectorActual = codLimpio;
+  const esMio = esResponsableDeActividad(act);
+  const puedeEditarTodo = state.proyectoEsGestor;
+  const puedeEditarProgreso = state.proyectoEsGestor || esMio;
+
+  const raizCod = codLimpio.split(".")[0];
+  const madreRaiz = state.actividadesGlobal.find(a => String(a.codigo).replace(/\.+$/, "") === raizCod);
+  const nombreFase = (madreRaiz && madreRaiz.codigo !== codLimpio) ? `Fase: [${raizCod}] ${madreRaiz.descripcion}` : "Actividad Operativa";
+
+  document.getElementById("insp-badge-codigo").innerText = `[${codLimpio}]`;
+  document.getElementById("insp-txt-fase-madre").innerText = nombreFase;
+
+  const inpDesc = document.getElementById("insp-input-descripcion");
+  inpDesc.value = act.descripcion || "";
+  inpDesc.disabled = !puedeEditarTodo;
+
+  const selEst = document.getElementById("insp-select-estado");
+  const rngAv = document.getElementById("insp-range-avance");
+  const lblAv = document.getElementById("insp-lbl-avance-val");
+
+  selEst.value = act.estado || "No iniciado";
+  selEst.disabled = !puedeEditarProgreso;
+  rngAv.value = parseInt(act.avance) || 0;
+  rngAv.disabled = !puedeEditarProgreso;
+  lblAv.innerText = `${rngAv.value}%`;
+
+  const esHoras = (state.proyectoModoDuracion === "hours");
+  document.getElementById("insp-lbl-unidad-duracion").innerText = esHoras ? "⏱️ Duración (Horas)" : "⏱️ Duración (Días hábiles)";
+
+  const inpIni = document.getElementById("insp-input-inicio");
+  const inpDias = document.getElementById("insp-input-dias");
+  const inpFin = document.getElementById("insp-input-fin");
+
+  inpIni.value = formatearFechaISO(act.fecha_inicio);
+  inpDias.value = act.dias || 1;
+  inpFin.value = formatearFechaISO(act.fecha_fin);
+
+  inpIni.disabled = !puedeEditarTodo;
+  inpDias.disabled = !puedeEditarTodo;
+  inpFin.disabled = !puedeEditarTodo || esHoras;
+
+  document.getElementById("insp-box-responsables").innerText = act.responsable || "No asignado";
+  document.getElementById("insp-box-predecesoras").innerText = act.predecesores ? `Depende de: [${act.predecesores}]` : "Sin predecesoras";
+
+  const btnResp = document.getElementById("insp-btn-cambiar-resp");
+  btnResp.classList.toggle("hidden", !puedeEditarTodo);
+  btnResp.onclick = () => {
+    cerrarInspectorActividad();
+    editarResponsable(codLimpio);
+  };
+
+  const btnPred = document.getElementById("insp-btn-cambiar-pred");
+  btnPred.classList.toggle("hidden", !puedeEditarTodo);
+  btnPred.onclick = () => {
+    cerrarInspectorActividad();
+    if (typeof window.abrirModalDependencias === "function") window.abrirModalDependencias(codLimpio);
+  };
+
+  const coms = obtenerComentariosDeActividad(codLimpio).length;
+  const btnComs = document.getElementById("insp-btn-comentarios");
+  btnComs.innerText = `💬 Comentarios (${coms})`;
+  btnComs.onclick = () => {
+    cerrarInspectorActividad();
+    abrirModalComentarios(codLimpio);
+  };
+
+  const btnElim = document.getElementById("insp-btn-eliminar");
+  btnElim.classList.toggle("hidden", !puedeEditarTodo);
+  btnElim.onclick = () => {
+    cerrarInspectorActividad();
+    eliminarActividad(codLimpio);
+  };
+
+  document.getElementById("modal-inspector-actividad")?.classList.remove("hidden");
+}
+
+export function sincronizarEstadoAvanceInspector(origen) {
+  const selEst = document.getElementById("insp-select-estado");
+  const rngAv = document.getElementById("insp-range-avance");
+  const lblAv = document.getElementById("insp-lbl-avance-val");
+  if (!selEst || !rngAv || !lblAv) return;
+
+  if (origen === "estado") {
+    if (selEst.value === "Ejecutado") rngAv.value = 100;
+    else if (selEst.value === "No iniciado") rngAv.value = 0;
+    else if (selEst.value === "En proceso" && (parseInt(rngAv.value) === 0 || parseInt(rngAv.value) === 100)) rngAv.value = 50;
+  } else {
+    const val = parseInt(rngAv.value) || 0;
+    if (val === 100) selEst.value = "Ejecutado";
+    else if (val === 0) selEst.value = "No iniciado";
+    else selEst.value = "En proceso";
+  }
+  lblAv.innerText = `${rngAv.value}%`;
+}
+
+export function recalcularPlazoEnInspector(campoModificado) {
+  const inpIni = document.getElementById("insp-input-inicio");
+  const inpDias = document.getElementById("insp-input-dias");
+  const inpFin = document.getElementById("insp-input-fin");
+  if (!inpIni?.value) return;
+
+  const dtIni = new Date(inpIni.value + "T00:00:00");
+  if (campoModificado === "inicio" || campoModificado === "dias") {
+    const d = Math.max(1, parseFloat(inpDias.value) || 1);
+    const nuevoFin = calcularFechaFinPorModalidad(dtIni, d, state.proyectoModoDuracion);
+    inpFin.value = nuevoFin.toISOString().split("T")[0];
+  } else if (campoModificado === "fin" && inpFin.value) {
+    const dtFin = new Date(inpFin.value + "T00:00:00");
+    if (dtFin < dtIni) {
+      inpFin.value = inpIni.value;
+      inpDias.value = 1;
+      return;
+    }
+    const diasHab = contarDiasHabilesEntre(dtIni, dtFin);
+    inpDias.value = (state.proyectoModoDuracion === "hours") ? diasHab * 8 : diasHab;
+  }
+}
+
+export function cerrarInspectorActividad() {
+  document.getElementById("modal-inspector-actividad")?.classList.add("hidden");
+  codigoActividadInspectorActual = null;
+}
+
+export async function guardarCambiosInspectorActividad() {
+  if (!codigoActividadInspectorActual) return;
+  const act = state.actividadesGlobal.find(a => String(a.codigo).replace(/\.+$/, "") === codigoActividadInspectorActual);
+  if (!act) return;
+
+  const nuevaDesc = document.getElementById("insp-input-descripcion")?.value.trim();
+  if (!nuevaDesc) {
+    alert("La descripción de la actividad no puede quedar vacía.");
+    return;
+  }
+
+  if (state.proyectoEsGestor) {
+    act.descripcion = nuevaDesc;
+    const valIni = document.getElementById("insp-input-inicio")?.value;
+    const valFin = document.getElementById("insp-input-fin")?.value;
+    const valDias = parseInt(document.getElementById("insp-input-dias")?.value) || 1;
+    if (valIni) act.fecha_inicio = formatearFechaLatina(valIni);
+    if (valFin) act.fecha_fin = formatearFechaLatina(valFin);
+    act.dias = Math.max(1, valDias);
+  }
+
+  act.estado = document.getElementById("insp-select-estado")?.value || act.estado;
+  act.avance = parseInt(document.getElementById("insp-range-avance")?.value) || 0;
+
+  cerrarInspectorActividad();
   await guardarCambioDirecto(act);
-  notificarToast(`Actividad [${cod}] movida a "${nuevoEstado}".`, "success", 2500);
+  if (state.vistaProyectoActiva === "kanban") renderizarTableroKanban();
+  notificarToast(`✓ Actividad [${act.codigo}] actualizada correctamente.`, "success", 2400);
 }
 
 // =========================================================================
@@ -2556,3 +2759,8 @@ window.ejecutarDeshacerProyecto = ejecutarDeshacerProyecto;
 window.ejecutarRehacerProyecto = ejecutarRehacerProyecto;
 window.actualizarBotonesUndoRedoUI = actualizarBotonesUndoRedoUI;
 window.registrarSnapshotAntesDeAccion = registrarSnapshotAntesDeAccion;
+window.abrirInspectorActividad = abrirInspectorActividad;
+window.cerrarInspectorActividad = cerrarInspectorActividad;
+window.sincronizarEstadoAvanceInspector = sincronizarEstadoAvanceInspector;
+window.recalcularPlazoEnInspector = recalcularPlazoEnInspector;
+window.guardarCambiosInspectorActividad = guardarCambiosInspectorActividad;

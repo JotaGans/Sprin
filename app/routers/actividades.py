@@ -189,18 +189,29 @@ def guardar_actividad(act: ActividadModel, user: dict = Depends(get_current_user
 
         if existe:
             cambios = []
-            if existe["descripcion"] != desc:
-                cambios.append(f"Descripción: '{desc}'")
-            if (existe["responsable"] or "No asignado") != resp:
-                cambios.append(f"Resp: '{resp}'")
-            if existe["estado"] != est:
-                cambios.append(f"Estado: '{est}'")
-            if int(existe["avance"] or 0) != av:
-                cambios.append(f"Avance: {av}%")
-            if existe["fecha_inicio"] != f_ini or existe["fecha_fin"] != f_fin:
-                cambios.append(f"Fechas: {f_ini} al {f_fin} ({dias_val}d)")
+            desc_ant = str(existe["descripcion"] or "").strip()
+            resp_ant = str(existe["responsable"] or "No asignado").strip()
+            est_ant = str(existe["estado"] or "No iniciado").strip()
+            av_ant = int(existe["avance"] or 0)
+            f_ini_ant = str(existe["fecha_inicio"] or "").strip()
+            f_fin_ant = str(existe["fecha_fin"] or "").strip()
+            dias_ant = int(existe["dias"] or 1)
+            pred_ant = str(existe["predecesores"] or "").strip()
 
-            detalle_cambio = f"Modificó [{cod}]: " + (", ".join(cambios) if cambios else "Actualización general")
+            if desc_ant != desc:
+                cambios.append(f"Nombre: '{desc_ant}' → '{desc}'")
+            if est_ant != est:
+                cambios.append(f"Estado: {est_ant} → {est}")
+            if av_ant != av:
+                cambios.append(f"Avance: {av_ant}% → {av}%")
+            if f_ini_ant != f_ini or f_fin_ant != f_fin or dias_ant != dias_val:
+                cambios.append(f"Plazo: {f_ini_ant}–{f_fin_ant} ({dias_ant}d) → {f_ini}–{f_fin} ({dias_val}d)")
+            if resp_ant != resp:
+                cambios.append(f"Responsable: {resp_ant} → {resp}")
+            if pred_ant != pred:
+                p_old = pred_ant if pred_ant else "Ninguna"
+                p_new = pred if pred else "Ninguna"
+                cambios.append(f"Predecesoras: [{p_old}] → [{p_new}]")
 
             if es_admin_o_gestor:
                 db.execute("""
@@ -216,10 +227,13 @@ def guardar_actividad(act: ActividadModel, user: dict = Depends(get_current_user
                     WHERE proyecto_id = ? AND (codigo = ? OR codigo = ?)
                 """, (est, av, p_id, cod, f"{cod}."))
 
-            db.execute("""
-                INSERT INTO historial (proyecto_id, timestamp, usuario, accion, detalle) 
-                VALUES (?, ?, ?, 'Modificación Actividad', ?)
-            """, (p_id, ahora_str, user["username"], detalle_cambio))
+            # Solo registrar en el historial de auditoría si hubo un cambio real en algún campo
+            if cambios:
+                detalle_cambio = f"[{cod}] {desc[:38]} — " + " | ".join(cambios)
+                db.execute("""
+                    INSERT INTO historial (proyecto_id, timestamp, usuario, accion, detalle) 
+                    VALUES (?, ?, ?, 'Modificación Actividad', ?)
+                """, (p_id, ahora_str, user["username"], detalle_cambio))
         else:
             if not es_admin_o_gestor:
                 raise HTTPException(status_code=403, detail="Solo un Gestor del Proyecto puede crear nuevas actividades.")
