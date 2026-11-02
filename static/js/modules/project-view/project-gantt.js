@@ -349,13 +349,18 @@ export function renderizarGanttFila(act, esMadre, codLimpio) {
   const mostrarAvatares = (state.visibilidadColumnas.avatares_gantt !== false);
   const mostrarPorcentajes = (state.visibilidadColumnas.porcentajes_gantt !== false);
 
+  // 1. Líneas guía verticales continuas de arriba a abajo + Columna Hoy destacada
   let divisionesHTML = "";
   if (ventana.modo === "dias") {
-    divisionesHTML = ventana.items.map(d => `<div class="flex-1 border-r border-slate-200/40 ${d.esHoy ? 'bg-teal-500/10' : ''}"></div>`).join("");
+    divisionesHTML = ventana.items.map(d => {
+      const esFinde = (d.diaSemana === 0 || d.diaSemana === 6);
+      const bgCol = d.esHoy ? "bg-teal-500/15 border-r-2 border-r-teal-500/60" : (esFinde ? "bg-slate-100/70 border-r border-slate-200/50" : "border-r border-slate-200/50");
+      return `<div class="flex-1 h-full ${bgCol}"></div>`;
+    }).join("");
   } else if (ventana.modo === "semanas") {
-    divisionesHTML = ventana.items.map(s => `<div class="flex-1 border-r border-slate-200/50 ${s.esHoy ? 'col-semana-actual' : ''}"></div>`).join("");
+    divisionesHTML = ventana.items.map(s => `<div class="flex-1 h-full border-r border-slate-200/60 ${s.esHoy ? 'bg-teal-500/12 border-r-2 border-r-teal-500/50' : ''}"></div>`).join("");
   } else {
-    divisionesHTML = ventana.items.map(() => `<div class="flex-1 border-r border-slate-200/50"></div>`).join("");
+    divisionesHTML = ventana.items.map(() => `<div class="flex-1 h-full border-r border-slate-200/60"></div>`).join("");
   }
 
   const dtIniObj = parsearFechaUniversal(act.fecha_inicio);
@@ -370,65 +375,81 @@ export function renderizarGanttFila(act, esMadre, codLimpio) {
       const startClamped = Math.max(dtIni, tInicioVisible);
       const endClamped = Math.min(dtFin, tFinVisible);
       const leftPct = Math.min(100, Math.max(0, ((startClamped - tInicioVisible) / duracionVisibleMs) * 100));
-      const widthPct = Math.min(100 - leftPct, Math.max(1.2, ((endClamped - startClamped) / duracionVisibleMs) * 100));
-      const miniAvataresHTML = mostrarAvatares ? obtenerMiniAvataresGanttHTML(act.responsable) : '';
-      const esBarraDelgada = widthPct < 5.0;
+      const widthPct = Math.min(100 - leftPct, Math.max(2.2, ((endClamped - startClamped) / duracionVisibleMs) * 100));
+      const esBarraAncha = widthPct >= 8.5;
+      const tienePredecesor = Boolean(act.predecesores && String(act.predecesores).trim() !== "");
+      const tooltipBarra = `[${codLimpio}] ${act.descripcion} | ${act.fecha_inicio} al ${act.fecha_fin} (${act.avance}%) ${tienePredecesor ? '| Predecesoras: ' + act.predecesores : ''} — Clic para actualizar estado`;
 
       if (esMadre) {
+        // Barra Resumen de Fase Madre (Estilo Bracket Ejecutivo con progreso interno)
         barraOElementoHTML = `
-          <div class="absolute top-1.5 bottom-1.5 z-10 pointer-events-none" style="left: ${leftPct}%; width: ${widthPct}%;">
-            <div class="w-full h-full bg-[#0f2a4a] rounded-sm shadow relative">
-              <div class="absolute left-0 -bottom-1 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-[#0f2a4a]"></div>
-              <div class="absolute right-0 -bottom-1 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-[#0f2a4a]"></div>
-              ${mostrarPorcentajes && !esBarraDelgada ? `<div class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white px-1 overflow-hidden whitespace-nowrap drop-shadow-xs">${act.avance}%</div>` : ''}
+          <div class="absolute top-2 bottom-2 z-10 gantt-bar-interactive" style="left: ${leftPct}%; width: ${widthPct}%;" title="${tooltipBarra}">
+            <div class="w-full h-full bg-[#0f2a4a] rounded-md shadow-xs relative overflow-hidden flex items-center justify-between px-2">
+              <div class="absolute top-0 bottom-0 left-0 bg-teal-500/35 transition-all duration-300" style="width: ${act.avance}%;"></div>
+              <span class="relative z-10 text-[9.5px] font-bold text-teal-200 truncate pr-2">${esBarraAncha ? act.descripcion : ''}</span>
+              ${mostrarPorcentajes ? `<span class="relative z-10 text-[9.5px] font-black text-white bg-black/25 px-1.5 py-0.2 rounded">${act.avance}%</span>` : ''}
             </div>
-          </div>
-          <div class="absolute flex items-center top-1 z-20 pointer-events-none text-[9px] font-black text-[#0f2a4a]" style="left: calc(${leftPct + widthPct}% + 4px);">
-            ${mostrarPorcentajes && esBarraDelgada ? `<span class="bg-blue-50 px-1 rounded border border-blue-200 mr-1 shadow-xs">${act.avance}%</span>` : ''}
-            ${miniAvataresHTML}
           </div>
         `;
       } else {
-        let colorFondoRestante = "#e2e8f0";
-        let colorBorde = "border-slate-300";
+        // Barra Operativa Estilo Jira Timeline (Verde Esmeralda = Ejecutado, Azul Brillante = En Proceso, Gris Pizarra = Por Hacer)
         const esActividadCritica = state.capaCpmActiva && state.datosCpmGlobal?.actividadesCriticas?.has(codLimpio);
+        let bgBarra = "#64748b"; // Por Hacer (Slate elegante estilo Jira)
+        let bgProgreso = "#475569";
 
         if (state.capaCpmActiva) {
-          colorFondoRestante = esActividadCritica ? "#dc2626" : "#cbd5e1";
-          colorBorde = esActividadCritica ? "border-red-800" : "border-slate-300";
-        } else {
-          if (act.estado === "Ejecutado") { colorFondoRestante = "#2ecc71"; colorBorde = "border-emerald-600"; }
-          else if (act.estado === "En proceso") { colorFondoRestante = "#f1c40f"; colorBorde = "border-amber-500"; }
+          bgBarra = esActividadCritica ? "#dc2626" : "#94a3b8";
+          bgProgreso = esActividadCritica ? "#b91c1c" : "#64748b";
+        } else if (act.estado === "Ejecutado") {
+          bgBarra = "#10b981"; // Verde Jira
+          bgProgreso = "#059669";
+        } else if (act.estado === "En proceso") {
+          bgBarra = "#2563eb"; // Azul Jira
+          bgProgreso = "#1d4ed8";
         }
 
-        let subAvanceHTML = "";
-        let textoDentroDeBarra = "";
-        let textoFlotanteHTML = "";
-
-        if (mostrarPorcentajes && !state.capaCpmActiva) {
-          if (act.estado === "En proceso") {
-            if (act.avance > 0) subAvanceHTML = `<div class="absolute top-0 bottom-0 left-0 bg-[#d35400] rounded-l-md flex items-center justify-center text-[9px] font-black text-white shadow-inner" style="width: ${act.avance}%;"></div>`;
-            if (!esBarraDelgada && widthPct >= 7.0) textoDentroDeBarra = `<div class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] z-10 pointer-events-none">${act.avance}%</div>`;
-            else textoFlotanteHTML = `<span class="text-[9px] font-bold text-gray-700 bg-white/90 px-1 rounded border border-gray-200 shadow-xs mr-1">${act.avance}%</span>`;
-          } else if (act.estado === "Ejecutado") {
-            if (!esBarraDelgada) textoDentroDeBarra = `<div class="w-full h-full flex items-center justify-center text-[9px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">100%</div>`;
-            else textoFlotanteHTML = `<span class="text-[9px] font-bold text-gray-700 bg-white/90 px-1 rounded border border-gray-200 shadow-xs mr-1">100%</span>`;
-          } else {
-            textoFlotanteHTML = `<span class="text-[9px] font-bold text-gray-700 bg-white/90 px-1 rounded border border-gray-200 shadow-xs mr-1">0%</span>`;
-          }
+        // Avatar circular integrado dentro de la barra a la izquierda (como en Jira)
+        const listaResp = obtenerListaResponsablesAsignados(act.responsable);
+        let avatarInternoHTML = "";
+        if (mostrarAvatares && listaResp.length > 0 && widthPct >= 4.2) {
+          const primerNom = listaResp[0];
+          const ini = primerNom.includes(",")
+            ? (primerNom.split(",")[0].trim()[0] + (primerNom.split(",")[1]?.trim()[0] || "")).toUpperCase()
+            : (primerNom.split(" ")[0][0] + (primerNom.split(" ")[1]?.[0] || "")).toUpperCase();
+          avatarInternoHTML = `
+            <span class="w-5 h-5 rounded-full bg-white/95 text-[#0f2a4a] font-black text-[8.5px] flex items-center justify-center shadow-xs flex-shrink-0 border border-white" title="${act.responsable}">
+              ${ini}
+            </span>
+          `;
         }
 
-        const opacidadCpm = (state.capaCpmActiva && !esActividadCritica && !esMadre) ? "opacity-35" : "opacity-100";
+        // Iconos de estado y enlace de dependencia a la derecha dentro de la barra
+        const checkDoneHTML = act.estado === "Ejecutado" ? `<span class="text-[10px] font-black text-white drop-shadow-2xs">✓</span>` : "";
+        const linkDepHTML = tienePredecesor ? `<span class="text-[9.5px] text-white/90" title="Predecesora: ${act.predecesores}">🔗</span>` : "";
+        const opacidadCpm = (state.capaCpmActiva && !esActividadCritica) ? "opacity-40" : "opacity-100";
 
         barraOElementoHTML = `
-          <div class="absolute bg-slate-300/70 rounded h-[2px] bottom-0.5" style="left: ${leftPct}%; width: ${widthPct}%;"></div>
-          <div class="absolute top-1 bottom-1 z-10 rounded-md border ${colorBorde} shadow-sm overflow-hidden ${opacidadCpm}" style="left: ${leftPct}%; width: ${widthPct}%; background-color: ${colorFondoRestante};">
-            ${!state.capaCpmActiva ? subAvanceHTML : ''}
-            ${!state.capaCpmActiva ? textoDentroDeBarra : ''}
-          </div>
-          <div class="absolute flex items-center top-1 z-20 pointer-events-none ${opacidadCpm}" style="left: calc(${leftPct + widthPct}% + 4px);">
-            ${!state.capaCpmActiva ? textoFlotanteHTML : ''}
-            ${miniAvataresHTML}
+          <div onclick="event.stopPropagation(); editarEstado('${codLimpio}')"
+               ondblclick="event.stopPropagation(); editarFechaFin('${codLimpio}')"
+               class="absolute top-1.5 bottom-1.5 z-10 rounded-md shadow-xs overflow-hidden flex items-center justify-between px-1.5 gantt-bar-interactive ${opacidadCpm}"
+               style="left: ${leftPct}%; width: ${widthPct}%; background-color: ${bgBarra};"
+               title="${tooltipBarra}">
+            
+            <!-- Relleno sutil de porcentaje cuando está En Proceso -->
+            ${act.estado === "En proceso" && act.avance > 0 ? `<div class="absolute inset-y-0 left-0 pointer-events-none" style="width: ${act.avance}%; background-color: ${bgProgreso};"></div>` : ''}
+
+            <!-- Izquierda: Avatar integrado + Nombre corto si la barra es ancha -->
+            <div class="relative z-10 flex items-center space-x-1.5 min-w-0 overflow-hidden">
+              ${avatarInternoHTML}
+              ${esBarraAncha ? `<span class="text-[10px] font-bold text-white truncate drop-shadow-2xs">${act.descripcion}</span>` : ''}
+            </div>
+
+            <!-- Derecha: Porcentaje, Check de completado e Icono de dependencia -->
+            <div class="relative z-10 flex items-center space-x-1 flex-shrink-0 pl-1">
+              ${mostrarPorcentajes && widthPct >= 6.0 && act.avance > 0 && act.avance < 100 ? `<span class="text-[9px] font-black text-white/95 bg-black/20 px-1 rounded">${act.avance}%</span>` : ''}
+              ${checkDoneHTML}
+              ${linkDepHTML}
+            </div>
           </div>
         `;
       }
@@ -436,8 +457,8 @@ export function renderizarGanttFila(act, esMadre, codLimpio) {
   }
 
   return `
-    <div class="relative w-full h-7 bg-[#f8fafc] rounded border border-slate-200/80 overflow-hidden">
-      <div class="absolute inset-0 flex pointer-events-none opacity-60">${divisionesHTML}</div>
+    <div class="gantt-row-canvas">
+      <div class="absolute inset-0 flex pointer-events-none">${divisionesHTML}</div>
       ${barraOElementoHTML}
     </div>
   `;

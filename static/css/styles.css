@@ -429,3 +429,172 @@ input[type="number"] {
 #lista-actividades tr:hover td:last-child button {
   opacity: 1;
 }
+
+/* ==========================================================================
+   SPRIN WORLD-CLASS UI: GANTT CONTINUO, LISTA JIRA Y TABLERO KANBAN
+   ========================================================================== */
+
+/* 1. Conmutador de Vistas (Segmented Control con Iconos SVG) */
+.sprin-view-switcher {
+  display: inline-flex;
+  align-items: center;
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 2px;
+  border-radius: 10px;
+  gap: 2px;
+}
+
+.sprin-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+  background: transparent;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sprin-view-btn:hover {
+  color: #0f2a4a;
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.sprin-view-btn.active {
+  background-color: #0f2a4a;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 42, 74, 0.25);
+}
+
+/* 2. Lienzo Gantt Continuo (Sin cajas grises individuales por fila) */
+.gantt-row-canvas {
+  position: relative;
+  width: 100%;
+  height: 36px;
+  background-color: transparent;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.gantt-bar-interactive {
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.gantt-bar-interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px -1px rgba(15, 42, 74, 0.28) !important;
+  filter: brightness(1.04);
+  z-index: 30 !important;
+}
+
+/* 3. Chips de Estado Estilo Jira Work Management */
+.jira-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.4;
+  transition: transform 0.1s ease;
+}
+
+.jira-status-done {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.jira-status-progress {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+.jira-status-todo {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+/* 4. Tablero Kanban Interactivo */
+.kanban-board-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(300px, 1fr));
+  gap: 18px;
+  height: 100%;
+  overflow-x: auto;
+  padding: 4px 2px 12px 2px;
+}
+
+.kanban-col {
+  background-color: #f4f5f7;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  min-height: 420px;
+}
+
+.kanban-col-header {
+  padding: 12px 14px 10px 14px;
+  border-top-left-radius: 11px;
+  border-top-right-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #ffffff;
+}
+
+.kanban-col-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: background-color 0.15s ease;
+}
+
+.kanban-col-body.drag-over {
+  background-color: #e0f2fe;
+}
+
+.kanban-card-item {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  cursor: grab;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  position: relative;
+}
+
+.kanban-card-item:hover {
+  border-color: #0d9488;
+  box-shadow: 0 6px 14px -3px rgba(15, 42, 74, 0.12);
+  transform: translateY(-2px);
+}
+
+.kanban-card-item:active {
+  cursor: grabbing;
+}
+
+.kanban-card-item.is-dragging {
+  opacity: 0.35;
+  transform: scale(0.97);
+}

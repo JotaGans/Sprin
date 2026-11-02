@@ -266,24 +266,41 @@ export function renderizarTabla() {
     const esMio = esResponsableDeActividad(act);
     const puedeEditarTiempos = state.proyectoEsGestor && !esMadre;
     const puedeEditarAvance = (state.proyectoEsGestor || esMio) && !esMadre;
+    const enModoLista = (state.vistaProyectoActiva === "lista");
 
     const claseEditable = "cell-editable cursor-pointer";
-    const claseBloqueada = "bg-slate-50/80 text-slate-500 cursor-not-allowed select-none";
-    const lockIcon = "";
+    const claseBloqueada = "bg-slate-50/70 text-slate-500 cursor-not-allowed select-none";
+
+    // Columna Responsables: En Vista Lista muestra Avatar + Nombre legible (estilo Jira List); en Dividida/Gantt muestra Avatar compacto
+    let contenidoRespHTML = obtenerAvatarHTML(act.responsable);
+    if (enModoLista && act.responsable && act.responsable !== "No asignado") {
+      const primerResp = act.responsable.split(";")[0].trim();
+      const extraCount = act.responsable.split(";").filter(Boolean).length - 1;
+      contenidoRespHTML = `
+        <div class="inline-flex items-center space-x-2 max-w-[180px]">
+          ${obtenerAvatarHTML(act.responsable)}
+          <span class="text-xs font-semibold text-slate-700 truncate">${primerResp}${extraCount > 0 ? ` (+${extraCount})` : ''}</span>
+        </div>
+      `;
+    }
 
     const tdResp = state.visibilidadColumnas.responsable 
-      ? `<td class="p-2 border-b border-gray-200 text-center whitespace-nowrap ${state.proyectoEsGestor ? 'cell-editable cursor-pointer' : ''}" ondblclick="${state.proyectoEsGestor ? `editarResponsable('${cod}')` : ''}" title="${state.proyectoEsGestor ? 'Doble clic para asignar responsables' : ''}">${obtenerAvatarHTML(act.responsable)}</td>` 
+      ? `<td class="p-2 border-b border-gray-200 ${enModoLista ? 'text-left pl-3' : 'text-center'} whitespace-nowrap ${state.proyectoEsGestor ? 'cell-editable cursor-pointer' : ''}" ondblclick="${state.proyectoEsGestor ? `editarResponsable('${cod}')` : ''}" title="${act.responsable || 'Sin asignar'}">${contenidoRespHTML}</td>` 
       : '';
 
+    // Columna Estado: Píldoras semánticas estilo Jira (DONE / IN PROGRESS / TO DO)
     let tdEst = '';
     if (state.visibilidadColumnas.estado) {
+      const pillClass = act.estado === 'Ejecutado' ? 'jira-status-done' : (act.estado === 'En proceso' ? 'jira-status-progress' : 'jira-status-todo');
+      const dotColor = act.estado === 'Ejecutado' ? 'bg-emerald-600' : (act.estado === 'En proceso' ? 'bg-blue-600' : 'bg-slate-400');
+
       if (esMadre) {
-        tdEst = `<td class="p-2.5 border-b border-gray-200 ${claseBloqueada} whitespace-nowrap" title="Autocalculado por sus componentes">
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${act.estado === 'Ejecutado' ? 'bg-green-100 text-green-800' : (act.estado === 'En proceso' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-200 text-gray-700')}">${act.estado}</span>
+        tdEst = `<td class="p-2.5 border-b border-gray-200 ${claseBloqueada} whitespace-nowrap" title="Autocalculado por sus subtareas">
+          <span class="jira-status-pill ${pillClass}"><span class="w-1.5 h-1.5 rounded-full ${dotColor}"></span><span>${act.estado}</span></span>
         </td>`;
       } else {
-        tdEst = `<td class="p-2.5 border-b border-gray-200 ${puedeEditarAvance ? claseEditable : ''} whitespace-nowrap" ondblclick="${puedeEditarAvance ? `editarEstado('${cod}')` : ''}">
-          <span class="px-2 py-0.5 rounded text-[11px] font-bold ${act.estado === 'Ejecutado' ? 'bg-green-100 text-green-800' : (act.estado === 'En proceso' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-200 text-gray-700')}">${act.estado}</span>
+        tdEst = `<td class="p-2.5 border-b border-gray-200 ${puedeEditarAvance ? claseEditable : ''} whitespace-nowrap" ondblclick="${puedeEditarAvance ? `editarEstado('${cod}')` : ''}" title="Doble clic para cambiar estado">
+          <span class="jira-status-pill ${pillClass}"><span class="w-1.5 h-1.5 rounded-full ${dotColor}"></span><span>${act.estado}</span></span>
         </td>`;
       }
     }
@@ -291,68 +308,81 @@ export function renderizarTabla() {
     let tdIni = '';
     if (state.visibilidadColumnas.inicio) {
       if (esMadre) {
-        tdIni = `<td class="p-2.5 border-b border-gray-200 hidden sm:table-cell text-xs ${claseBloqueada} whitespace-nowrap font-medium" title="Autocalculado por sus componentes">${fechaIniVisual}</td>`;
+        tdIni = `<td class="p-2.5 border-b border-gray-200 hidden sm:table-cell text-xs ${claseBloqueada} whitespace-nowrap font-medium">${fechaIniVisual}</td>`;
       } else {
-        tdIni = `<td class="p-2.5 border-b border-gray-200 hidden sm:table-cell text-xs ${puedeEditarTiempos ? claseEditable : ''} whitespace-nowrap font-medium" ondblclick="${puedeEditarTiempos ? `editarFechaInicio('${cod}')` : ''}">${fechaIniVisual}</td>`;
+        tdIni = `<td class="p-2.5 border-b border-gray-200 hidden sm:table-cell text-xs ${puedeEditarTiempos ? claseEditable : ''} whitespace-nowrap font-medium text-slate-600" ondblclick="${puedeEditarTiempos ? `editarFechaInicio('${cod}')` : ''}">${fechaIniVisual}</td>`;
       }
     }
 
     const hoyMs = new Date().setHours(0, 0, 0, 0);
     const finMs = dtFinObj ? dtFinObj.getTime() : null;
     const estaVencida = (finMs !== null && finMs < hoyMs && act.estado !== "Ejecutado");
-    const claseFechaVencida = estaVencida ? "bg-rose-100/70 text-rose-800 font-bold border-rose-200" : "";
-    const badgeVencidoHTML = estaVencida ? `<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-black ${claseFechaVencida}" title="¡Plazo vencido!">${fechaFinVisual}</span>` : fechaFinVisual;
+    const badgeVencidoHTML = estaVencida
+      ? `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title="¡Plazo vencido!"><span>⚠️</span><span>${fechaFinVisual}</span></span>`
+      : `<span class="inline-flex items-center space-x-1 text-xs font-semibold text-slate-700"><span class="opacity-50 text-[11px]">📅</span><span>${fechaFinVisual}</span></span>`;
 
     let tdFin = '';
     if (state.visibilidadColumnas.fin) {
       const esModoHoras = (state.proyectoModoDuracion === "hours");
-      if (esMadre) {
-        tdFin = `<td class="p-2.5 border-b border-gray-200 hidden sm:table-cell text-xs ${claseBloqueada} whitespace-nowrap font-medium" title="Autocalculado por sus componentes">${badgeVencidoHTML}</td>`;
-      } else if (esModoHoras) {
-        tdFin = `<td class="p-2.5 border-b border-gray-200 hidden sm:table-cell text-xs cursor-not-allowed select-none whitespace-nowrap font-medium" title="Fecha fin calculada por horas netas">${badgeVencidoHTML}</td>`;
+      if (esMadre || esModoHoras) {
+        tdFin = `<td class="p-2.5 border-b border-gray-200 hidden sm:table-cell text-xs ${claseBloqueada} whitespace-nowrap">${badgeVencidoHTML}</td>`;
       } else {
-        tdFin = `<td class="p-2.5 border-b border-gray-200 hidden sm:table-cell text-xs ${puedeEditarTiempos ? claseEditable : ''} whitespace-nowrap font-medium" ondblclick="${puedeEditarTiempos ? `editarFechaFin('${cod}')` : ''}">${badgeVencidoHTML}</td>`;
+        tdFin = `<td class="p-2.5 border-b border-gray-200 hidden sm:table-cell text-xs ${puedeEditarTiempos ? claseEditable : ''} whitespace-nowrap" ondblclick="${puedeEditarTiempos ? `editarFechaFin('${cod}')` : ''}">${badgeVencidoHTML}</td>`;
       }
     }
 
     const unidadTexto = (state.proyectoModoDuracion === "hours") ? "h" : "d";
     let tdDias = '';
     if (state.visibilidadColumnas.dias) {
-      if (esMadre) {
-        tdDias = `<td class="p-2.5 border-b border-gray-200 text-center font-bold text-xs ${claseBloqueada} whitespace-nowrap" title="Autocalculado por sus componentes">${act.dias}${unidadTexto}</td>`;
-      } else {
-        tdDias = `<td class="p-2.5 border-b border-gray-200 text-center font-bold text-xs ${puedeEditarTiempos ? claseEditable : ''} whitespace-nowrap" ondblclick="${puedeEditarTiempos ? `editarDias('${cod}')` : ''}">${act.dias}${unidadTexto}</td>`;
-      }
+      tdDias = `<td class="p-2.5 border-b border-gray-200 text-center font-bold text-xs ${esMadre ? claseBloqueada : (puedeEditarTiempos ? claseEditable : '')} whitespace-nowrap" ondblclick="${!esMadre && puedeEditarTiempos ? `editarDias('${cod}')` : ''}">
+        <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200/80">${act.dias}${unidadTexto}</span>
+      </td>`;
     }
 
+    // Columna Progreso: Barra visual horizontal + porcentaje
     let tdAvance = '';
     if (state.visibilidadColumnas.avance) {
-      if (esMadre) {
-        tdAvance = `<td class="p-2.5 border-b border-gray-200 text-center font-bold text-xs ${claseBloqueada} whitespace-nowrap" title="Autocalculado por sus componentes">${act.avance}%</td>`;
-      } else {
-        tdAvance = `<td class="p-2.5 border-b border-gray-200 text-center font-bold text-xs ${puedeEditarAvance ? claseEditable : ''} whitespace-nowrap" ondblclick="${puedeEditarAvance ? `editarAvance('${cod}')` : ''}">${act.avance}%</td>`;
-      }
+      const colorBar = act.avance === 100 ? 'bg-emerald-500' : (act.avance > 0 ? 'bg-blue-600' : 'bg-slate-300');
+      tdAvance = `<td class="p-2.5 border-b border-gray-200 text-center font-bold text-xs ${esMadre ? claseBloqueada : (puedeEditarAvance ? claseEditable : '')} whitespace-nowrap" ondblclick="${!esMadre && puedeEditarAvance ? `editarAvance('${cod}')` : ''}" title="Doble clic para actualizar % de avance">
+        <div class="flex items-center justify-center space-x-2">
+          <div class="w-12 bg-slate-200 h-1.5 rounded-full overflow-hidden hidden sm:block">
+            <div class="${colorBar} h-1.5 rounded-full transition-all duration-300" style="width: ${act.avance}%"></div>
+          </div>
+          <span class="text-[11px] font-black ${act.avance === 100 ? 'text-emerald-700' : 'text-slate-700'}">${act.avance}%</span>
+        </div>
+      </td>`;
     }
 
     const ganttHTML = renderizarGanttFila(act, esMadre, codLimpio);
-    const tdGantt = state.visibilidadColumnas.gantt ? `<td class="p-1 border-b border-gray-200">${ganttHTML}</td>` : '';
+    const tdGantt = state.visibilidadColumnas.gantt ? `<td class="p-0 border-b border-gray-200 align-middle">${ganttHTML}</td>` : '';
 
     const comsAct = obtenerComentariosDeActividad(cod);
     const cantComs = comsAct.length;
     const iconoComentarioHTML = cantComs > 0
-      ? `<button onclick="event.stopPropagation(); abrirModalComentarios('${cod}')" class="opacity-0 group-hover:opacity-100 inline-flex items-center space-x-1 text-slate-500 hover:text-slate-900 px-1 py-0.5 text-xs ml-1.5 transition select-none leading-none cursor-pointer" title="Ver ${cantComs} comentario(s)"><span class="text-[11px]">💬</span><span class="text-[10px] font-black text-slate-600">${cantComs}</span></button>`
-      : `<button onclick="event.stopPropagation(); abrirModalComentarios('${cod}')" class="opacity-0 group-hover:opacity-30 hover:!opacity-90 text-slate-400 hover:text-slate-700 px-1 py-0.5 text-xs ml-1.5 transition select-none leading-none cursor-pointer" title="Agregar comentario"><span class="text-[11px]">💬</span></button>`;
+      ? `<button onclick="event.stopPropagation(); abrirModalComentarios('${cod}')" class="inline-flex items-center space-x-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded-md text-[10px] font-black ml-1.5 transition cursor-pointer" title="Ver ${cantComs} comentario(s)"><span>💬</span><span>${cantComs}</span></button>`
+      : `<button onclick="event.stopPropagation(); abrirModalComentarios('${cod}')" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 px-1 py-0.5 text-xs ml-1.5 transition cursor-pointer" title="Agregar comentario">💬</button>`;
 
     const descTextoLimpio = String(act.descripcion || "").replace(/"/g, '&quot;');
-    const handleDrag = state.proyectoEsGestor ? `<span class="drag-handle text-slate-400 hover:text-slate-800 cursor-grab active:cursor-grabbing mr-2 text-xs select-none inline-block align-middle" title="Arrastrar fila para reubicar">⠿</span>` : '';
+    const handleDrag = state.proyectoEsGestor ? `<span class="drag-handle text-slate-400 hover:text-slate-800 cursor-grab active:cursor-grabbing mr-1.5 text-xs select-none inline-block align-middle" title="Arrastrar fila para reubicar">⠿</span>` : '';
+
+    // Checkbox interactivo estilo Jira (en tareas operativas permite marcar 100% con 1 clic; en madres muestra icono de Fase)
+    const checkTipoHTML = esMadre
+      ? `<span class="inline-flex items-center justify-center w-4 h-4 rounded bg-[#0f2a4a]/10 text-[#0f2a4a] mr-1.5 flex-shrink-0 text-[10px]" title="Fase / Actividad Resumen">📁</span>`
+      : `<input type="checkbox" ${act.estado === 'Ejecutado' ? 'checked' : ''} ${!puedeEditarAvance ? 'disabled' : ''} onclick="event.stopPropagation(); alternarCheckRapidoActividad('${cod}')" class="w-3.5 h-3.5 rounded text-teal-600 border-slate-300 focus:ring-0 mr-2 cursor-pointer flex-shrink-0" title="Marcar como ejecutada (100%)">`;
 
     tr.innerHTML = `
       <td class="p-2.5 font-mono font-bold text-xs border-b border-gray-200 whitespace-nowrap">
-        <div class="inline-flex items-center">${handleDrag}${iconoColapso}<span>${cod}</span></div>
+        <div class="inline-flex items-center">
+          ${handleDrag}${iconoColapso}
+          <span class="px-1.5 py-0.5 rounded text-[11px] font-black ${esNivel1 ? 'bg-[#0f2a4a] text-white' : 'bg-slate-100 text-[#0f2a4a] border border-slate-200/80'}">${cod}</span>
+        </div>
       </td>
       <td class="p-2 border-b border-gray-200 ${state.proyectoEsGestor ? 'cell-editable cursor-pointer' : ''} group align-middle" style="padding-left: ${paddingLeft}px;" ondblclick="${state.proyectoEsGestor ? `editarDescripcion('${cod}')` : ''}" title="${descTextoLimpio}">
         <div class="flex items-center justify-between gap-1 w-full overflow-hidden">
-          <span class="text-xs leading-snug break-words text-gray-800 select-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;" title="${descTextoLimpio}">${act.descripcion}</span>
+          <div class="flex items-center min-w-0">
+            ${checkTipoHTML}
+            <span class="text-xs leading-snug break-words ${act.estado === 'Ejecutado' && !esMadre ? 'line-through text-slate-400' : (esNivel1 ? 'font-extrabold text-[#0f2a4a]' : 'font-semibold text-gray-800')} select-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;">${act.descripcion}</span>
+          </div>
           <div class="flex-shrink-0">${iconoComentarioHTML}</div>
         </div>
       </td>
@@ -543,6 +573,8 @@ export function aplicarFiltrosGlobales() {
   }
 
   renderizarTabla();
+  if (state.vistaProyectoActiva === "kanban") renderizarTableroKanban();
+  renderizarBarraAvataresEquipoToolbar();
 }
 
 export function limpiarTodosFiltros() {
@@ -1882,27 +1914,126 @@ window.cerrarModalPegarListaTareas = cerrarModalPegarListaTareas;
 window.confirmarPegadoLoteTareas = confirmarPegadoLoteTareas;
 
 // =========================================================================
-// CONMUTADOR DE VISTAS (DIVIDIDA | LISTA | GANTT) Y FILTRO RÁPIDO
+// CONMUTADOR DE 4 VISTAS, CHECK RÁPIDO 1-CLIC Y TABLERO KANBAN (JIRA STYLE)
 // =========================================================================
+
+export async function alternarCheckRapidoActividad(cod) {
+  const codLimpio = String(cod).replace(/\.+$/, "");
+  if (tieneHijos(codLimpio)) return;
+  const act = state.actividadesGlobal.find(a => String(a.codigo).replace(/\.+$/, "") === codLimpio);
+  if (!act) return;
+
+  const esMio = esResponsableDeActividad(act);
+  if (!state.proyectoEsGestor && !esMio) {
+    alert("Solo el gestor o el responsable asignado pueden completar esta actividad.");
+    renderizarTabla();
+    return;
+  }
+
+  if (act.estado === "Ejecutado") {
+    act.estado = "No iniciado";
+    act.avance = 0;
+  } else {
+    act.estado = "Ejecutado";
+    act.avance = 100;
+  }
+
+  await guardarCambioDirecto(act);
+  notificarToast(
+    act.estado === "Ejecutado" ? `✓ Actividad [${codLimpio}] completada al 100%.` : `Actividad [${codLimpio}] reabierta.`,
+    act.estado === "Ejecutado" ? "success" : "info",
+    2200
+  );
+}
+
+export function renderizarBarraAvataresEquipoToolbar() {
+  const cont = document.getElementById("toolbar-avatares-equipo");
+  const selColab = document.getElementById("filtro-responsable-select");
+  if (!cont) return;
+
+  const setPersonas = new Set();
+  (state.actividadesGlobal || []).forEach(a => {
+    const rStr = (a.responsable || "").trim();
+    if (rStr && rStr !== "No asignado") {
+      rStr.split(";").map(s => s.trim()).filter(Boolean).forEach(p => setPersonas.add(p));
+    }
+  });
+
+  const lista = Array.from(setPersonas);
+  if (lista.length === 0) {
+    cont.innerHTML = "";
+    return;
+  }
+
+  const activoActual = selColab ? selColab.value : "";
+  const mostrar = lista.slice(0, 5);
+  const extras = lista.length - mostrar.length;
+
+  cont.innerHTML = mostrar.map(nom => {
+    const ini = nom.includes(",")
+      ? (nom.split(",")[0].trim()[0] + (nom.split(",")[1]?.trim()[0] || "")).toUpperCase()
+      : (nom.split(" ")[0][0] + (nom.split(" ")[1]?.[0] || "")).toUpperCase();
+    let hash = 0;
+    for (let i = 0; i < nom.length; i++) hash = nom.charCodeAt(i) + ((hash << 5) - hash);
+    const color = state.coloresAvatar[Math.abs(hash) % state.coloresAvatar.length];
+    const esActivo = (activoActual === nom);
+    const ringClase = esActivo ? "ring-2 ring-teal-500 scale-110 z-20" : "opacity-85 hover:opacity-100 hover:scale-105";
+
+    return `
+      <button type="button" onclick="filtrarPorAvatarToolbar('${nom.replace(/'/g, "\\'")}')"
+              style="background-color: ${color};"
+              class="w-6 h-6 rounded-full text-white text-[9px] font-black border-2 border-white shadow-2xs flex items-center justify-center transition transform cursor-pointer ${ringClase}"
+              title="Filtrar tareas de: ${nom}">
+        ${ini}
+      </button>
+    `;
+  }).join("") + (extras > 0 ? `<span class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[9px] font-black border-2 border-white flex items-center justify-center">+${extras}</span>` : "");
+}
+
+export function filtrarPorAvatarToolbar(nombre) {
+  const sel = document.getElementById("filtro-responsable-select");
+  if (!sel) return;
+  sel.value = (sel.value === nombre) ? "" : nombre;
+  aplicarFiltrosGlobales();
+  renderizarBarraAvataresEquipoToolbar();
+}
 
 export function cambiarVistaProyecto(modo) {
   state.vistaProyectoActiva = modo;
   localStorage.setItem("sprin_vista_proyecto", modo);
 
-  const btnSplit = document.getElementById("btn-vista-proy-split");
-  const btnLista = document.getElementById("btn-vista-proy-lista");
-  const btnGantt = document.getElementById("btn-vista-proy-gantt");
+  ["split", "lista", "kanban", "gantt"].forEach(m => {
+    const btn = document.getElementById(`btn-vista-proy-${m}`);
+    if (btn) {
+      btn.className = (m === modo) ? "sprin-view-btn active" : "sprin-view-btn";
+    }
+  });
 
-  const estiloActivo = "px-2 py-1 rounded text-[11px] font-bold bg-[#0f2a4a] text-white shadow-2xs transition flex items-center gap-1 cursor-pointer";
-  const estiloInactivo = "px-2 py-1 rounded text-[11px] font-bold text-slate-600 hover:text-[#0f2a4a] transition flex items-center gap-1 cursor-pointer";
+  // Ocultar controles exclusivos del Gantt cuando el usuario está en Vista Lista o Tablero Kanban
+  const controlesTiempoGantt = document.getElementById("grupo-controles-tiempo-gantt");
+  if (controlesTiempoGantt) {
+    if (modo === "lista" || modo === "kanban") {
+      controlesTiempoGantt.classList.add("hidden");
+    } else {
+      controlesTiempoGantt.classList.remove("hidden");
+    }
+  }
 
-  if (btnSplit) btnSplit.className = (modo === "split") ? estiloActivo : estiloInactivo;
-  if (btnLista) btnLista.className = (modo === "lista") ? estiloActivo : estiloInactivo;
-  if (btnGantt) btnGantt.className = (modo === "gantt") ? estiloActivo : estiloInactivo;
+  const wrapperTablaGantt = document.getElementById("vista-tabla-gantt-wrapper");
+  const wrapperKanban = document.getElementById("vista-kanban-wrapper");
 
-  // Ajustar visibilidad de columnas según el modo
+  if (modo === "kanban") {
+    if (wrapperTablaGantt) wrapperTablaGantt.classList.add("hidden");
+    if (wrapperKanban) wrapperKanban.classList.remove("hidden");
+    renderizarTableroKanban();
+    renderizarBarraAvataresEquipoToolbar();
+    return;
+  }
+
+  if (wrapperKanban) wrapperKanban.classList.add("hidden");
+  if (wrapperTablaGantt) wrapperTablaGantt.classList.remove("hidden");
+
   if (modo === "lista") {
-    // Modo Lista: Ocultar lienzo Gantt y expandir la tabla
     state.visibilidadColumnas.gantt = false;
     state.visibilidadColumnas.responsable = true;
     state.visibilidadColumnas.estado = true;
@@ -1911,7 +2042,6 @@ export function cambiarVistaProyecto(modo) {
     state.visibilidadColumnas.dias = true;
     state.visibilidadColumnas.avance = true;
   } else if (modo === "gantt") {
-    // Modo Solo Gantt: Maximizar el cronograma ocultando columnas intermedias
     state.visibilidadColumnas.gantt = true;
     state.visibilidadColumnas.responsable = true;
     state.visibilidadColumnas.estado = false;
@@ -1920,7 +2050,6 @@ export function cambiarVistaProyecto(modo) {
     state.visibilidadColumnas.dias = false;
     state.visibilidadColumnas.avance = false;
   } else {
-    // Modo Dividida: Restablecer vista balanceada
     state.visibilidadColumnas.gantt = true;
     state.visibilidadColumnas.responsable = true;
     state.visibilidadColumnas.estado = true;
@@ -1930,11 +2059,11 @@ export function cambiarVistaProyecto(modo) {
     state.visibilidadColumnas.avance = true;
   }
 
-  const { aplicarVisibilidadColumnas } = window;
-  if (typeof aplicarVisibilidadColumnas === "function") {
-    aplicarVisibilidadColumnas();
+  if (typeof window.aplicarVisibilidadColumnas === "function") {
+    window.aplicarVisibilidadColumnas();
   }
   renderizarTabla();
+  renderizarBarraAvataresEquipoToolbar();
 }
 
 export function alternarFiltroMisActividades() {
@@ -1943,15 +2072,171 @@ export function alternarFiltroMisActividades() {
 
   if (btn) {
     if (state.filtroSoloMisActividades) {
-      btn.className = "h-[30px] px-2.5 rounded-lg text-xs font-black bg-teal-600 hover:bg-teal-700 text-white border border-teal-700 transition shadow-xs flex items-center gap-1 cursor-pointer whitespace-nowrap flex-shrink-0";
-      notificarToast("Mostrando únicamente tus actividades asignadas.", "info");
+      btn.className = "h-[30px] px-2.5 rounded-lg text-xs font-black bg-teal-600 hover:bg-teal-700 text-white border border-teal-700 transition shadow-2xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap flex-shrink-0";
+      notificarToast("Mostrando únicamente tus actividades asignadas.", "info", 2200);
     } else {
-      btn.className = "h-[30px] px-2.5 rounded-lg text-xs font-bold bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-300 transition shadow-2xs flex items-center gap-1 cursor-pointer whitespace-nowrap flex-shrink-0";
+      btn.className = "h-[30px] px-2.5 rounded-lg text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-300 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap flex-shrink-0";
     }
   }
 
   aplicarFiltrosGlobales();
+  if (state.vistaProyectoActiva === "kanban") {
+    renderizarTableroKanban();
+  }
+}
+
+// --- MOTOR INTERACTIVO DEL TABLERO KANBAN (ESTILO JIRA BOARD) ---
+let codigoArrastradoKanban = null;
+
+export function renderizarTableroKanban() {
+  const zonaPend = document.getElementById("kanban-dropzone-pendiente");
+  const zonaProc = document.getElementById("kanban-dropzone-proceso");
+  const zonaEjec = document.getElementById("kanban-dropzone-ejecutado");
+
+  if (!zonaPend || !zonaProc || !zonaEjec) return;
+  zonaPend.innerHTML = "";
+  zonaProc.innerHTML = "";
+  zonaEjec.innerHTML = "";
+
+  const txtBusq = (document.getElementById("filtro-busqueda")?.value || "").toLowerCase().trim();
+  const respFiltro = document.getElementById("filtro-responsable-select")?.value || "";
+
+  // Filtrar tareas operativas (hojas) respetando los filtros activos del toolbar
+  const operativas = (state.actividadesGlobal || []).filter(act => {
+    if (tieneHijos(act.codigo)) return false;
+    if (txtBusq && !act.descripcion.toLowerCase().includes(txtBusq) && !act.codigo.toLowerCase().includes(txtBusq)) return false;
+    if (respFiltro && !(act.responsable || "").includes(respFiltro)) return false;
+    if (state.filtroSoloMisActividades && !esResponsableDeActividad(act)) return false;
+    return true;
+  });
+
+  let contPend = 0, contProc = 0, contEjec = 0;
+  const coloresFase = [
+    "bg-teal-100 text-teal-900 border-teal-200",
+    "bg-amber-100 text-amber-900 border-amber-200",
+    "bg-indigo-100 text-indigo-900 border-indigo-200",
+    "bg-purple-100 text-purple-900 border-purple-200",
+    "bg-sky-100 text-sky-900 border-sky-200"
+  ];
+
+  operativas.forEach(act => {
+    const codLimpio = String(act.codigo).replace(/\.+$/, "");
+    const raizCod = codLimpio.split(".")[0];
+    const madreRaiz = state.actividadesGlobal.find(a => String(a.codigo).replace(/\.+$/, "") === raizCod);
+    const nombreFase = (madreRaiz && madreRaiz.codigo !== codLimpio) ? madreRaiz.descripcion : "Actividad Principal";
+    const estiloFase = coloresFase[(parseInt(raizCod, 10) || 1) % coloresFase.length];
+
+    const esMio = esResponsableDeActividad(act);
+    const puedeEditar = state.proyectoEsGestor || esMio;
+
+    const card = document.createElement("div");
+    card.className = "kanban-card-item group";
+    card.draggable = puedeEditar;
+
+    if (puedeEditar) {
+      card.ondragstart = (e) => {
+        codigoArrastradoKanban = codLimpio;
+        card.classList.add("is-dragging");
+        e.dataTransfer.setData("text/plain", codLimpio);
+      };
+      card.ondragend = () => {
+        card.classList.remove("is-dragging");
+        codigoArrastradoKanban = null;
+      };
+    }
+
+    card.ondblclick = () => {
+      if (puedeEditar) editarEstado(codLimpio);
+    };
+
+    const coms = obtenerComentariosDeActividad(codLimpio).length;
+
+    card.innerHTML = `
+      <!-- Descripción de la Tarea -->
+      <p class="text-xs font-bold text-slate-800 leading-snug mb-2.5 group-hover:text-[#0f2a4a] transition">${act.descripcion}</p>
+
+      <!-- Etiqueta de Fase Madre (Estilo Epic Tag de Jira) -->
+      <div class="mb-3">
+        <span class="inline-block text-[9.5px] font-black uppercase px-2 py-0.5 rounded border truncate max-w-full ${estiloFase}" title="Fase: ${nombreFase}">
+          ${nombreFase}
+        </span>
+      </div>
+
+      <!-- Barra de Progreso sutil cuando está En Proceso -->
+      ${act.estado === "En proceso" ? `
+        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mb-2.5">
+          <div class="bg-blue-600 h-1.5 rounded-full" style="width: ${act.avance}%"></div>
+        </div>
+      ` : ''}
+
+      <!-- Pie de Tarjeta: Código + Plazo + Comentarios + Avatar -->
+      <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[10.5px] text-slate-500">
+        <div class="flex items-center space-x-2">
+          <span class="font-mono font-black text-[#0f2a4a] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${codLimpio}</span>
+          <span class="font-semibold" title="Fecha de vencimiento">📅 ${formatearFechaLatina(act.fecha_fin)}</span>
+          ${coms > 0 ? `<button onclick="event.stopPropagation(); abrirModalComentarios('${codLimpio}')" class="text-indigo-600 font-black hover:underline cursor-pointer">💬 ${coms}</button>` : ''}
+        </div>
+        <div onclick="event.stopPropagation(); ${state.proyectoEsGestor ? `editarResponsable('${codLimpio}')` : ''}" title="${act.responsable || 'Sin asignar'}">
+          ${obtenerAvatarHTML(act.responsable)}
+        </div>
+      </div>
+    `;
+
+    if (act.estado === "Ejecutado") {
+      zonaEjec.appendChild(card);
+      contEjec++;
+    } else if (act.estado === "En proceso") {
+      zonaProc.appendChild(card);
+      contProc++;
+    } else {
+      zonaPend.appendChild(card);
+      contPend++;
+    }
+  });
+
+  const bPend = document.getElementById("kanban-count-pendiente");
+  const bProc = document.getElementById("kanban-count-proceso");
+  const bEjec = document.getElementById("kanban-count-ejecutado");
+  if (bPend) bPend.innerText = contPend;
+  if (bProc) bProc.innerText = contProc;
+  if (bEjec) bEjec.innerText = contEjec;
+}
+
+export function kanbanPermitirSoltar(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add("drag-over");
+}
+
+export function kanbanSalirZona(e) {
+  e.currentTarget.classList.remove("drag-over");
+}
+
+export async function kanbanSoltarActividad(e, nuevoEstado) {
+  e.preventDefault();
+  e.currentTarget.classList.remove("drag-over");
+
+  const cod = codigoArrastradoKanban || e.dataTransfer.getData("text/plain");
+  if (!cod) return;
+
+  const act = state.actividadesGlobal.find(a => String(a.codigo).replace(/\.+$/, "") === cod);
+  if (!act || act.estado === nuevoEstado) return;
+
+  act.estado = nuevoEstado;
+  if (nuevoEstado === "Ejecutado") act.avance = 100;
+  else if (nuevoEstado === "No iniciado") act.avance = 0;
+  else if (nuevoEstado === "En proceso" && (act.avance === 0 || act.avance === 100)) act.avance = 50;
+
+  renderizarTableroKanban();
+  await guardarCambioDirecto(act);
+  notificarToast(`Actividad [${cod}] movida a "${nuevoEstado}".`, "success", 2500);
 }
 
 window.cambiarVistaProyecto = cambiarVistaProyecto;
 window.alternarFiltroMisActividades = alternarFiltroMisActividades;
+window.alternarCheckRapidoActividad = alternarCheckRapidoActividad;
+window.renderizarBarraAvataresEquipoToolbar = renderizarBarraAvataresEquipoToolbar;
+window.filtrarPorAvatarToolbar = filtrarPorAvatarToolbar;
+window.renderizarTableroKanban = renderizarTableroKanban;
+window.kanbanPermitirSoltar = kanbanPermitirSoltar;
+window.kanbanSalirZona = kanbanSalirZona;
+window.kanbanSoltarActividad = kanbanSoltarActividad;
