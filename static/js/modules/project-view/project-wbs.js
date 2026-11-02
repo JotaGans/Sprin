@@ -427,6 +427,10 @@ export function renderizarTabla() {
 
   const anchoGuardado = localStorage.getItem(obtenerClaveStorageAnchoCol());
   if (anchoGuardado) aplicarAnchoColumnaDescripcion(anchoGuardado);
+
+  if (typeof window.dibujarFlechasDependenciasGantt === "function") {
+    requestAnimationFrame(() => window.dibujarFlechasDependenciasGantt());
+  }
 }
 
 export function alternarColapsoNodo(cod) {

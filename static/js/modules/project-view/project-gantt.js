@@ -349,7 +349,6 @@ export function renderizarGanttFila(act, esMadre, codLimpio) {
   const mostrarAvatares = (state.visibilidadColumnas.avatares_gantt !== false);
   const mostrarPorcentajes = (state.visibilidadColumnas.porcentajes_gantt !== false);
 
-  // 1. Líneas guía verticales continuas de arriba a abajo + Columna Hoy destacada
   let divisionesHTML = "";
   if (ventana.modo === "dias") {
     divisionesHTML = ventana.items.map(d => {
@@ -377,13 +376,17 @@ export function renderizarGanttFila(act, esMadre, codLimpio) {
       const leftPct = Math.min(100, Math.max(0, ((startClamped - tInicioVisible) / duracionVisibleMs) * 100));
       const widthPct = Math.min(100 - leftPct, Math.max(2.2, ((endClamped - startClamped) / duracionVisibleMs) * 100));
       const esBarraAncha = widthPct >= 8.5;
-      const tienePredecesor = Boolean(act.predecesores && String(act.predecesores).trim() !== "");
-      const tooltipBarra = `[${codLimpio}] ${act.descripcion} | ${act.fecha_inicio} al ${act.fecha_fin} (${act.avance}%) ${tienePredecesor ? '| Predecesoras: ' + act.predecesores : ''} — Clic para actualizar estado`;
+      const predsLista = (act.predecesores || "").split(",").map(s => s.trim()).filter(Boolean);
+      const tienePredecesor = predsLista.length > 0;
+      const tooltipBarra = `[${codLimpio}] ${act.descripcion} | ${act.fecha_inicio} → ${act.fecha_fin} (${act.avance}%) ${tienePredecesor ? '| Predecesora(s): ' + predsLista.join(', ') : ''} — Arrastra el círculo derecho para conectar con otra tarea`;
 
       if (esMadre) {
-        // Barra Resumen de Fase Madre (Estilo Bracket Ejecutivo con progreso interno)
         barraOElementoHTML = `
-          <div class="absolute top-2 bottom-2 z-10 gantt-bar-interactive" style="left: ${leftPct}%; width: ${widthPct}%;" title="${tooltipBarra}">
+          <div id="gantt-bar-el-${codLimpio.replace(/\./g, '_')}"
+               data-cod="${codLimpio}"
+               class="absolute top-2 bottom-2 z-10 gantt-bar-interactive"
+               style="left: ${leftPct}%; width: ${widthPct}%;"
+               title="${tooltipBarra}">
             <div class="w-full h-full bg-[#0f2a4a] rounded-md shadow-xs relative overflow-hidden flex items-center justify-between px-2">
               <div class="absolute top-0 bottom-0 left-0 bg-teal-500/35 transition-all duration-300" style="width: ${act.avance}%;"></div>
               <span class="relative z-10 text-[9.5px] font-bold text-teal-200 truncate pr-2">${esBarraAncha ? act.descripcion : ''}</span>
@@ -392,23 +395,21 @@ export function renderizarGanttFila(act, esMadre, codLimpio) {
           </div>
         `;
       } else {
-        // Barra Operativa Estilo Jira Timeline (Verde Esmeralda = Ejecutado, Azul Brillante = En Proceso, Gris Pizarra = Por Hacer)
         const esActividadCritica = state.capaCpmActiva && state.datosCpmGlobal?.actividadesCriticas?.has(codLimpio);
-        let bgBarra = "#64748b"; // Por Hacer (Slate elegante estilo Jira)
+        let bgBarra = "#64748b";
         let bgProgreso = "#475569";
 
         if (state.capaCpmActiva) {
           bgBarra = esActividadCritica ? "#dc2626" : "#94a3b8";
           bgProgreso = esActividadCritica ? "#b91c1c" : "#64748b";
         } else if (act.estado === "Ejecutado") {
-          bgBarra = "#10b981"; // Verde Jira
+          bgBarra = "#10b981";
           bgProgreso = "#059669";
         } else if (act.estado === "En proceso") {
-          bgBarra = "#2563eb"; // Azul Jira
+          bgBarra = "#2563eb";
           bgProgreso = "#1d4ed8";
         }
 
-        // Avatar circular integrado dentro de la barra a la izquierda (como en Jira)
         const listaResp = obtenerListaResponsablesAsignados(act.responsable);
         let avatarInternoHTML = "";
         if (mostrarAvatares && listaResp.length > 0 && widthPct >= 4.2) {
@@ -423,33 +424,49 @@ export function renderizarGanttFila(act, esMadre, codLimpio) {
           `;
         }
 
-        // Iconos de estado y enlace de dependencia a la derecha dentro de la barra
         const checkDoneHTML = act.estado === "Ejecutado" ? `<span class="text-[10px] font-black text-white drop-shadow-2xs">✓</span>` : "";
-        const linkDepHTML = tienePredecesor ? `<span class="text-[9.5px] text-white/90" title="Predecesora: ${act.predecesores}">🔗</span>` : "";
-        const opacidadCpm = (state.capaCpmActiva && !esActividadCritica) ? "opacity-40" : "opacity-100";
+        const badgePredHTML = tienePredecesor
+          ? `<span onclick="event.stopPropagation(); abrirModalDependencias('${codLimpio}')" class="text-[9px] font-black text-white bg-black/25 hover:bg-black/45 px-1 rounded flex items-center gap-0.5 cursor-pointer" title="Predecesora(s): ${predsLista.join(', ')} (Clic para editar)">🔗${predsLista.join(',')}</span>`
+          : "";
+        const opacidadCpm = (state.capaCpmActiva && !esActividadCritica) ? "opacity-45" : "opacity-100";
+
+        // Puertos de conexión interactivos (solo para Gestor)
+        const puertosConexionHTML = state.proyectoEsGestor ? `
+          <span class="gantt-connect-handle gantt-connect-handle-in"
+                data-cod="${codLimpio}"
+                title="Soltar aquí para que [${codLimpio}] dependa de la tarea arrastrada"></span>
+          <span class="gantt-connect-handle gantt-connect-handle-out"
+                data-cod="${codLimpio}"
+                onmousedown="iniciarConexionGanttMouse(event, '${codLimpio}')"
+                title="Arrastrar hacia otra barra para conectar [${codLimpio}] como predecesora"></span>
+        ` : "";
 
         barraOElementoHTML = `
-          <div onclick="event.stopPropagation(); editarEstado('${codLimpio}')"
+          <div id="gantt-bar-el-${codLimpio.replace(/\./g, '_')}"
+               data-cod="${codLimpio}"
+               onclick="event.stopPropagation(); editarEstado('${codLimpio}')"
                ondblclick="event.stopPropagation(); editarFechaFin('${codLimpio}')"
-               class="absolute top-1.5 bottom-1.5 z-10 rounded-md shadow-xs overflow-hidden flex items-center justify-between px-1.5 gantt-bar-interactive ${opacidadCpm}"
+               onmouseenter="resaltarDestinoConexionGantt('${codLimpio}', true)"
+               onmouseleave="resaltarDestinoConexionGantt('${codLimpio}', false)"
+               onmouseup="finalizarConexionEnBarraGantt(event, '${codLimpio}')"
+               class="absolute top-1.5 bottom-1.5 z-10 rounded-md shadow-xs flex items-center justify-between px-1.5 gantt-bar-interactive ${opacidadCpm}"
                style="left: ${leftPct}%; width: ${widthPct}%; background-color: ${bgBarra};"
                title="${tooltipBarra}">
             
-            <!-- Relleno sutil de porcentaje cuando está En Proceso -->
-            ${act.estado === "En proceso" && act.avance > 0 ? `<div class="absolute inset-y-0 left-0 pointer-events-none" style="width: ${act.avance}%; background-color: ${bgProgreso};"></div>` : ''}
+            ${act.estado === "En proceso" && act.avance > 0 ? `<div class="absolute inset-y-0 left-0 rounded-l-md pointer-events-none" style="width: ${act.avance}%; background-color: ${bgProgreso};"></div>` : ''}
 
-            <!-- Izquierda: Avatar integrado + Nombre corto si la barra es ancha -->
             <div class="relative z-10 flex items-center space-x-1.5 min-w-0 overflow-hidden">
               ${avatarInternoHTML}
               ${esBarraAncha ? `<span class="text-[10px] font-bold text-white truncate drop-shadow-2xs">${act.descripcion}</span>` : ''}
             </div>
 
-            <!-- Derecha: Porcentaje, Check de completado e Icono de dependencia -->
             <div class="relative z-10 flex items-center space-x-1 flex-shrink-0 pl-1">
               ${mostrarPorcentajes && widthPct >= 6.0 && act.avance > 0 && act.avance < 100 ? `<span class="text-[9px] font-black text-white/95 bg-black/20 px-1 rounded">${act.avance}%</span>` : ''}
               ${checkDoneHTML}
-              ${linkDepHTML}
+              ${badgePredHTML}
             </div>
+
+            ${puertosConexionHTML}
           </div>
         `;
       }
@@ -457,11 +474,187 @@ export function renderizarGanttFila(act, esMadre, codLimpio) {
   }
 
   return `
-    <div class="gantt-row-canvas">
+    <div class="gantt-row-canvas" data-row-cod="${codLimpio}">
       <div class="absolute inset-0 flex pointer-events-none">${divisionesHTML}</div>
       ${barraOElementoHTML}
     </div>
   `;
+}
+
+// =========================================================================
+// MOTOR DE FLECHAS ORTOGONALES INTELIGENTES Y CONEXIÓN CON MOUSE EN GANTT
+// =========================================================================
+
+let conexionGanttActiva = null;
+
+export function dibujarFlechasDependenciasGantt() {
+  const wrapper = document.getElementById("vista-tabla-gantt-wrapper");
+  const tabla = document.getElementById("tabla-gantt-main");
+  if (!wrapper || !tabla || !state.visibilidadColumnas.gantt || state.vistaProyectoActiva === "kanban" || state.vistaProyectoActiva === "lista") {
+    document.getElementById("svg-gantt-dependencies-layer")?.remove();
+    return;
+  }
+
+  let svg = document.getElementById("svg-gantt-dependencies-layer");
+  if (!svg) {
+    svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.id = "svg-gantt-dependencies-layer";
+    wrapper.appendChild(svg);
+  }
+
+  svg.setAttribute("width", tabla.scrollWidth);
+  svg.setAttribute("height", tabla.scrollHeight);
+
+  // Definición de puntas de flecha (normal en turquesa #0d9488 y crítica en rojo #dc2626)
+  let contenidoSVG = `
+    <defs>
+      <marker id="gantt-arrow-normal" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#0d9488" />
+      </marker>
+      <marker id="gantt-arrow-critical" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#dc2626" />
+      </marker>
+    </defs>
+  `;
+
+  const rectWrapper = wrapper.getBoundingClientRect();
+  const scrollLeft = wrapper.scrollLeft;
+  const scrollTop = wrapper.scrollTop;
+
+  // Recolectar todos los enlaces activos
+  const enlaces = [];
+  (state.actividadesGlobal || []).forEach(act => {
+    const codDest = String(act.codigo).replace(/\.+$/, "");
+    const preds = (act.predecesores || "").split(",").map(s => s.trim().replace(/\.+$/, "")).filter(Boolean);
+    preds.forEach(codOrig => {
+      enlaces.push({ origen: codOrig, destino: codDest });
+    });
+  });
+
+  enlaces.forEach(({ origen, destino }) => {
+    const elOrig = document.getElementById(`gantt-bar-el-${origen.replace(/\./g, '_')}`);
+    const elDest = document.getElementById(`gantt-bar-el-${destino.replace(/\./g, '_')}`);
+    if (!elOrig || !elDest) return;
+
+    const rOrig = elOrig.getBoundingClientRect();
+    const rDest = elDest.getBoundingClientRect();
+    if (rOrig.width === 0 || rDest.width === 0) return;
+
+    // Coordenadas relativas al contenedor desplazable
+    const x1 = (rOrig.right - rectWrapper.left) + scrollLeft;
+    const y1 = (rOrig.top + rOrig.height / 2 - rectWrapper.top) + scrollTop;
+    const x2 = (rDest.left - rectWrapper.left) + scrollLeft;
+    const y2 = (rDest.top + rDest.height / 2 - rectWrapper.top) + scrollTop;
+
+    // Ruteo Ortogonal Inteligente con esquinas redondeadas (evita atravesar las barras por encima)
+    const dirY = y2 >= y1 ? 1 : -1;
+    const radio = 5;
+    let dPath = "";
+
+    if (x2 >= x1 + 18) {
+      // Caso estándar hacia adelante: escalón limpio entre el fin de A y el inicio de B
+      const midX = x1 + Math.min(16, (x2 - x1) / 2);
+      dPath = `M ${x1} ${y1} L ${midX - radio} ${y1} Q ${midX} ${y1} ${midX} ${y1 + dirY * radio} L ${midX} ${y2 - dirY * radio} Q ${midX} ${y2} ${midX + radio} ${y2} L ${x2 - 2} ${y2}`;
+    } else {
+      // Caso en que B empieza antes o muy cerca del fin de A: rodea por la línea divisoria entre filas sin cruzar el texto de la barra
+      const salidaX = x1 + 10;
+      const entradaX = x2 - 12;
+      const canalY = y1 + dirY * (rOrig.height / 2 + 5);
+      dPath = `M ${x1} ${y1} L ${salidaX} ${y1} L ${salidaX} ${canalY} L ${entradaX} ${canalY} L ${entradaX} ${y2} L ${x2 - 2} ${y2}`;
+    }
+
+    const esCritico = state.capaCpmActiva &&
+      state.datosCpmGlobal?.actividadesCriticas?.has(origen) &&
+      state.datosCpmGlobal?.actividadesCriticas?.has(destino);
+
+    const clasePath = esCritico ? "gantt-dep-path gantt-dep-path-critical" : "gantt-dep-path gantt-dep-path-normal";
+    const markerUrl = esCritico ? "url(#gantt-arrow-critical)" : "url(#gantt-arrow-normal)";
+
+    contenidoSVG += `
+      <path d="${dPath}"
+            class="${clasePath}"
+            marker-end="${markerUrl}"
+            onclick="solicitarEliminarEnlaceGantt(event, '${origen}', '${destino}')">
+        <title>Dependencia: [${origen}] → [${destino}] ${esCritico ? '(RUTA CRÍTICA)' : ''} — Clic en la flecha para desconectar</title>
+      </path>
+    `;
+  });
+
+  svg.innerHTML = contenidoSVG;
+}
+
+export function iniciarConexionGanttMouse(e, codOrigen) {
+  if (!state.proyectoEsGestor) return;
+  e.stopPropagation();
+  e.preventDefault();
+
+  const wrapper = document.getElementById("vista-tabla-gantt-wrapper");
+  const elOrig = document.getElementById(`gantt-bar-el-${codOrigen.replace(/\./g, '_')}`);
+  if (!wrapper || !elOrig) return;
+
+  document.body.classList.add("is-connecting-gantt");
+  const rectWrapper = wrapper.getBoundingClientRect();
+  const rOrig = elOrig.getBoundingClientRect();
+
+  const xIni = (rOrig.right - rectWrapper.left) + wrapper.scrollLeft;
+  const yIni = (rOrig.top + rOrig.height / 2 - rectWrapper.top) + wrapper.scrollTop;
+
+  conexionGanttActiva = { codOrigen, xIni, yIni };
+
+  const alMover = (ev) => {
+    if (!conexionGanttActiva) return;
+    const svg = document.getElementById("svg-gantt-dependencies-layer");
+    if (!svg) return;
+
+    const xMouse = (ev.clientX - rectWrapper.left) + wrapper.scrollLeft;
+    const yMouse = (ev.clientY - rectWrapper.top) + wrapper.scrollTop;
+
+    let tempLine = document.getElementById("gantt-temp-drag-line");
+    if (!tempLine) {
+      tempLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      tempLine.id = "gantt-temp-drag-line";
+      tempLine.setAttribute("fill", "none");
+      tempLine.setAttribute("stroke", "#0f2a4a");
+      tempLine.setAttribute("stroke-width", "2.2");
+      tempLine.setAttribute("stroke-dasharray", "4,4");
+      tempLine.setAttribute("marker-end", "url(#gantt-arrow-normal)");
+      svg.appendChild(tempLine);
+    }
+    tempLine.setAttribute("d", `M ${conexionGanttActiva.xIni} ${conexionGanttActiva.yIni} L ${xMouse} ${yMouse}`);
+  };
+
+  const alSoltarGlobal = () => {
+    document.body.classList.remove("is-connecting-gantt");
+    document.getElementById("gantt-temp-drag-line")?.remove();
+    document.querySelectorAll(".gantt-bar-drop-target").forEach(el => el.classList.remove("gantt-bar-drop-target"));
+    conexionGanttActiva = null;
+    window.removeEventListener("mousemove", alMover);
+    window.removeEventListener("mouseup", alSoltarGlobal);
+  };
+
+  window.addEventListener("mousemove", alMover);
+  window.addEventListener("mouseup", alSoltarGlobal);
+}
+
+export function resaltarDestinoConexionGantt(codDestino, entrando) {
+  if (!conexionGanttActiva || conexionGanttActiva.codOrigen === codDestino) return;
+  const el = document.getElementById(`gantt-bar-el-${codDestino.replace(/\./g, '_')}`);
+  if (el) el.classList.toggle("gantt-bar-drop-target", entrando);
+}
+
+export async function finalizarConexionEnBarraGantt(e, codDestino) {
+  if (!conexionGanttActiva) return;
+  e.stopPropagation();
+  const codOrigen = conexionGanttActiva.codOrigen;
+  conexionGanttActiva = null;
+  document.body.classList.remove("is-connecting-gantt");
+  document.getElementById("gantt-temp-drag-line")?.remove();
+  document.querySelectorAll(".gantt-bar-drop-target").forEach(el => el.classList.remove("gantt-bar-drop-target"));
+
+  if (codOrigen === codDestino) return;
+  if (typeof window.vincularPredecesoraInteractiva === "function") {
+    await window.vincularPredecesoraInteractiva(codOrigen, codDestino);
+  }
 }
 
 export function autoAjustarSemanaInicio() {
@@ -535,8 +728,6 @@ export function desplazarGanttPorEscala(direccion) {
   cambiarSemanaInicio(dir * salto);
 }
 
-window.desplazarGanttPorEscala = desplazarGanttPorEscala;
-
 export function fijarModoZoomDirecto(modo) {
   state.modoZoom = modo;
   const labelEscala = document.getElementById("txt-escala-activa-label");
@@ -554,3 +745,12 @@ export function fijarModoZoomDirecto(modo) {
   renderizarCabeceraGantt();
   renderizarTabla();
 }
+
+window.desplazarGanttPorEscala = desplazarGanttPorEscala;
+window.dibujarFlechasDependenciasGantt = dibujarFlechasDependenciasGantt;
+window.iniciarConexionGanttMouse = iniciarConexionGanttMouse;
+window.resaltarDestinoConexionGantt = resaltarDestinoConexionGantt;
+window.finalizarConexionEnBarraGantt = finalizarConexionEnBarraGantt;
+window.addEventListener("resize", () => {
+  requestAnimationFrame(dibujarFlechasDependenciasGantt);
+});
