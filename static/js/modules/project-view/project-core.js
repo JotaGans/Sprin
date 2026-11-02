@@ -30,10 +30,15 @@ export async function ingresarAlProyecto(id, nombre, esGestor) {
     state.codigoFilaSeleccionada = null;
     state.undoStack = [];
     state.redoStack = [];
+    state.filtroEstadoKPI = "";
+    state.filtroSoloMisActividades = false;
+    state.nivelMaxVisible = 4;
+    state.nivelFiltroActivo = 4;
+
     if (typeof window.actualizarBotonesUndoRedoUI === "function") {
       window.actualizarBotonesUndoRedoUI();
     }
-    state.nivelMaxVisible = 4;
+
     if (state.colapsadosSet && typeof state.colapsadosSet.clear === "function") {
       state.colapsadosSet.clear();
     } else {
@@ -46,6 +51,12 @@ export async function ingresarAlProyecto(id, nombre, esGestor) {
     if (selCol) selCol.value = "";
     const inpBus = document.getElementById("filtro-busqueda");
     if (inpBus) inpBus.value = "";
+
+    const btnMis = document.getElementById("btn-filtro-mis-actividades");
+    if (btnMis) {
+      btnMis.className = "h-[30px] px-2.5 rounded-lg text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-300 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap flex-shrink-0";
+    }
+
     if (typeof window.actualizarAparienciaBotonesFiltro === "function") {
       try { window.actualizarAparienciaBotonesFiltro(); } catch (e) {}
     }
@@ -113,7 +124,7 @@ export async function ingresarAlProyecto(id, nombre, esGestor) {
     document.getElementById("bloque-superior-gantt")?.classList.remove("hidden");
 
     aplicarVisibilidadColumnas();
-    const vistaGuardada = localStorage.getItem("sprin_vista_proyecto") || "split";
+    const vistaGuardada = localStorage.getItem("sprin_vista_proyecto") || "gantt";
     if (typeof window.cambiarVistaProyecto === "function") {
       window.cambiarVistaProyecto(vistaGuardada);
     }
@@ -167,8 +178,6 @@ export async function volverAlHub() {
 
 export async function sincronizarDatosProyecto(id) {
   try {
-    
-    // Lanzar todas las consultas en paralelo para máxima velocidad
     const promesas = [
       apiFetch(`/proyectos/${id}/actividades`),
       apiFetch(`/proyectos/${id}/comentarios`).catch(() => null)
@@ -224,67 +233,51 @@ export async function sincronizarDatosProyecto(id) {
 }
 
 export function actualizarKPIs() {
+  const elAvance = document.getElementById("kpi-avance");
+  const elEjecutado = document.getElementById("kpi-ejecutado");
+  const elProceso = document.getElementById("kpi-proceso");
+  const elPendiente = document.getElementById("kpi-pendiente");
+  const barraKpi = document.getElementById("kpi-avance-barra");
+
   if (!state.actividadesGlobal || state.actividadesGlobal.length === 0) {
-    document.getElementById("kpi-avance").innerText = "0%";
-    document.getElementById("kpi-ejecutado").innerText = "0";
-    document.getElementById("kpi-proceso").innerText = "0";
-    document.getElementById("kpi-pendiente").innerText = "0";
+    if (elAvance) elAvance.innerText = "0%";
+    if (elEjecutado) elEjecutado.innerText = "0";
+    if (elProceso) elProceso.innerText = "0";
+    if (elPendiente) elPendiente.innerText = "0";
+    if (barraKpi) barraKpi.style.width = "0%";
     return;
   }
 
   recalcularJerarquiaWBS();
 
-  const selNivel = parseInt(document.getElementById("sel-filtro-nivel")?.value || "4");
+  const maxNiv = parseInt(state.nivelMaxVisible || 4);
   const txtBusq = (document.getElementById("filtro-busqueda")?.value || "").toLowerCase().trim();
   const selResp = document.getElementById("filtro-responsable-select")?.value || "";
 
-  const hayFiltroNivel = (selNivel !== 4);
-  const hayFiltroTexto = (txtBusq !== "");
-  const hayFiltroResp = (selResp !== "");
-  const hayFiltroActivo = (hayFiltroNivel || hayFiltroTexto || hayFiltroResp);
+  // Seleccionamos actividades operativas que cumplan con los filtros de búsqueda y nivel
+  const muestraActividades = state.actividadesGlobal.filter(act => {
+    const codLimpio = String(act.codigo).replace(/\.+$/, "");
+    const nivel = codLimpio.split(".").length;
+    if (nivel > maxNiv) return false;
 
-  const badgeFiltro = document.getElementById("badge-filtro-activo");
-  const badgeTexto = document.getElementById("badge-filtro-texto");
+    // Solo considerar hojas para cálculo de KPIs
+    const esMadre = state.actividadesGlobal.some(sub => {
+      const subC = String(sub.codigo).replace(/\.+$/, "");
+      return subC.startsWith(codLimpio + ".") && subC !== codLimpio;
+    });
+    if (esMadre) return false;
 
-  if (badgeFiltro && badgeTexto) {
-    if (hayFiltroActivo) {
-      const criterios = [];
-      if (hayFiltroNivel) criterios.push(`Nivel ${selNivel}`);
-      if (hayFiltroResp) {
-        const nomCorto = selResp.includes(",") ? selResp.split(",")[0].trim() : selResp.split(" ")[0];
-        criterios.push(`👤 ${nomCorto}`);
-      }
-      if (hayFiltroTexto) criterios.push(`"${txtBusq}"`);
-
-      badgeTexto.innerText = `Filtrado por: ${criterios.join(" + ")}`;
-      badgeFiltro.classList.remove("hidden");
-      badgeFiltro.classList.add("flex");
-    } else {
-      badgeFiltro.classList.add("hidden");
-      badgeFiltro.classList.remove("flex");
+    if (txtBusq && !act.descripcion.toLowerCase().includes(txtBusq) && !codLimpio.toLowerCase().includes(txtBusq)) return false;
+    if (selResp && !(act.responsable || "").includes(selResp)) return false;
+    if (state.filtroSoloMisActividades) {
+      const uNom = (state.currentUser?.nombre_completo || "").toLowerCase();
+      const uUser = (state.currentUser?.username || "").toLowerCase();
+      const respAct = (act.responsable || "").toLowerCase();
+      const esMio = Boolean((uNom && respAct.includes(uNom)) || (uUser && respAct.includes(uUser)));
+      if (!esMio) return false;
     }
-  }
-
-  let muestraActividades = [];
-  if (!hayFiltroActivo) {
-    muestraActividades = state.actividadesGlobal.filter(a => {
-      const cLimpio = String(a.codigo).replace(/\.+$/, "");
-      return !state.actividadesGlobal.some(sub => {
-        const subC = String(sub.codigo).replace(/\.+$/, "");
-        return subC.startsWith(cLimpio + ".") && subC !== cLimpio;
-      });
-    });
-    if (muestraActividades.length === 0) muestraActividades = state.actividadesGlobal;
-  } else {
-    muestraActividades = state.actividadesGlobal.filter(act => {
-      const codLimpio = String(act.codigo).replace(/\.+$/, "");
-      const nivel = codLimpio.split(".").length;
-      if (hayFiltroNivel && nivel !== selNivel) return false;
-      if (hayFiltroTexto && !act.descripcion.toLowerCase().includes(txtBusq) && !codLimpio.toLowerCase().includes(txtBusq)) return false;
-      if (hayFiltroResp && !(act.responsable || "").includes(selResp)) return false;
-      return true;
-    });
-  }
+    return true;
+  });
 
   const total = muestraActividades.length;
   let promAvance = 0;
@@ -297,13 +290,23 @@ export function actualizarKPIs() {
   const enProceso = muestraActividades.filter(a => a.estado === 'En proceso').length;
   const noIniciadas = muestraActividades.filter(a => a.estado === 'No iniciado' || a.estado === 'Pendiente').length;
 
-  document.getElementById("kpi-avance").innerText = `${promAvance}%`;
-  document.getElementById("kpi-ejecutado").innerText = String(ejecutadas);
-  document.getElementById("kpi-proceso").innerText = String(enProceso);
-  document.getElementById("kpi-pendiente").innerText = String(noIniciadas);
+  if (elAvance) elAvance.innerText = `${promAvance}%`;
+  if (elEjecutado) elEjecutado.innerText = String(ejecutadas);
+  if (elProceso) elProceso.innerText = String(enProceso);
+  if (elPendiente) elPendiente.innerText = String(noIniciadas);
+  if (barraKpi) barraKpi.style.width = `${promAvance}%`;
 }
 
 export function limpiarTodosFiltros() {
+  if (typeof window.limpiarTodosFiltros === "function" && window.limpiarTodosFiltros !== limpiarTodosFiltros) {
+    window.limpiarTodosFiltros();
+    return;
+  }
+  state.nivelMaxVisible = 4;
+  state.nivelFiltroActivo = 4;
+  state.filtroSoloMisActividades = false;
+  state.filtroEstadoKPI = "";
+
   const selNivel = document.getElementById("sel-filtro-nivel");
   const inpBusq = document.getElementById("filtro-busqueda");
   const selResp = document.getElementById("filtro-responsable-select");
@@ -312,14 +315,13 @@ export function limpiarTodosFiltros() {
   if (inpBusq) inpBusq.value = "";
   if (selResp) selResp.value = "";
 
-  state.nivelFiltroActivo = 4;
   renderizarTabla();
   actualizarKPIs();
   notificarToast("Filtros restablecidos a la vista completa del proyecto.", "info");
 }
 
 export function obtenerClaveStorageAnchoCol() {
-  const uId = state.currentUser.id || state.currentUser.username || "default";
+  const uId = state.currentUser?.id || state.currentUser?.username || "default";
   const pId = state.proyectoActualId || "global";
   return `ancho_col_desc_user_${uId}_proj_${pId}`;
 }
@@ -395,7 +397,6 @@ export function actualizarBotonPlantillaDinamico() {
   btn.classList.remove("hidden");
 
   const tieneActividades = state.actividadesGlobal && state.actividadesGlobal.length > 0;
-  // Ocultar el botón "Pegar lista" si el proyecto ya tiene actividades para evitar sobrescrituras
   if (btnPegar) {
     btnPegar.classList.toggle("hidden", tieneActividades);
   }
@@ -430,30 +431,38 @@ export function cerrarModalColumnas() {
 }
 
 export function sincronizarCheckboxesColumnas() {
-  document.getElementById("col-chk-responsable").checked = state.visibilidadColumnas.responsable;
-  document.getElementById("col-chk-estado").checked = state.visibilidadColumnas.estado;
-  document.getElementById("col-chk-inicio").checked = state.visibilidadColumnas.inicio;
-  document.getElementById("col-chk-fin").checked = state.visibilidadColumnas.fin;
-  document.getElementById("col-chk-dias").checked = state.visibilidadColumnas.dias;
-  document.getElementById("col-chk-avance").checked = state.visibilidadColumnas.avance;
-  document.getElementById("col-chk-gantt").checked = state.visibilidadColumnas.gantt;
-
-  const chkAv = document.getElementById("col-chk-avatares-gantt");
-  if (chkAv) chkAv.checked = state.visibilidadColumnas.avatares_gantt !== false;
-
-  const chkPct = document.getElementById("col-chk-porcentajes-gantt");
-  if (chkPct) chkPct.checked = state.visibilidadColumnas.porcentajes_gantt !== false;
+  const setChk = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.checked = Boolean(val);
+  };
+  setChk("col-chk-responsable", state.visibilidadColumnas.responsable);
+  setChk("col-chk-estado", state.visibilidadColumnas.estado);
+  setChk("col-chk-inicio", state.visibilidadColumnas.inicio);
+  setChk("col-chk-fin", state.visibilidadColumnas.fin);
+  setChk("col-chk-dias", state.visibilidadColumnas.dias);
+  setChk("col-chk-avance", state.visibilidadColumnas.avance);
+  setChk("col-chk-gantt", state.visibilidadColumnas.gantt);
+  setChk("col-chk-avatares-gantt", state.visibilidadColumnas.avatares_gantt !== false);
+  setChk("col-chk-porcentajes-gantt", state.visibilidadColumnas.porcentajes_gantt !== false);
 }
 
 export function alternarColumna(colKey, estado) {
   state.visibilidadColumnas[colKey] = estado;
   localStorage.setItem("visibilidad_columnas", JSON.stringify(state.visibilidadColumnas));
+  if (state.vistaProyectoActiva === "gantt") {
+    localStorage.setItem("visibilidad_columnas_gantt_custom", JSON.stringify(state.visibilidadColumnas));
+  }
   aplicarVisibilidadColumnas();
   renderizarTabla();
 }
 
 export function restablecerColumnas() {
-  state.visibilidadColumnas = { responsable: true, estado: true, inicio: true, fin: true, dias: true, avance: true, gantt: true, avatares_gantt: true, porcentajes_gantt: true };
+  localStorage.removeItem("visibilidad_columnas_gantt_custom");
+  if (state.vistaProyectoActiva === "gantt") {
+    state.visibilidadColumnas = { responsable: true, estado: false, inicio: false, fin: false, dias: false, avance: false, gantt: true, avatares_gantt: true, porcentajes_gantt: true };
+  } else {
+    state.visibilidadColumnas = { responsable: true, estado: true, inicio: true, fin: true, dias: true, avance: true, gantt: false, avatares_gantt: true, porcentajes_gantt: true };
+  }
   localStorage.setItem("visibilidad_columnas", JSON.stringify(state.visibilidadColumnas));
   sincronizarCheckboxesColumnas();
   aplicarVisibilidadColumnas();

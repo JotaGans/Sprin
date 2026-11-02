@@ -318,8 +318,14 @@ export function renderizarCabeceraGantt() {
       divMeses.innerHTML += `<div style="width: ${pct}%;" class="text-center font-black border-r border-[#1c335a] text-[10px] text-teal-200">${y}</div>`;
     });
 
+    const ahora = new Date();
+    const anioHoy = ahora.getFullYear();
+    const qHoy = `T${Math.floor(ahora.getMonth() / 3) + 1}`;
+
     ventana.items.forEach(t => {
-      divSemanas.innerHTML += `<div class="flex-1 text-center py-0.5 border-r border-[#1c335a] text-[9.5px] font-bold text-teal-200">${t.q}</div>`;
+      const esHoy = (t.anio === anioHoy && t.q === qHoy);
+      const claseHoy = esHoy ? "bg-teal-500 text-white font-black shadow-xs" : "text-teal-200";
+      divSemanas.innerHTML += `<div class="flex-1 text-center py-0.5 border-r border-[#1c335a] text-[9.5px] font-bold overflow-hidden ${claseHoy}">${t.q}</div>`;
     });
     return;
   }
@@ -332,8 +338,14 @@ export function renderizarCabeceraGantt() {
       divMeses.innerHTML += `<div style="width: ${pct}%;" class="text-center font-black border-r border-[#1c335a] text-[10px] text-teal-200">${y}</div>`;
     });
 
+    const ahora = new Date();
+    const anioHoy = ahora.getFullYear();
+    const sHoy = `S${Math.floor(ahora.getMonth() / 6) + 1}`;
+
     ventana.items.forEach(s => {
-      divSemanas.innerHTML += `<div class="flex-1 text-center py-0.5 border-r border-[#1c335a] text-[9.5px] font-bold text-teal-200">${s.s}</div>`;
+      const esHoy = (s.anio === anioHoy && s.s === sHoy);
+      const claseHoy = esHoy ? "bg-teal-500 text-white font-black shadow-xs" : "text-teal-200";
+      divSemanas.innerHTML += `<div class="flex-1 text-center py-0.5 border-r border-[#1c335a] text-[9.5px] font-bold overflow-hidden ${claseHoy}">${s.s}</div>`;
     });
   }
 }
@@ -349,6 +361,12 @@ export function renderizarGanttFila(act, esMadre, codLimpio) {
   const mostrarAvatares = (state.visibilidadColumnas.avatares_gantt !== false);
   const mostrarPorcentajes = (state.visibilidadColumnas.porcentajes_gantt !== false);
 
+  const ahoraRef = new Date();
+  const anioRef = ahoraRef.getFullYear();
+  const mesRef = ahoraRef.getMonth();
+  const qRef = `T${Math.floor(mesRef / 3) + 1}`;
+  const sRef = `S${Math.floor(mesRef / 6) + 1}`;
+
   let divisionesHTML = "";
   if (ventana.modo === "dias") {
     divisionesHTML = ventana.items.map(d => {
@@ -358,6 +376,21 @@ export function renderizarGanttFila(act, esMadre, codLimpio) {
     }).join("");
   } else if (ventana.modo === "semanas") {
     divisionesHTML = ventana.items.map(s => `<div class="flex-1 h-full border-r border-slate-200/60 ${s.esHoy ? 'bg-teal-500/12 border-r-2 border-r-teal-500/50' : ''}"></div>`).join("");
+  } else if (ventana.modo === "meses") {
+    divisionesHTML = ventana.items.map(m => {
+      const esMesActual = (m.anio === anioRef && m.mes === mesRef);
+      return `<div class="flex-1 h-full border-r border-slate-200/60 ${esMesActual ? 'bg-teal-500/12 border-r-2 border-r-teal-500/50' : ''}"></div>`;
+    }).join("");
+  } else if (ventana.modo === "trimestres") {
+    divisionesHTML = ventana.items.map(t => {
+      const esTrimActual = (t.anio === anioRef && t.q === qRef);
+      return `<div class="flex-1 h-full border-r border-slate-200/60 ${esTrimActual ? 'bg-teal-500/12 border-r-2 border-r-teal-500/50' : ''}"></div>`;
+    }).join("");
+  } else if (ventana.modo === "semestres") {
+    divisionesHTML = ventana.items.map(s => {
+      const esSemActual = (s.anio === anioRef && s.s === sRef);
+      return `<div class="flex-1 h-full border-r border-slate-200/60 ${esSemActual ? 'bg-teal-500/12 border-r-2 border-r-teal-500/50' : ''}"></div>`;
+    }).join("");
   } else {
     divisionesHTML = ventana.items.map(() => `<div class="flex-1 h-full border-r border-slate-200/60"></div>`).join("");
   }
@@ -657,12 +690,19 @@ export async function finalizarConexionEnBarraGantt(e, codDestino) {
   }
 }
 
-export function autoAjustarSemanaInicio() {
-  if (!state.actividadesGlobal || state.actividadesGlobal.length === 0) {
-    irASemanaActual();
-    return;
-  }
+export function actualizarEstadoBotonesNavegacionGantt(modoActivo) {
+  const btnInicio = document.getElementById("btn-nav-gantt-inicio");
+  const btnHoy = document.getElementById("btn-nav-gantt-hoy");
 
+  const claseActiva = "h-[22px] bg-[#0f2a4a] text-white text-[11px] font-black px-2.5 rounded transition whitespace-nowrap flex items-center cursor-pointer shadow-2xs";
+  const claseInactiva = "h-[22px] hover:bg-white text-[#0f2a4a] text-[11px] font-bold px-2 rounded transition whitespace-nowrap flex items-center cursor-pointer";
+
+  if (btnInicio) btnInicio.className = (modoActivo === "inicio") ? claseActiva : claseInactiva;
+  if (btnHoy) btnHoy.className = (modoActivo === "hoy") ? claseActiva : claseInactiva;
+}
+
+export function obtenerIndiceSemanaInicioProyecto() {
+  if (!state.actividadesGlobal || state.actividadesGlobal.length === 0) return 1;
   let minTimestamp = null;
   state.actividadesGlobal.forEach(a => {
     const dt = parsearFechaUniversal(a.fecha_inicio);
@@ -673,41 +713,60 @@ export function autoAjustarSemanaInicio() {
   });
 
   if (minTimestamp !== null && state.semanasTotales.length > 0) {
-    let indexEncontrado = -1;
     for (let i = 0; i < state.semanasTotales.length; i++) {
       const tLunes = new Date(state.semanasTotales[i].fechaLunes).setHours(0, 0, 0, 0);
       const tDomingo = new Date(state.semanasTotales[i].fechaDomingo).setHours(23, 59, 59, 999);
       if (minTimestamp >= tLunes && minTimestamp <= tDomingo) {
-        indexEncontrado = i;
-        break;
+        return Math.max(1, i + 1);
       }
     }
-    fijarSemanaInicio(indexEncontrado >= 0 ? Math.max(1, indexEncontrado) : 1);
-  } else {
-    irASemanaActual();
   }
+  return 1;
+}
+
+export function autoAjustarSemanaInicio() {
+  if (!state.actividadesGlobal || state.actividadesGlobal.length === 0) {
+    irASemanaActual();
+    return;
+  }
+  const idx = obtenerIndiceSemanaInicioProyecto();
+  fijarSemanaInicio(idx, "inicio");
 }
 
 export function irAInicioProyecto() {
-  fijarSemanaInicio(1);
+  const modo = state.modoZoom || "dias";
+  if (modo === "meses" || modo === "trimestres" || modo === "semestres") {
+    fijarSemanaInicio(1, "inicio");
+  } else {
+    const idx = obtenerIndiceSemanaInicioProyecto();
+    fijarSemanaInicio(idx, "inicio");
+  }
 }
 
 export function irASemanaActual() {
+  const modo = state.modoZoom || "dias";
+  if (modo === "meses" || modo === "trimestres" || modo === "semestres") {
+    // En Meses, Trimestres y Semestres el índice 1 parte del año actual mostrando Hoy en pantalla
+    fijarSemanaInicio(1, "hoy");
+    return;
+  }
+
   const ahora = new Date().getTime();
-  let indexHoy = state.semanasTotales.findIndex(s => {
+  const indexHoy = state.semanasTotales.findIndex(s => {
     const tIni = new Date(s.fechaLunes).setHours(0, 0, 0, 0);
     const tFin = new Date(s.fechaDomingo).setHours(23, 59, 59, 999);
     return ahora >= tIni && ahora <= tFin;
   });
-  fijarSemanaInicio(indexHoy >= 0 ? Math.max(1, indexHoy) : 1);
+  fijarSemanaInicio(indexHoy >= 0 ? Math.max(1, indexHoy + 1) : 1, "hoy");
 }
 
-export function fijarSemanaInicio(val) {
+export function fijarSemanaInicio(val, origenBoton = "manual") {
   let num = parseInt(val);
   if (isNaN(num) || num < 1) num = 1;
   state.semanaInicioIndex = num - 1;
   const input = document.getElementById("input-semana-inicio");
   if (input) input.value = num;
+  actualizarEstadoBotonesNavegacionGantt(origenBoton);
   renderizarCabeceraGantt();
   renderizarTabla();
 }
@@ -716,7 +775,7 @@ export function cambiarSemanaInicio(delta) {
   const baseActual = (state.semanaInicioIndex || 0) + 1;
   let val = baseActual + delta;
   if (val < 1) val = 1;
-  fijarSemanaInicio(val);
+  fijarSemanaInicio(val, "manual");
 }
 
 export function desplazarGanttPorEscala(direccion) {
@@ -732,18 +791,7 @@ export function fijarModoZoomDirecto(modo) {
   state.modoZoom = modo;
   const labelEscala = document.getElementById("txt-escala-activa-label");
   if (labelEscala) labelEscala.innerText = modo.charAt(0).toUpperCase() + modo.slice(1);
-
-  const boxSem = document.getElementById("box-input-semana");
-  if (boxSem) {
-    if (modo === "dias" || modo === "semanas") {
-      boxSem.classList.remove("sem-oculto");
-    } else {
-      boxSem.classList.add("sem-oculto");
-    }
-  }
-
-  renderizarCabeceraGantt();
-  renderizarTabla();
+  irASemanaActual();
 }
 
 window.desplazarGanttPorEscala = desplazarGanttPorEscala;

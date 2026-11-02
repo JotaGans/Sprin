@@ -221,16 +221,17 @@ export function renderizarTabla() {
     const partes = act.codigo.split(".");
     const nivel = partes.length;
     const codLimpio = act.codigo;
+    const esNivel1 = (nivel === 1);
+    const esMadre = tieneHijos(act.codigo);
 
-    if (state.nivelFiltroActivo < 4 && nivel !== state.nivelFiltroActivo) return;
-    if (state.nivelFiltroActivo === 4 && nivel > 4) return;
+    const maxNiv = parseInt(state.nivelMaxVisible || 4);
+    if (nivel > maxNiv) return;
+    if (state.filtroEstadoKPI && !esMadre && act.estado !== state.filtroEstadoKPI) return;
     if (estaOcultoPorPadre(act.codigo)) return;
     if (txtBusqueda && !act.descripcion.toLowerCase().includes(txtBusqueda) && !act.codigo.toLowerCase().includes(txtBusqueda)) return;
     if (respFiltro && !(act.responsable || "").includes(respFiltro)) return;
     if (state.filtroSoloMisActividades && !esResponsableDeActividad(act)) return;
 
-    const esNivel1 = (nivel === 1);
-    const esMadre = tieneHijos(act.codigo);
     const estaColapsado = state.nodosColapsados.has(codLimpio);
     const estaSeleccionada = (state.codigoFilaSeleccionada === act.codigo);
 
@@ -406,7 +407,7 @@ export function renderizarTabla() {
     const trQuick = document.createElement("tr");
     trQuick.className = "bg-teal-50/40 hover:bg-teal-50/80 transition border-t border-dashed border-teal-300";
     trQuick.innerHTML = `
-      <td class="p-2 text-center font-mono text-xs font-black text-teal-700 border-b border-gray-200">+</td>>
+      <td class="p-2 text-center font-mono text-xs font-black text-teal-700 border-b border-gray-200">+</td>
       <td colspan="9" class="p-1.5 border-b border-gray-200">
         <div class="flex items-center space-x-2 max-w-2xl">
           <input type="text" id="input-quick-add-wbs" 
@@ -494,7 +495,7 @@ export function poblarFiltroResponsablesDinamico() {
     }
   });
 
-  select.innerHTML = '<option value="">Colaborador</option>';
+  select.innerHTML = '<option value="">Colaboradores (Todos)</option>';
   Array.from(setResponsables).sort().forEach(nombre => {
     select.innerHTML += `<option value="${nombre}">${nombre}</option>`;
   });
@@ -502,7 +503,6 @@ export function poblarFiltroResponsablesDinamico() {
 }
 
 export function actualizarAparienciaBotonesFiltro() {
-  // 1. Estado visual del botón Nivel
   const lblNivel = document.getElementById("txt-nivel-activo-label");
   const selNivel = document.getElementById("sel-filtro-nivel");
   const niv = parseInt(state.nivelMaxVisible || 4);
@@ -510,27 +510,25 @@ export function actualizarAparienciaBotonesFiltro() {
   if (selNivel) selNivel.value = String(niv);
   if (lblNivel) {
     if (niv < 4) {
-      lblNivel.innerText = `Nivel ${niv}`;
+      lblNivel.innerText = `Hasta Nivel ${niv}`;
       lblNivel.className = "hidden md:inline text-xs font-black text-teal-800 leading-none";
     } else {
-      lblNivel.innerText = "Nivel";
+      lblNivel.innerText = "Niveles";
       lblNivel.className = "hidden md:inline text-xs font-semibold text-gray-700 leading-none";
     }
   }
 
-  // 2. Estado visual del botón Colaborador
   const lblColab = document.getElementById("txt-colaborador-activo-label");
   const selColab = document.getElementById("filtro-responsable-select");
   const respVal = (selColab?.value || "").trim();
 
   if (lblColab) {
     if (respVal) {
-      // Mostrar Apellido o nombre corto (ej. "Salas Gue...") para que no desborde el botón
       const nombreCorto = respVal.length > 14 ? respVal.substring(0, 13) + "…" : respVal;
       lblColab.innerText = nombreCorto;
       lblColab.className = "hidden md:inline text-xs font-black text-teal-800 leading-none";
     } else {
-      lblColab.innerText = "Colaborador";
+      lblColab.innerText = "Colaboradores";
       lblColab.className = "hidden md:inline text-xs font-semibold text-gray-700 leading-none";
     }
   }
@@ -539,19 +537,45 @@ export function actualizarAparienciaBotonesFiltro() {
 export function filtrarNivelJerarquico(val) {
   const n = parseInt(val) || 4;
   state.nivelMaxVisible = n;
-  state.colapsadosSet.clear();
+  state.nivelFiltroActivo = n;
+  state.nodosColapsados.clear();
 
+  // Si el usuario elige ver hasta Nivel n, colapsamos visualmente los nodos de nivel n para indicar que tienen hijos ocultos debajo
   if (n < 4) {
     (state.actividadesGlobal || []).forEach(a => {
       const cod = String(a.codigo).replace(/\.+$/, "");
-      const nivelAct = cod.split(".").length;
-      if (nivelAct === n) {
-        state.colapsadosSet.add(cod);
+      if (cod.split(".").length === n && tieneHijos(cod)) {
+        state.nodosColapsados.add(cod);
       }
     });
   }
 
   actualizarAparienciaBotonesFiltro();
+  aplicarFiltrosGlobales();
+}
+
+export function filtrarPorEstadoKPI(estado) {
+  if (!estado || state.filtroEstadoKPI === estado) {
+    state.filtroEstadoKPI = "";
+  } else {
+    state.filtroEstadoKPI = estado;
+  }
+
+  const mapIds = {
+    "Ejecutado": "kpi-card-ejecutado",
+    "En proceso": "kpi-card-proceso",
+    "No iniciado": "kpi-card-pendiente"
+  };
+
+  Object.entries(mapIds).forEach(([est, idEl]) => {
+    const el = document.getElementById(idEl);
+    if (el) {
+      el.classList.toggle("bg-slate-100", state.filtroEstadoKPI === est);
+      el.classList.toggle("ring-2", state.filtroEstadoKPI === est);
+      el.classList.toggle("ring-[#0f2a4a]", state.filtroEstadoKPI === est);
+    }
+  });
+
   aplicarFiltrosGlobales();
 }
 
@@ -566,12 +590,14 @@ export function aplicarFiltrosGlobales() {
   const txtBadge = document.getElementById("badge-filtro-texto");
 
   const partes = [];
-  if (niv < 4) partes.push(`Nivel ${niv}`);
+  if (niv < 4) partes.push(`Hasta Nivel ${niv}`);
   if (resp) partes.push(`👤 ${resp}`);
+  if (state.filtroSoloMisActividades) partes.push("Mis tareas");
+  if (state.filtroEstadoKPI) partes.push(`Estado: ${state.filtroEstadoKPI}`);
   if (busq) partes.push(`"${busq}"`);
 
   if (partes.length > 0) {
-    if (txtBadge) txtBadge.innerText = `Filtrado por: ${partes.join(" | ")}`;
+    if (txtBadge) txtBadge.innerText = partes.join(" · ");
     if (badge) {
       badge.classList.remove("hidden");
       badge.classList.add("flex");
@@ -590,7 +616,10 @@ export function aplicarFiltrosGlobales() {
 
 export function limpiarTodosFiltros() {
   state.nivelMaxVisible = 4;
-  state.colapsadosSet.clear();
+  state.nivelFiltroActivo = 4;
+  state.filtroSoloMisActividades = false;
+  state.filtroEstadoKPI = "";
+  state.nodosColapsados.clear();
 
   const selNivel = document.getElementById("sel-filtro-nivel");
   if (selNivel) selNivel.value = "4";
@@ -601,9 +630,20 @@ export function limpiarTodosFiltros() {
   const inpBusq = document.getElementById("filtro-busqueda");
   if (inpBusq) inpBusq.value = "";
 
+  const btnMis = document.getElementById("btn-filtro-mis-actividades");
+  if (btnMis) {
+    btnMis.className = "h-[30px] px-2.5 rounded-lg text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-300 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap flex-shrink-0";
+  }
+
+  ["kpi-card-ejecutado", "kpi-card-proceso", "kpi-card-pendiente"].forEach(idEl => {
+    document.getElementById(idEl)?.classList.remove("bg-slate-100", "ring-2", "ring-[#0f2a4a]");
+  });
+
   actualizarAparienciaBotonesFiltro();
   aplicarFiltrosGlobales();
 }
+
+window.filtrarPorEstadoKPI = filtrarPorEstadoKPI;
 
 window.actualizarAparienciaBotonesFiltro = actualizarAparienciaBotonesFiltro;
 
@@ -1983,7 +2023,7 @@ export function renderizarBarraAvataresEquipoToolbar() {
     }
   });
 
-  const lista = Array.from(setPersonas);
+  const lista = Array.from(setPersonas).sort();
   if (lista.length === 0) {
     cont.innerHTML = "";
     return;
@@ -1991,17 +2031,22 @@ export function renderizarBarraAvataresEquipoToolbar() {
 
   const activoActual = selColab ? selColab.value : "";
   const mostrar = lista.slice(0, 5);
-  const extras = lista.length - mostrar.length;
+  const ocultos = lista.slice(5);
 
-  cont.innerHTML = mostrar.map(nom => {
+  const obtenerDatosAvatar = (nom) => {
     const ini = nom.includes(",")
       ? (nom.split(",")[0].trim()[0] + (nom.split(",")[1]?.trim()[0] || "")).toUpperCase()
       : (nom.split(" ")[0][0] + (nom.split(" ")[1]?.[0] || "")).toUpperCase();
     let hash = 0;
     for (let i = 0; i < nom.length; i++) hash = nom.charCodeAt(i) + ((hash << 5) - hash);
     const color = state.coloresAvatar[Math.abs(hash) % state.coloresAvatar.length];
+    return { ini, color };
+  };
+
+  let htmlAvatares = mostrar.map(nom => {
+    const { ini, color } = obtenerDatosAvatar(nom);
     const esActivo = (activoActual === nom);
-    const ringClase = esActivo ? "ring-2 ring-teal-500 scale-110 z-20" : "opacity-85 hover:opacity-100 hover:scale-105";
+    const ringClase = esActivo ? "ring-2 ring-teal-500 scale-110 z-20" : "opacity-90 hover:opacity-100 hover:scale-105";
 
     return `
       <button type="button" onclick="filtrarPorAvatarToolbar('${nom.replace(/'/g, "\\'")}')"
@@ -2011,32 +2056,75 @@ export function renderizarBarraAvataresEquipoToolbar() {
         ${ini}
       </button>
     `;
-  }).join("") + (extras > 0 ? `<span class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[9px] font-black border-2 border-white flex items-center justify-center">+${extras}</span>` : "");
+  }).join("");
+
+  if (ocultos.length > 0) {
+    const algunoOcultoActivo = ocultos.includes(activoActual);
+    const badgeRing = algunoOcultoActivo ? "bg-teal-600 text-white ring-2 ring-teal-500" : "bg-slate-200 hover:bg-slate-300 text-[#0f2a4a]";
+
+    const itemsDropdown = ocultos.map(nom => {
+      const { ini, color } = obtenerDatosAvatar(nom);
+      const sel = (activoActual === nom);
+      return `
+        <button type="button" onclick="filtrarPorAvatarToolbar('${nom.replace(/'/g, "\\'")}'); cerrarMenuAvataresExtras();"
+                class="w-full text-left px-3 py-1.5 hover:bg-teal-50 flex items-center justify-between space-x-2 transition cursor-pointer ${sel ? 'bg-teal-50/80 font-black text-teal-900' : 'text-gray-700 font-semibold'}">
+          <div class="flex items-center space-x-2 min-w-0">
+            <span style="background-color: ${color};" class="w-5 h-5 rounded-full text-white text-[8.5px] font-black flex items-center justify-center flex-shrink-0">${ini}</span>
+            <span class="text-xs truncate">${nom}</span>
+          </div>
+          ${sel ? '<span class="text-teal-600 font-black text-xs">✓</span>' : ''}
+        </button>
+      `;
+    }).join("");
+
+    htmlAvatares += `
+      <div class="relative inline-block">
+        <button type="button" onclick="alternarMenuAvataresExtras(event)"
+                class="w-6 h-6 rounded-full text-[9px] font-black border-2 border-white shadow-2xs flex items-center justify-center transition cursor-pointer ${badgeRing}"
+                title="Ver ${ocultos.length} colaboradores más">
+          +${ocultos.length}
+        </button>
+        <div id="dropdown-avatares-extras" onclick="event.stopPropagation()" class="hidden absolute left-0 top-full mt-1.5 w-60 bg-white border border-gray-200 rounded-xl shadow-2xl py-1.5 z-[260] max-h-60 overflow-y-auto divide-y divide-gray-50">
+          <div class="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Más colaboradores (${ocultos.length})</div>
+          ${itemsDropdown}
+        </div>
+      </div>
+    `;
+  }
+
+  cont.innerHTML = htmlAvatares;
 }
 
-export function filtrarPorAvatarToolbar(nombre) {
-  const sel = document.getElementById("filtro-responsable-select");
-  if (!sel) return;
-  sel.value = (sel.value === nombre) ? "" : nombre;
-  aplicarFiltrosGlobales();
-  renderizarBarraAvataresEquipoToolbar();
+export function alternarMenuAvataresExtras(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById("dropdown-avatares-extras");
+  if (menu) menu.classList.toggle("hidden");
+}
+
+export function cerrarMenuAvataresExtras() {
+  document.getElementById("dropdown-avatares-extras")?.classList.add("hidden");
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("click", () => cerrarMenuAvataresExtras());
 }
 
 export function cambiarVistaProyecto(modo) {
-  state.vistaProyectoActiva = modo;
-  localStorage.setItem("sprin_vista_proyecto", modo);
+  // Normalizar cualquier valor antiguo 'split' a 'gantt'
+  const modoEfectivo = (modo === "split" || !modo) ? "gantt" : modo;
+  state.vistaProyectoActiva = modoEfectivo;
+  localStorage.setItem("sprin_vista_proyecto", modoEfectivo);
 
-  ["split", "lista", "kanban", "gantt"].forEach(m => {
+  ["lista", "kanban", "gantt"].forEach(m => {
     const btn = document.getElementById(`btn-vista-proy-${m}`);
     if (btn) {
-      btn.className = (m === modo) ? "sprin-view-btn active" : "sprin-view-btn";
+      btn.className = (m === modoEfectivo) ? "sprin-view-btn active" : "sprin-view-btn";
     }
   });
 
-  // Ocultar controles exclusivos del Gantt cuando el usuario está en Vista Lista o Tablero Kanban
   const controlesTiempoGantt = document.getElementById("grupo-controles-tiempo-gantt");
   if (controlesTiempoGantt) {
-    if (modo === "lista" || modo === "kanban") {
+    if (modoEfectivo === "lista" || modoEfectivo === "kanban") {
       controlesTiempoGantt.classList.add("hidden");
     } else {
       controlesTiempoGantt.classList.remove("hidden");
@@ -2046,7 +2134,7 @@ export function cambiarVistaProyecto(modo) {
   const wrapperTablaGantt = document.getElementById("vista-tabla-gantt-wrapper");
   const wrapperKanban = document.getElementById("vista-kanban-wrapper");
 
-  if (modo === "kanban") {
+  if (modoEfectivo === "kanban") {
     if (wrapperTablaGantt) wrapperTablaGantt.classList.add("hidden");
     if (wrapperKanban) wrapperKanban.classList.remove("hidden");
     renderizarTableroKanban();
@@ -2057,7 +2145,8 @@ export function cambiarVistaProyecto(modo) {
   if (wrapperKanban) wrapperKanban.classList.add("hidden");
   if (wrapperTablaGantt) wrapperTablaGantt.classList.remove("hidden");
 
-  if (modo === "lista") {
+  if (modoEfectivo === "lista") {
+    // Vista Lista: Muestra todas las columnas de gestión tabular y oculta el lienzo Gantt
     state.visibilidadColumnas.gantt = false;
     state.visibilidadColumnas.responsable = true;
     state.visibilidadColumnas.estado = true;
@@ -2065,22 +2154,26 @@ export function cambiarVistaProyecto(modo) {
     state.visibilidadColumnas.fin = true;
     state.visibilidadColumnas.dias = true;
     state.visibilidadColumnas.avance = true;
-  } else if (modo === "gantt") {
-    state.visibilidadColumnas.gantt = true;
-    state.visibilidadColumnas.responsable = true;
-    state.visibilidadColumnas.estado = false;
-    state.visibilidadColumnas.inicio = false;
-    state.visibilidadColumnas.fin = false;
-    state.visibilidadColumnas.dias = false;
-    state.visibilidadColumnas.avance = false;
   } else {
+    // Vista Gantt: Muestra el cronograma Gantt y respeta las columnas que el usuario haya activado en "Personalizar columnas"
     state.visibilidadColumnas.gantt = true;
-    state.visibilidadColumnas.responsable = true;
-    state.visibilidadColumnas.estado = true;
-    state.visibilidadColumnas.inicio = true;
-    state.visibilidadColumnas.fin = true;
-    state.visibilidadColumnas.dias = true;
-    state.visibilidadColumnas.avance = true;
+    const configGuardada = JSON.parse(localStorage.getItem("visibilidad_columnas_gantt_custom") || "null");
+    if (configGuardada) {
+      state.visibilidadColumnas.responsable = configGuardada.responsable !== false;
+      state.visibilidadColumnas.estado = Boolean(configGuardada.estado);
+      state.visibilidadColumnas.inicio = Boolean(configGuardada.inicio);
+      state.visibilidadColumnas.fin = Boolean(configGuardada.fin);
+      state.visibilidadColumnas.dias = Boolean(configGuardada.dias);
+      state.visibilidadColumnas.avance = Boolean(configGuardada.avance);
+    } else {
+      // Por defecto en Gantt: Código + Actividad + Responsables + Lienzo Gantt amplio (igual que Jira Timeline)
+      state.visibilidadColumnas.responsable = true;
+      state.visibilidadColumnas.estado = false;
+      state.visibilidadColumnas.inicio = false;
+      state.visibilidadColumnas.fin = false;
+      state.visibilidadColumnas.dias = false;
+      state.visibilidadColumnas.avance = false;
+    }
   }
 
   if (typeof window.aplicarVisibilidadColumnas === "function") {
@@ -2437,11 +2530,14 @@ if (typeof window !== "undefined") {
   });
 }
 
+// Exposición de funciones al ámbito global (requerido por templates/index.html)
 window.cambiarVistaProyecto = cambiarVistaProyecto;
 window.alternarFiltroMisActividades = alternarFiltroMisActividades;
 window.alternarCheckRapidoActividad = alternarCheckRapidoActividad;
 window.renderizarBarraAvataresEquipoToolbar = renderizarBarraAvataresEquipoToolbar;
 window.filtrarPorAvatarToolbar = filtrarPorAvatarToolbar;
+window.alternarMenuAvataresExtras = alternarMenuAvataresExtras;
+window.cerrarMenuAvataresExtras = cerrarMenuAvataresExtras;
 window.renderizarTableroKanban = renderizarTableroKanban;
 window.kanbanPermitirSoltar = kanbanPermitirSoltar;
 window.kanbanSalirZona = kanbanSalirZona;
@@ -2450,3 +2546,30 @@ window.ejecutarDeshacerProyecto = ejecutarDeshacerProyecto;
 window.ejecutarRehacerProyecto = ejecutarRehacerProyecto;
 window.actualizarBotonesUndoRedoUI = actualizarBotonesUndoRedoUI;
 window.registrarSnapshotAntesDeAccion = registrarSnapshotAntesDeAccion;
+window.botonSuperiorNuevaActividad = botonSuperiorNuevaActividad;
+window.abrirWizardCreacion = abrirWizardCreacion;
+window.cerrarWizardCreacion = cerrarWizardCreacion;
+window.irAPasoWizard = irAPasoWizard;
+window.avanzarPasoWizard = avanzarPasoWizard;
+window.retrocederPasoWizard = retrocederPasoWizard;
+window.guardarActividadDesdeWizard = guardarActividadDesdeWizard;
+window.cambiarTipoCreacionDesdeNivel1 = cambiarTipoCreacionDesdeNivel1;
+window.evaluarEstadoWizard = evaluarEstadoWizard;
+window.eliminarActividad = eliminarActividad;
+window.editarDescripcion = editarDescripcion;
+window.editarEstado = editarEstado;
+window.editarFechaInicio = editarFechaInicio;
+window.editarFechaFin = editarFechaFin;
+window.editarDias = editarDias;
+window.editarAvance = editarAvance;
+window.editarResponsable = editarResponsable;
+window.cerrarAsignarResponsables = cerrarAsignarResponsables;
+window.solicitarDesmarcarResponsable = solicitarDesmarcarResponsable;
+window.autocompletarResponsableActividad = autocompletarResponsableActividad;
+window.abrirModalNotificacionCorreo = abrirModalNotificacionCorreo;
+window.cerrarModalNotificacionCorreo = cerrarModalNotificacionCorreo;
+window.confirmarEnvioNotificaciones = confirmarEnvioNotificaciones;
+window.abrirMenuContextual = abrirMenuContextual;
+window.abrirMenuContextualVacio = abrirMenuContextualVacio;
+window.cerrarMenuContextual = cerrarMenuContextual;
+window.ejecutarAccionContextual = ejecutarAccionContextual;

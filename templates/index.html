@@ -375,9 +375,9 @@
       </div>
     </header>
 
-    <!-- PISO 2: NAVEGACIÓN INTUITIVA AL HUB + KPIS SEMÁFORO EN VIVO + GESTIÓN -->
-    <div class="max-w-[1920px] w-full mx-auto px-2 sm:px-6 py-1.5 bg-slate-100/90 border-b border-gray-200 overflow-x-auto">
-      <div class="flex items-center justify-between min-h-[34px] gap-2 w-full">
+    <!-- PISO 2: NAVEGACIÓN AL HUB + SCORECARD EJECUTIVO DE KPIS INTERACTIVOS + GESTIÓN -->
+    <div class="max-w-[1920px] w-full mx-auto px-2 sm:px-6 py-1.5 bg-slate-100/90 border-b border-gray-200 overflow-visible relative z-45">
+      <div class="flex flex-wrap items-center justify-between min-h-[36px] gap-2 w-full">
         
         <!-- Extremo Izquierdo: Casita (desplazada 5px a la derecha) -->
         <div class="relative flex-shrink-0 z-20 w-8 h-8 ml-[5px]">
@@ -389,41 +389,60 @@
           </button>
         </div>
 
-        <!-- KPIs Semáforo en Vivo (Diseño ultra-compacto en móvil) -->
-        <div class="flex items-center justify-center gap-1 sm:gap-2 flex-nowrap flex-1 sm:flex-initial">
-          <!-- Avance -->
-          <div class="h-8 bg-[#1abc9c] text-white px-2 sm:px-3 rounded-lg shadow-2xs flex items-center space-x-1 sm:space-x-1.5 whitespace-nowrap">
-            <span class="text-[10px] sm:text-[11px] font-black uppercase tracking-wider leading-none"><span class="sm:hidden">%</span><span class="hidden sm:inline">AVANCE</span></span>
-            <p id="kpi-avance" class="text-xs sm:text-sm font-black leading-none">0%</p>
-          </div>
+        <!-- Centro: Scorecard Ejecutivo Unificado de KPIs (Estilo Linear / Jira Insights con Filtro al Clic) -->
+        <div class="flex items-center justify-center flex-wrap gap-1.5 sm:gap-2 flex-1 sm:flex-initial">
+          <div class="inline-flex items-center bg-white border border-slate-200/90 rounded-xl p-1 shadow-2xs divide-x divide-slate-200/80">
+            
+            <!-- KPI 1: Avance Global con Mini Barra de Progreso -->
+            <button type="button" onclick="filtrarPorEstadoKPI('')" class="px-2.5 sm:px-3.5 py-1 flex items-center space-x-2.5 hover:bg-slate-50 rounded-l-lg transition cursor-pointer group" title="Avance global ponderado (Clic para mostrar todos los estados)">
+              <div class="text-left">
+                <span class="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400 group-hover:text-[#0f2a4a] leading-none">Avance Global</span>
+                <div class="flex items-center space-x-2 mt-1">
+                  <span id="kpi-avance" class="text-xs sm:text-sm font-black text-[#0f2a4a] leading-none">0%</span>
+                  <div class="w-12 sm:w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60 hidden sm:block">
+                    <div id="kpi-avance-barra" class="h-full bg-teal-600 rounded-full transition-all duration-300" style="width: 0%"></div>
+                  </div>
+                </div>
+              </div>
+            </button>
 
-          <!-- Ejecutado -->
-          <div class="h-8 bg-[#2ecc71] text-white px-2 sm:px-3 rounded-lg shadow-2xs flex items-center space-x-1 sm:space-x-1.5 whitespace-nowrap">
-            <span class="text-[10px] sm:text-[11px] font-black uppercase tracking-tight leading-none"><span class="sm:hidden">E</span><span class="hidden sm:inline">EJECUTADO</span></span>
-            <p id="kpi-ejecutado" class="text-xs font-black leading-none">0</p>
-          </div>
+            <!-- KPI 2: Ejecutado -->
+            <button type="button" id="kpi-card-ejecutado" onclick="filtrarPorEstadoKPI('Ejecutado')" class="px-2.5 sm:px-3 py-1 flex items-center space-x-2 hover:bg-emerald-50/60 transition cursor-pointer" title="Clic para filtrar tareas Ejecutadas">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-emerald-500/15 flex-shrink-0"></span>
+              <div class="text-left">
+                <span class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-none">Ejecutado</span>
+                <span id="kpi-ejecutado" class="text-xs sm:text-sm font-black text-emerald-700 leading-none mt-0.5 block">0</span>
+              </div>
+            </button>
 
-          <!-- En Proceso -->
-          <div class="h-8 bg-[#f1c40f] text-[#2c3e50] px-2 sm:px-3 rounded-lg shadow-2xs flex items-center space-x-1 sm:space-x-1.5 whitespace-nowrap">
-            <span class="text-[10px] sm:text-[11px] font-black uppercase tracking-tight leading-none"><span class="sm:hidden">P</span><span class="hidden sm:inline">EN PROCESO</span></span>
-            <p id="kpi-proceso" class="text-xs font-black leading-none">0</p>
-          </div>
+            <!-- KPI 3: En Proceso -->
+            <button type="button" id="kpi-card-proceso" onclick="filtrarPorEstadoKPI('En proceso')" class="px-2.5 sm:px-3 py-1 flex items-center space-x-2 hover:bg-blue-50/60 transition cursor-pointer" title="Clic para filtrar tareas En proceso">
+              <span class="w-2 h-2 rounded-full bg-amber-500 ring-4 ring-amber-500/15 flex-shrink-0"></span>
+              <div class="text-left">
+                <span class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-none">En Proceso</span>
+                <span id="kpi-proceso" class="text-xs sm:text-sm font-black text-amber-700 leading-none mt-0.5 block">0</span>
+              </div>
+            </button>
 
-          <!-- No Iniciado -->
-          <div class="h-8 bg-[#e74c3c] text-white px-2 sm:px-3 rounded-lg shadow-2xs flex items-center space-x-1 sm:space-x-1.5 whitespace-nowrap">
-            <span class="text-[10px] sm:text-[11px] font-black uppercase tracking-tight leading-none"><span class="sm:hidden">N</span><span class="hidden sm:inline">NO INICIADO</span></span>
-            <p id="kpi-pendiente" class="text-xs font-black leading-none">0</p>
+            <!-- KPI 4: No Iniciado -->
+            <button type="button" id="kpi-card-pendiente" onclick="filtrarPorEstadoKPI('No iniciado')" class="px-2.5 sm:px-3 py-1 flex items-center space-x-2 hover:bg-rose-50/60 rounded-r-lg transition cursor-pointer" title="Clic para filtrar tareas No iniciadas">
+              <span class="w-2 h-2 rounded-full bg-rose-500 ring-4 ring-rose-500/15 flex-shrink-0"></span>
+              <div class="text-left">
+                <span class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-none">No Iniciado</span>
+                <span id="kpi-pendiente" class="text-xs sm:text-sm font-black text-rose-700 leading-none mt-0.5 block">0</span>
+              </div>
+            </button>
           </div>
 
           <!-- Badge Filtro Activo -->
-          <div id="badge-filtro-activo" class="hidden items-center bg-amber-100 text-amber-900 border border-amber-300 text-[10px] sm:text-[10.5px] font-bold px-2 sm:px-2.5 h-8 rounded-lg shadow-2xs space-x-1 whitespace-nowrap">
+          <div id="badge-filtro-activo" class="hidden items-center bg-amber-100 text-amber-900 border border-amber-300 text-[10px] sm:text-[10.5px] font-bold px-2.5 h-8 rounded-lg shadow-2xs space-x-1.5 whitespace-nowrap">
             <span>🔍</span>
-            <span id="badge-filtro-texto" class="truncate max-w-[80px] sm:max-w-[140px] leading-none">Filtro</span>
-            <button onclick="limpiarTodosFiltros()" class="text-amber-800 hover:text-amber-950 font-black ml-1 text-xs cursor-pointer leading-none">✕</button>
+            <span id="badge-filtro-texto" class="truncate max-w-[100px] sm:max-w-[180px] leading-none">Filtro</span>
+            <button onclick="limpiarTodosFiltros()" class="text-amber-800 hover:text-amber-950 font-black ml-1 text-xs cursor-pointer leading-none" title="Restablecer todos los filtros">✕</button>
           </div>
         </div>
 
-        <!-- Botones Personal e Historial: Sólo icono en móvil -->
+        <!-- Extremo Derecho: Personal, Carga de trabajo e Historial -->
         <div class="flex items-center space-x-1 sm:space-x-1.5 flex-shrink-0">
           <button id="btn-personal-gantt" onclick="abrirResponsables()" class="h-8 w-8 sm:w-auto px-1.5 sm:px-2.5 bg-white hover:bg-slate-200 text-[#0f2a4a] border border-gray-300 rounded-lg text-xs font-bold transition shadow-2xs flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap" title="Asignación de Personal y Roles">
             <span>👥</span>
@@ -443,13 +462,20 @@
       </div>
     </div>
 
-    <!-- PISO 3: TOOLBAR OPERATIVO DE CLASE MUNDIAL (CONMUTADOR 4 VISTAS + AVATARES INTERACTIVOS + CONTROLES CONTEXTUALES) -->
+    <!-- PISO 3: TOOLBAR OPERATIVO DE CLASE MUNDIAL (BOTÓN + ACTIVIDAD + UNDO/REDO + 3 VISTAS + AVATARES INTERACTIVOS) -->
     <div class="relative z-40 max-w-[1920px] w-full mx-auto px-2 sm:px-6 py-1.5">
       <div class="relative z-40 flex flex-wrap lg:flex-nowrap items-center justify-between gap-2 bg-white px-2.5 py-1.5 rounded-xl shadow-xs border border-gray-200/90">
         
-        <!-- SECCIÓN IZQUIERDA: + ACTIVIDAD + CONMUTADOR DE 4 VISTAS + FILTROS RÁPIDOS -->
+        <!-- SECCIÓN IZQUIERDA: + ACTIVIDAD + DESHACER/REHACER + 3 VISTAS (LISTA | TABLERO | GANTT) + FILTROS -->
         <div class="flex flex-wrap items-center gap-1.5">
-          <!-- Controles Rápidos: Deshacer (Ctrl+Z) y Rehacer (Ctrl+Y) -->
+          
+          <!-- 1. Botón Primario: + Actividad (Restaurado en primera posición) -->
+          <button type="button" id="btn-nueva-act-gantt" onclick="botonSuperiorNuevaActividad()" class="h-[30px] bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-black px-3 rounded-lg transition shadow-xs flex items-center space-x-1.5 cursor-pointer whitespace-nowrap flex-shrink-0" title="Crear nueva actividad">
+            <span class="text-sm leading-none font-black">+</span>
+            <span>Actividad</span>
+          </button>
+
+          <!-- 2. Controles Rápidos: Deshacer (Ctrl+Z) y Rehacer (Ctrl+Y) -->
           <div class="inline-flex items-center bg-slate-100 border border-slate-300/80 p-0.5 rounded-lg flex-shrink-0">
             <button type="button" id="btn-undo-proy" onclick="ejecutarDeshacerProyecto()" disabled class="h-[24px] w-[26px] rounded flex items-center justify-center text-slate-400 opacity-40 cursor-not-allowed transition" title="Deshacer última acción (Ctrl + Z)">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
@@ -463,15 +489,8 @@
             </button>
           </div>
 
-          <!-- CONMUTADOR DE 4 VISTAS (Dividida | Lista | Tablero | Gantt) CON ICONOS SVG -->
+          <!-- 3. CONMUTADOR DE 3 VISTAS MAESTRAS (Lista | Tablero | Gantt) -->
           <div class="sprin-view-switcher flex-shrink-0">
-            <button type="button" id="btn-vista-proy-split" onclick="cambiarVistaProyecto('split')" class="sprin-view-btn active" title="Vista Dividida: Tabla WBS + Cronograma Gantt">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <rect x="3" y="4" width="18" height="16" rx="2" />
-                <line x1="9" y1="4" x2="9" y2="20" />
-              </svg>
-              <span>Dividida</span>
-            </button>
             <button type="button" id="btn-vista-proy-lista" onclick="cambiarVistaProyecto('lista')" class="sprin-view-btn" title="Vista Lista: Tabla interactiva detallada estilo Jira">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <line x1="8" y1="6" x2="21" y2="6" />
@@ -491,7 +510,7 @@
               </svg>
               <span>Tablero</span>
             </button>
-            <button type="button" id="btn-vista-proy-gantt" onclick="cambiarVistaProyecto('gantt')" class="sprin-view-btn" title="Vista Gantt: Cronograma ejecutivo ampliado">
+            <button type="button" id="btn-vista-proy-gantt" onclick="cambiarVistaProyecto('gantt')" class="sprin-view-btn active" title="Vista Gantt: Cronograma ejecutivo interactivo">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h8M7 12h10M11 17h10" />
               </svg>
@@ -501,7 +520,7 @@
 
           <div class="h-5 w-px bg-gray-200 mx-0.5 hidden sm:block"></div>
 
-          <!-- Buscador rápido con icono -->
+          <!-- 4. Buscador rápido -->
           <div class="relative flex items-center flex-shrink-0">
             <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
@@ -509,10 +528,10 @@
             <input type="text" id="filtro-busqueda" oninput="aplicarFiltrosGlobales()" placeholder="Buscar tarea..." class="w-[125px] sm:w-[150px] text-xs bg-slate-50 border border-slate-300 rounded-lg pl-7 pr-2 h-[30px] outline-none focus:border-[#0f2a4a] focus:bg-white font-semibold text-gray-700 transition" title="Buscar por código o descripción">
           </div>
 
-          <!-- Galería Rápida de Avatares del Equipo (Estilo Jira: 1 clic para filtrar por persona) -->
-          <div id="toolbar-avatares-equipo" class="hidden xl:flex items-center -space-x-1.5 px-1"></div>
+          <!-- 5. Galería Rápida de Avatares del Equipo con Menú Desplegable para el "+N" -->
+          <div id="toolbar-avatares-equipo" class="hidden xl:flex items-center -space-x-1.5 px-1 relative"></div>
 
-          <!-- Filtro Rápido: Mis Actividades -->
+          <!-- 6. Filtro Rápido: Mis Tareas -->
           <button type="button" id="btn-filtro-mis-actividades" onclick="alternarFiltroMisActividades()" class="h-[30px] px-2.5 rounded-lg text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-300 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap flex-shrink-0" title="Ver solo mis actividades asignadas">
             <svg class="w-3.5 h-3.5 text-teal-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
@@ -520,38 +539,38 @@
             <span class="hidden md:inline">Mis tareas</span>
           </button>
 
-          <!-- Selector Nivel WBS -->
-          <div class="relative flex items-center h-[30px] bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-lg px-2 cursor-pointer group flex-shrink-0" title="Filtrar por nivel jerárquico">
+          <!-- 7. Selector de Desglose por Niveles (Expansión WBS hasta Nivel X) -->
+          <div class="relative flex items-center h-[30px] bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-lg px-2 cursor-pointer group flex-shrink-0" title="Controlar nivel de desglose jerárquico WBS">
             <div class="flex items-center space-x-1 pointer-events-none select-none">
               <svg class="w-3.5 h-3.5 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M6.75 12h10.5m-7.5 5.25h4.5" />
               </svg>
-              <span id="txt-nivel-activo-label" class="hidden md:inline text-xs font-semibold text-gray-700 leading-none">Nivel</span>
+              <span id="txt-nivel-activo-label" class="hidden md:inline text-xs font-semibold text-gray-700 leading-none">Niveles</span>
               <svg class="w-3 h-3 text-gray-400 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </div>
             <select id="sel-filtro-nivel" onchange="filtrarNivelJerarquico(this.value)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer font-bold text-xs">
-              <option value="4" class="bg-white text-gray-800 text-xs py-1.5" selected>Todos los niveles</option>
-              <option value="1" class="bg-white text-gray-800 text-xs py-1.5">Nivel 1 (Fases)</option>
-              <option value="2" class="bg-white text-gray-800 text-xs py-1.5">Nivel 2 (Tareas)</option>
-              <option value="3" class="bg-white text-gray-800 text-xs py-1.5">Nivel 3 (Subtareas)</option>
+              <option value="4" class="bg-white text-gray-800 text-xs py-1.5" selected>Todos los niveles (Desplegar todo)</option>
+              <option value="1" class="bg-white text-gray-800 text-xs py-1.5">Hasta Nivel 1 (Solo Fases Madre)</option>
+              <option value="2" class="bg-white text-gray-800 text-xs py-1.5">Hasta Nivel 2 (Fases y Tareas)</option>
+              <option value="3" class="bg-white text-gray-800 text-xs py-1.5">Hasta Nivel 3 (Incluir Subtareas)</option>
             </select>
           </div>
 
-          <!-- Selector Colaborador -->
-          <div class="relative flex items-center h-[30px] bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-lg px-2 cursor-pointer group flex-shrink-0" title="Filtrar por responsable">
+          <!-- 8. Selector Colaboradores (En plural) -->
+          <div class="relative flex items-center h-[30px] bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-lg px-2 cursor-pointer group flex-shrink-0" title="Filtrar por colaborador">
             <div class="flex items-center space-x-1 pointer-events-none select-none">
               <svg class="w-3.5 h-3.5 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
               </svg>
-              <span id="txt-colaborador-activo-label" class="hidden md:inline text-xs font-semibold text-gray-700 leading-none">Colaborador</span>
+              <span id="txt-colaborador-activo-label" class="hidden md:inline text-xs font-semibold text-gray-700 leading-none">Colaboradores</span>
               <svg class="w-3 h-3 text-gray-400 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </div>
             <select id="filtro-responsable-select" onchange="aplicarFiltrosGlobales()" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer font-bold text-xs">
-              <option value="">Colaborador</option>
+              <option value="">Colaboradores (Todos)</option>
             </select>
           </div>
         </div>
@@ -564,7 +583,7 @@
             <span class="hidden lg:inline">Pegar lista</span>
           </button>
 
-          <!-- Grupo de Controles Exclusivos de Tiempo/Gantt (se oculta solo cuando estás en Lista o Tablero) -->
+          <!-- Grupo de Controles Exclusivos de Tiempo/Gantt -->
           <div id="grupo-controles-tiempo-gantt" class="flex items-center gap-1.5">
             <!-- Escala Temporal -->
             <div class="relative flex items-center h-[30px] bg-[#0f2a4a] hover:bg-[#1a3d66] rounded-lg px-2.5 cursor-pointer group" title="Cambiar escala temporal del Gantt">
@@ -583,13 +602,13 @@
               </select>
             </div>
 
-            <!-- Navegador Temporal: ◀ | Inicio | Hoy | ▶ -->
+            <!-- Navegador Temporal con Iluminación Dinámica (◀ | Inicio | Hoy | ▶) -->
             <div id="contenedor-spinbutton" class="h-[30px] flex items-center bg-slate-100 border border-slate-300 text-[#0f2a4a] rounded-lg px-1 space-x-1">
               <input type="hidden" id="input-semana-inicio" value="1">
-              <button type="button" onclick="desplazarGanttPorEscala(-1)" class="h-[22px] w-[22px] hover:bg-white rounded flex items-center justify-center transition cursor-pointer font-black text-[10px]" title="Retroceder">◀</button>
-              <button type="button" onclick="irAInicioProyecto()" class="h-[22px] hover:bg-white text-[#0f2a4a] text-[11px] font-bold px-2 rounded transition whitespace-nowrap flex items-center cursor-pointer" title="Ir al inicio del proyecto">Inicio</button>
-              <button type="button" onclick="irASemanaActual()" class="h-[22px] bg-[#0f2a4a] text-white text-[11px] font-bold px-2 rounded transition whitespace-nowrap flex items-center cursor-pointer shadow-2xs" title="Centrar en el día de hoy">Hoy</button>
-              <button type="button" onclick="desplazarGanttPorEscala(1)" class="h-[22px] w-[22px] hover:bg-white rounded flex items-center justify-center transition cursor-pointer font-black text-[10px]" title="Avanzar">▶</button>
+              <button type="button" onclick="desplazarGanttPorEscala(-1)" class="h-[22px] w-[22px] hover:bg-white rounded flex items-center justify-center transition cursor-pointer font-black text-[10px]" title="Retroceder en el calendario">◀</button>
+              <button type="button" id="btn-nav-gantt-inicio" onclick="irAInicioProyecto()" class="h-[22px] hover:bg-white text-[#0f2a4a] text-[11px] font-bold px-2 rounded transition whitespace-nowrap flex items-center cursor-pointer" title="Ir a la fecha de inicio del proyecto">Inicio</button>
+              <button type="button" id="btn-nav-gantt-hoy" onclick="irASemanaActual()" class="h-[22px] bg-[#0f2a4a] text-white text-[11px] font-bold px-2 rounded transition whitespace-nowrap flex items-center cursor-pointer shadow-2xs" title="Ubicarse en la fecha actual (Hoy)">Hoy</button>
+              <button type="button" onclick="desplazarGanttPorEscala(1)" class="h-[22px] w-[22px] hover:bg-white rounded flex items-center justify-center transition cursor-pointer font-black text-[10px]" title="Avanzar en el calendario">▶</button>
             </div>
           </div>
 
@@ -627,11 +646,11 @@
               <span class="hidden sm:inline">Opciones</span>
             </button>
 
-            <div id="menu-herramientas-vista" class="hidden absolute right-0 top-full pt-1.5 w-52 z-[250]" onmouseenter="cancelarCierreMenuOpciones()" onmouseleave="iniciarCierreMenuOpciones()">
+            <div id="menu-herramientas-vista" class="hidden absolute right-0 top-full pt-1.5 w-56 z-[250]" onmouseenter="cancelarCierreMenuOpciones()" onmouseleave="iniciarCierreMenuOpciones()">
               <div class="bg-white border border-gray-200 rounded-xl shadow-2xl py-1.5 text-xs font-bold text-gray-700">
                 <button type="button" onclick="abrirModalColumnas(); cerrarMenuOpcionesInmediato()" class="w-full text-left px-3.5 py-2 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-2.5 transition cursor-pointer">
                   <span>👁️</span>
-                  <span>Columnas visibles</span>
+                  <span>Personalizar columnas y barras</span>
                 </button>
                 <button type="button" onclick="exportarExcelCSV(); cerrarMenuOpcionesInmediato()" class="w-full text-left px-3.5 py-2 hover:bg-emerald-50 hover:text-emerald-700 flex items-center space-x-2.5 transition cursor-pointer">
                   <span>📊</span>
@@ -1669,31 +1688,44 @@
     </div>
   </div>
 
-  <!-- MODAL: GESTIÓN DE COLUMNAS -->
-  <div id="modal-columnas" class="hidden fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4">
-    <div class="bg-[#f8f9fa] rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-300">
-      <div class="bg-[#0f2a4a] text-white p-3.5 flex justify-between items-center">
+  <!-- MODAL: PERSONALIZACIÓN DE COLUMNAS Y ELEMENTOS DE BARRA GANTT -->
+  <div id="modal-columnas" class="hidden fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4 backdrop-blur-[1px]">
+    <div class="bg-[#f8f9fa] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-300">
+      <div class="bg-[#0f2a4a] text-white px-4 py-3.5 flex justify-between items-center">
         <div class="flex items-center space-x-2">
           <span class="text-base">👁️</span>
-          <h3 class="font-bold text-sm">Configurar columnas visibles</h3>
+          <div>
+            <h3 class="font-bold text-sm">Personalizar columnas y barras</h3>
+            <p class="text-[10px] text-teal-300 font-medium">Muestre u oculte datos adicionales en su vista actual</p>
+          </div>
         </div>
-        <button onclick="cerrarModalColumnas()" class="text-white text-xl font-bold hover:text-gray-300">&times;</button>
+        <button onclick="cerrarModalColumnas()" class="text-white text-xl font-bold hover:text-gray-300 cursor-pointer">&times;</button>
       </div>
-      <div class="p-5 space-y-3">
-        <div class="grid grid-cols-2 gap-2.5 bg-white p-3 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700">
-          <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" id="col-chk-responsable" onchange="alternarColumna('responsable', this.checked)" class="rounded text-[#0f2a4a]"><span>Responsable</span></label>
-          <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" id="col-chk-estado" onchange="alternarColumna('estado', this.checked)" class="rounded text-[#0f2a4a]"><span>Estado</span></label>
-          <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" id="col-chk-inicio" onchange="alternarColumna('inicio', this.checked)" class="rounded text-[#0f2a4a]"><span>Fecha Inicio</span></label>
-          <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" id="col-chk-fin" onchange="alternarColumna('fin', this.checked)" class="rounded text-[#0f2a4a]"><span>Fecha Fin</span></label>
-          <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" id="col-chk-dias" onchange="alternarColumna('dias', this.checked)" class="rounded text-[#0f2a4a]"><span>Días Duración</span></label>
-          <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" id="col-chk-avance" onchange="alternarColumna('avance', this.checked)" class="rounded text-[#0f2a4a]"><span>% Avance</span></label>
-          <label class="flex items-center space-x-2 cursor-pointer col-span-2 border-t pt-2 mt-1"><input type="checkbox" id="col-chk-gantt" onchange="alternarColumna('gantt', this.checked)" class="rounded text-[#0f2a4a]"><span class="text-[#0f2a4a] font-bold">Cronograma Gantt</span></label>
-          <label class="flex items-center space-x-2 cursor-pointer col-span-2 bg-slate-50 p-2 rounded border border-slate-200"><input type="checkbox" id="col-chk-avatares-gantt" onchange="alternarColumna('avatares_gantt', this.checked)" class="rounded text-[#0f2a4a]"><span>Avatares en barras del Gantt</span></label>
-          <label class="flex items-center space-x-2 cursor-pointer col-span-2 bg-slate-50 p-2 rounded border border-slate-200"><input type="checkbox" id="col-chk-porcentajes-gantt" onchange="alternarColumna('porcentajes_gantt', this.checked)" class="rounded text-[#0f2a4a]"><span>Valores porcentuales en barras del Gantt</span></label>
+      <div class="p-5 space-y-3.5">
+        <div>
+          <span class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">Columnas de la tabla de actividades</span>
+          <div class="grid grid-cols-2 gap-2.5 bg-white p-3.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 shadow-2xs">
+            <label class="flex items-center space-x-2 cursor-pointer hover:text-[#0f2a4a]"><input type="checkbox" id="col-chk-responsable" onchange="alternarColumna('responsable', this.checked)" class="rounded text-[#0f2a4a] cursor-pointer"><span>Responsables</span></label>
+            <label class="flex items-center space-x-2 cursor-pointer hover:text-[#0f2a4a]"><input type="checkbox" id="col-chk-estado" onchange="alternarColumna('estado', this.checked)" class="rounded text-[#0f2a4a] cursor-pointer"><span>Estado</span></label>
+            <label class="flex items-center space-x-2 cursor-pointer hover:text-[#0f2a4a]"><input type="checkbox" id="col-chk-inicio" onchange="alternarColumna('inicio', this.checked)" class="rounded text-[#0f2a4a] cursor-pointer"><span>Fecha Inicio</span></label>
+            <label class="flex items-center space-x-2 cursor-pointer hover:text-[#0f2a4a]"><input type="checkbox" id="col-chk-fin" onchange="alternarColumna('fin', this.checked)" class="rounded text-[#0f2a4a] cursor-pointer"><span>Vencimiento (Fin)</span></label>
+            <label class="flex items-center space-x-2 cursor-pointer hover:text-[#0f2a4a]"><input type="checkbox" id="col-chk-dias" onchange="alternarColumna('dias', this.checked)" class="rounded text-[#0f2a4a] cursor-pointer"><span>Duración (Días/Horas)</span></label>
+            <label class="flex items-center space-x-2 cursor-pointer hover:text-[#0f2a4a]"><input type="checkbox" id="col-chk-avance" onchange="alternarColumna('avance', this.checked)" class="rounded text-[#0f2a4a] cursor-pointer"><span>Progreso (%)</span></label>
+            <input type="checkbox" id="col-chk-gantt" class="hidden">
+          </div>
         </div>
+
+        <div>
+          <span class="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">Elementos visuales en barras del Gantt</span>
+          <div class="space-y-2 bg-white p-3.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 shadow-2xs">
+            <label class="flex items-center space-x-2.5 cursor-pointer hover:text-[#0f2a4a]"><input type="checkbox" id="col-chk-avatares-gantt" onchange="alternarColumna('avatares_gantt', this.checked)" class="rounded text-[#0f2a4a] cursor-pointer"><span>Mostrar avatar del responsable dentro de la barra</span></label>
+            <label class="flex items-center space-x-2.5 cursor-pointer hover:text-[#0f2a4a]"><input type="checkbox" id="col-chk-porcentajes-gantt" onchange="alternarColumna('porcentajes_gantt', this.checked)" class="rounded text-[#0f2a4a] cursor-pointer"><span>Mostrar porcentaje de avance sobre la barra</span></label>
+          </div>
+        </div>
+
         <div class="flex justify-between items-center pt-2">
-          <button onclick="restablecerColumnas()" class="text-xs text-blue-600 hover:underline font-semibold">Restablecer todas</button>
-          <button onclick="cerrarModalColumnas()" class="px-5 py-2 bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white text-xs font-bold rounded transition shadow">Listo</button>
+          <button type="button" onclick="restablecerColumnas()" class="text-xs text-teal-700 hover:underline font-bold cursor-pointer">↺ Restablecer vista estándar</button>
+          <button type="button" onclick="cerrarModalColumnas()" class="px-5 py-2 bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white text-xs font-bold rounded-xl transition shadow cursor-pointer">Listo</button>
         </div>
       </div>
     </div>
@@ -2320,6 +2352,6 @@
   </div>
 
     <!-- Carga del Módulo Orquestador Principal ES6 -->
-    <script type="module" src="/static/js/main.js?v=100042"></script>
+    <script type="module" src="/static/js/main.js?v=100043"></script>
 </body>
 </html>
