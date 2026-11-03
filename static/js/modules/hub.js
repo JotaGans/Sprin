@@ -188,71 +188,188 @@ export function renderizarRadarPreventivoHub() {
       ? "✅ Excelente: Ningún proyecto bajo su supervisión presenta actividades vencidas ni próximas a vencer en los siguientes 5 días."
       : "🎉 No tienes actividades operativas pendientes o próximas a vencer asignadas a tu nombre en los proyectos.";
     listaContenedor.innerHTML = `
-      <div class="col-span-full py-3.5 px-4 text-center text-slate-500 font-semibold text-xs bg-slate-50 rounded-xl border border-slate-200/70">
+      <div class="col-span-full py-3 px-4 text-center text-slate-500 font-semibold text-xs bg-slate-50 rounded-xl border border-slate-200/70">
         ${msgVacio}
       </div>
     `;
+    listaContenedor.style.maxHeight = "74px";
     return;
   }
 
-  listaContenedor.innerHTML = itemsFiltrados.slice(0, 12).map(al => {
+  // Renderizar Mini-Tarjetas Compactas (con solo lo clave y botón 'i' con Tooltip Flotante Rico)
+  listaContenedor.innerHTML = itemsFiltrados.slice(0, 24).map(al => {
     const esVencida = al.tipo_alerta === "VENCIDA";
     const esPorVencer = al.tipo_alerta === "POR_VENCER";
 
-    let badgePlazoClase = "bg-emerald-50 text-emerald-800 border-emerald-200";
-    let cardBordeClase = "border-slate-200 bg-slate-50/40";
-    let plazoTexto = al.fecha_fin ? `Plazo: ${al.fecha_fin}` : "En curso";
+    let dotColor = "bg-emerald-500";
+    let txtPlazoColor = "text-emerald-700";
+    let cardBordeClase = "border-slate-200/90 bg-slate-50/50 hover:border-teal-400";
+    let plazoCorto = al.fecha_fin || "En plazo";
 
     if (esVencida) {
-      badgePlazoClase = "bg-rose-100 text-rose-800 border-rose-300";
-      cardBordeClase = "border-rose-200 bg-rose-50/35";
-      plazoTexto = `⚠️ Vencido hace ${Math.abs(al.dias_restantes)}d (${al.fecha_fin})`;
+      dotColor = "bg-rose-500";
+      txtPlazoColor = "text-rose-700";
+      cardBordeClase = "border-rose-200/85 bg-rose-50/30 hover:border-rose-400";
+      plazoCorto = `Hace ${Math.abs(al.dias_restantes)}d`;
     } else if (esPorVencer) {
-      badgePlazoClase = "bg-amber-100 text-amber-900 border-amber-300";
-      cardBordeClase = "border-amber-200 bg-amber-50/35";
-      plazoTexto = al.dias_restantes === 0 ? `⏱️ Vence HOY (${al.fecha_fin})` : `⏱️ Vence en ${al.dias_restantes}d (${al.fecha_fin})`;
+      dotColor = "bg-amber-500";
+      txtPlazoColor = "text-amber-800";
+      cardBordeClase = "border-amber-200/85 bg-amber-50/30 hover:border-amber-400";
+      plazoCorto = al.dias_restantes === 0 ? "Vence HOY" : `En ${al.dias_restantes}d`;
     }
 
     const respLista = (al.responsable || "No asignado").split(";").map(s => s.trim()).filter(Boolean);
     const primerResp = respLista[0] || "No asignado";
-    const extraResp = respLista.length > 1 ? ` (+${respLista.length - 1})` : "";
+    const apellidoCorto = primerResp.includes(",") ? primerResp.split(",")[0].trim() : primerResp.split(" ")[0];
     const ini = primerResp.includes(",")
       ? (primerResp.split(",")[0].trim()[0] + (primerResp.split(",")[1]?.trim()[0] || "")).toUpperCase()
       : (primerResp.split(" ")[0][0] + (primerResp.split(" ")[1]?.[0] || "")).toUpperCase();
 
     return `
-      <div class="p-2.5 rounded-xl border ${cardBordeClase} flex flex-col justify-between space-y-2 hover:shadow-xs transition">
-        <div>
-          <div class="flex items-center justify-between gap-1.5 mb-1">
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black border ${badgePlazoClase}">
-              ${plazoTexto}
-            </span>
-            <span class="text-[10px] font-black text-[#0f2a4a] bg-white px-1.5 py-0.2 rounded border border-slate-200 flex-shrink-0" title="Unidad Orgánica">${al.unidad_organica}</span>
+      <div class="h-[68px] px-2.5 py-2 rounded-xl border ${cardBordeClase} flex flex-col justify-between transition relative group/minicard">
+        <!-- Fila Superior de la Mini-Tarjeta: Semáforo + Plazo corto | Unidad + Botón info (i) + Ir -->
+        <div class="flex items-center justify-between gap-1">
+          <div class="flex items-center space-x-1.5 min-w-0">
+            <span class="w-2 h-2 rounded-full ${dotColor} flex-shrink-0"></span>
+            <span class="text-[10.5px] font-black ${txtPlazoColor} truncate">${plazoCorto}</span>
+            <span class="text-[9.5px] font-bold text-slate-400 hidden xl:inline">(${al.fecha_fin})</span>
           </div>
 
-          <p class="text-xs font-bold text-slate-800 leading-snug line-clamp-1" title="[${al.codigo}] ${al.descripcion}">
-            <span class="font-mono text-[#0f2a4a] font-black mr-1">[${al.codigo}]</span>${al.descripcion}
-          </p>
-          <p class="text-[10.5px] font-semibold text-teal-800 truncate mt-0.5" title="Proyecto: ${al.proyecto_nombre}">
-            📁 ${al.proyecto_nombre}
-          </p>
+          <div class="flex items-center space-x-1 flex-shrink-0">
+            <span class="text-[9px] font-black text-[#0f2a4a] bg-white px-1.5 py-0.2 rounded border border-slate-200">${al.unidad_organica}</span>
+            
+            <!-- Icono (i) con Tooltip Ejecutivo rico -->
+            <button type="button"
+                    onmouseenter="mostrarTooltipMiniCardRadar(event, this)"
+                    onmouseleave="ocultarTooltipMiniCardRadar()"
+                    data-proy="${(al.proyecto_nombre || '').replace(/"/g, '&quot;')}"
+                    data-uo="${al.unidad_organica || 'S/U'}"
+                    data-cod="${al.codigo}"
+                    data-desc="${(al.descripcion || '').replace(/"/g, '&quot;')}"
+                    data-resp="${(al.responsable || 'No asignado').replace(/"/g, '&quot;')}"
+                    data-fin="${al.fecha_fin || ''}"
+                    data-avance="${al.avance || 0}"
+                    data-plazo="${plazoCorto}"
+                    class="w-4 h-4 rounded-full bg-white hover:bg-[#0f2a4a] text-slate-500 hover:text-white border border-slate-200/90 flex items-center justify-center text-[9.5px] font-serif italic font-black transition cursor-help">
+              i
+            </button>
+
+            <button type="button" onclick="ingresarAlProyecto(${al.proyecto_id}, '${al.proyecto_nombre.replace(/'/g, "\\'")}', ${al.es_gestor})" class="w-4 h-4 rounded bg-[#0f2a4a] hover:bg-teal-600 text-white font-black text-[10px] flex items-center justify-center transition cursor-pointer" title="Abrir proyecto: ${al.proyecto_nombre.replace(/"/g, '&quot;')}">
+              →
+            </button>
+          </div>
         </div>
 
-        <div class="flex items-center justify-between pt-1.5 border-t border-slate-200/70 text-[11px]">
-          <div class="flex items-center space-x-1.5 min-w-0" title="Responsable(s) en manos de la tarea: ${al.responsable}">
-            <span class="w-5 h-5 rounded-full bg-[#0f2a4a] text-white text-[8.5px] font-black flex items-center justify-center flex-shrink-0">
-              ${ini || '?'}
-            </span>
-            <span class="font-bold text-slate-700 truncate max-w-[135px]">${primerResp}${extraResp}</span>
+        <!-- Fila Inferior de la Mini-Tarjeta: Avatar + Apellido | Código y Actividad truncada -->
+        <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/50 text-[11px]">
+          <div class="flex items-center space-x-1 flex-shrink-0">
+            <span class="w-4 h-4 rounded-full bg-[#0f2a4a] text-white text-[8px] font-black flex items-center justify-center flex-shrink-0">${ini || '?'}</span>
+            <span class="font-bold text-slate-700 text-[10.5px] truncate max-w-[78px]">${apellidoCorto}</span>
           </div>
-
-          <button type="button" onclick="ingresarAlProyecto(${al.proyecto_id}, '${al.proyecto_nombre.replace(/'/g, "\\'")}', ${al.es_gestor})" class="px-2 py-0.5 rounded bg-[#0f2a4a] hover:bg-teal-700 text-white font-bold text-[10px] transition cursor-pointer flex-shrink-0">
-            Abrir →
-          </button>
+          <p class="text-[10.5px] font-semibold text-slate-600 truncate flex-1 text-right">
+            <strong class="font-mono text-[#0f2a4a]">[${al.codigo}]</strong> ${al.descripcion}
+          </p>
         </div>
       </div>
     `;
   }).join("");
+
+  // Ajustar altura inteligente para no dejar espacio en blanco si hay pocas tarjetas
+  requestAnimationFrame(() => ajustarAlturaRadarSegunContenido());
+}
+
+export function mostrarTooltipMiniCardRadar(e, btnEl) {
+  let tip = document.getElementById("hub-radar-custom-tooltip");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.id = "hub-radar-custom-tooltip";
+    tip.className = "fixed z-[9999] pointer-events-none w-72 bg-[#0f2a4a] text-white border border-teal-400/40 rounded-xl p-3 shadow-2xl text-xs transition-opacity duration-100 opacity-0";
+    document.body.appendChild(tip);
+  }
+
+  const proy = btnEl.getAttribute("data-proy") || "";
+  const uo = btnEl.getAttribute("data-uo") || "";
+  const cod = btnEl.getAttribute("data-cod") || "";
+  const desc = btnEl.getAttribute("data-desc") || "";
+  const resp = btnEl.getAttribute("data-resp") || "";
+  const fin = btnEl.getAttribute("data-fin") || "";
+  const av = btnEl.getAttribute("data-avance") || "0";
+  const plazo = btnEl.getAttribute("data-plazo") || "";
+
+  tip.innerHTML = `
+    <div class="flex items-center justify-between gap-2 mb-1.5 border-b border-white/10 pb-1.5">
+      <span class="font-mono font-black text-[10px] bg-teal-400 text-[#0f2a4a] px-1.5 py-0.2 rounded">[${cod}]</span>
+      <span class="text-[10px] font-bold text-amber-300">${plazo} · Vence: ${fin}</span>
+    </div>
+    <p class="font-extrabold text-white text-xs leading-snug mb-2">${desc}</p>
+    <div class="space-y-1 text-[10.5px] text-slate-200 bg-white/5 p-2 rounded-lg border border-white/10">
+      <div><strong class="text-teal-300">📁 Proyecto:</strong> [${uo}] ${proy}</div>
+      <div><strong class="text-teal-300">👤 Responsable(s):</strong> ${resp}</div>
+      <div><strong class="text-teal-300">📈 Avance actual:</strong> ${av}%</div>
+    </div>
+  `;
+
+  const rect = btnEl.getBoundingClientRect();
+  let left = rect.left - 240;
+  let top = rect.bottom + 8;
+  if (left < 10) left = 10;
+  if (top + 160 > window.innerHeight) top = rect.top - 155;
+
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
+  tip.classList.remove("opacity-0");
+  tip.classList.add("opacity-100");
+}
+
+export function ocultarTooltipMiniCardRadar() {
+  const tip = document.getElementById("hub-radar-custom-tooltip");
+  if (tip) {
+    tip.classList.remove("opacity-100");
+    tip.classList.add("opacity-0");
+  }
+}
+
+// Ajusta el contenedor del Radar para que nunca sea más alto que el total de mini-tarjetas reales
+function ajustarAlturaRadarSegunContenido() {
+  const lista = document.getElementById("hub-radar-lista-items");
+  if (!lista) return;
+  const ALTURA_MIN_UNA_FILA = 70;
+  const alturaContenidoReal = Math.max(ALTURA_MIN_UNA_FILA, lista.scrollHeight);
+  const alturaActual = parseInt(lista.style.maxHeight || "152", 10);
+  if (alturaActual > alturaContenidoReal) {
+    lista.style.maxHeight = `${alturaContenidoReal}px`;
+  }
+}
+
+// Redimensionador Vertical Inteligente (Drag-to-Resize en el borde inferior del Radar)
+export function iniciarRedimensionVerticalRadar(e) {
+  e.preventDefault();
+  const lista = document.getElementById("hub-radar-lista-items");
+  if (!lista) return;
+
+  const startY = e.clientY;
+  const startHeight = lista.offsetHeight;
+  const ALTURA_MIN_UNA_TARJETA = 70; // Límite mínimo: 1 fila de mini-tarjetas
+  const ALTURA_MAX_CONTENIDO = Math.max(ALTURA_MIN_UNA_TARJETA, lista.scrollHeight); // Límite máximo: hasta la última tarjeta sin hueco blanco
+
+  document.body.style.cursor = "ns-resize";
+  document.body.style.userSelect = "none";
+
+  const alMoverMouse = (ev) => {
+    const deltaY = ev.clientY - startY;
+    const nuevaAltura = Math.min(ALTURA_MAX_CONTENIDO, Math.max(ALTURA_MIN_UNA_TARJETA, startHeight + deltaY));
+    lista.style.maxHeight = `${nuevaAltura}px`;
+  };
+
+  const alSoltarMouse = () => {
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    window.removeEventListener("mousemove", alMoverMouse);
+    window.removeEventListener("mouseup", alSoltarMouse);
+  };
+
+  window.addEventListener("mousemove", alMoverMouse);
+  window.addEventListener("mouseup", alSoltarMouse);
 }
 
 export function alternarColapsoRadar() {
@@ -264,6 +381,60 @@ export function alternarColapsoRadar() {
   const oculto = cuerpo.classList.toggle("hidden");
   if (ico) ico.innerText = oculto ? "▼" : "▲";
   if (txt) txt.innerText = oculto ? "Expandir" : "Contraer";
+}
+
+export function alternarColapsoPortafolioHub() {
+  const cuerpo = document.getElementById("hub-portafolio-cuerpo");
+  const ico = document.getElementById("ico-colapso-portafolio");
+  const txt = document.getElementById("txt-colapso-portafolio");
+  if (!cuerpo) return;
+
+  const oculto = cuerpo.classList.toggle("hidden");
+  if (ico) ico.innerText = oculto ? "▼" : "▲";
+  if (txt) txt.innerText = oculto ? "Expandir" : "Contraer";
+}
+
+export function alternarMenuConfigVistasHub(e) {
+  if (e) e.stopPropagation();
+  document.getElementById("hub-dropdown-config-vistas")?.classList.toggle("hidden");
+}
+
+export function conmutarVisibilidadBloqueHub(bloque, visible) {
+  if (bloque === "radar") {
+    document.getElementById("hub-contenedor-radar-alertas")?.classList.toggle("hidden", !visible);
+  } else if (bloque === "portafolio") {
+    document.getElementById("hub-contenedor-portafolio-bloque")?.classList.toggle("hidden", !visible);
+  }
+}
+
+export function restablecerBloquesHub() {
+  const chkRadar = document.getElementById("chk-hub-ver-radar");
+  const chkPort = document.getElementById("chk-hub-ver-portafolio");
+  if (chkRadar) chkRadar.checked = true;
+  if (chkPort) chkPort.checked = true;
+
+  document.getElementById("hub-contenedor-radar-alertas")?.classList.remove("hidden");
+  document.getElementById("hub-radar-cuerpo")?.classList.remove("hidden");
+  document.getElementById("hub-contenedor-portafolio-bloque")?.classList.remove("hidden");
+  document.getElementById("hub-portafolio-cuerpo")?.classList.remove("hidden");
+
+  const icoR = document.getElementById("ico-colapso-radar");
+  const txtR = document.getElementById("txt-colapso-radar");
+  if (icoR) icoR.innerText = "▲";
+  if (txtR) txtR.innerText = "Contraer";
+
+  const icoP = document.getElementById("ico-colapso-portafolio");
+  const txtP = document.getElementById("txt-colapso-portafolio");
+  if (icoP) icoP.innerText = "▲";
+  if (txtP) txtP.innerText = "Contraer";
+
+  document.getElementById("hub-dropdown-config-vistas")?.classList.add("hidden");
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("click", () => {
+    document.getElementById("hub-dropdown-config-vistas")?.classList.add("hidden");
+  });
 }
 
 export function cambiarVistaHub(modo) {
@@ -457,6 +628,8 @@ export function renderizarTarjetasHub(lista) {
   setTimeout(sincronizarContadorHeaderPendientes, 120);
 
   const listaFinal = lista.filter(p => state.mostrandoOcultosHub ? state.idsProyectosOcultos.has(p.id) : !state.idsProyectosOcultos.has(p.id));
+  const badgePortafolio = document.getElementById("hub-portafolio-badge-visibles");
+  if (badgePortafolio) badgePortafolio.innerText = `${listaFinal.length} proyecto(s)`;
 
   listaFinal.forEach(p => {
     const rolEfectivo = p.rol_efectivo || (p.es_gestor ? 'GESTOR' : 'RESPONSABLE');
@@ -510,11 +683,11 @@ export function renderizarTarjetasHub(lista) {
     const procesoValor = (p.proceso_relacionado || p.proceso_nombre || p.proceso_codigo || "").trim();
     const nombreLimpioProceso = procesoValor ? procesoValor : "Sin proceso asignado";
     const tooltipProceso = `title="${nombreLimpioProceso}${esGestor ? ' (Doble clic para cambiar)' : ''}"`;
-    const estiloCursorProceso = esGestor ? 'cursor-pointer hover:text-teal-700 transition' : '';
+    const estiloCursorProceso = esGestor ? 'cursor-pointer hover:opacity-100 transition' : '';
 
-    // Slot de altura simétrica fija (h-[44px]) para que todas las tarjetas mantengan sus KPIs y barra exactamente al mismo nivel
+    // Slot de altura simétrica fija (h-[48px])
     let slotAlertaSimetricoHTML = `
-      <div class="mt-3 h-[44px] px-3 rounded-xl border border-slate-100 bg-slate-50/60 flex items-center justify-between text-[11px] text-slate-400">
+      <div class="mt-4 h-[48px] px-3.5 rounded-xl border border-slate-100 bg-slate-50/70 flex items-center justify-between text-[11px] text-slate-400">
         <span class="inline-flex items-center space-x-1.5 font-semibold">
           <svg class="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
           <span>Cronograma sin alertas de retraso</span>
@@ -528,7 +701,7 @@ export function renderizarTarjetasHub(lista) {
       const esVenc = topAl.tipo_alerta === "VENCIDA";
       const respCorto = (topAl.responsable || "No asignado").split(";")[0].trim();
       slotAlertaSimetricoHTML = `
-        <div class="mt-3 h-[44px] px-3 py-1 rounded-xl border ${esVenc ? 'bg-rose-50/45 border-rose-200/80 text-rose-900' : 'bg-amber-50/45 border-amber-200/80 text-amber-950'} flex flex-col justify-center text-[10.5px]">
+        <div class="mt-4 h-[48px] px-3.5 py-1.5 rounded-xl border ${esVenc ? 'bg-rose-50/45 border-rose-200/80 text-rose-900' : 'bg-amber-50/45 border-amber-200/80 text-amber-950'} flex flex-col justify-center text-[10.5px]">
           <div class="flex items-center justify-between gap-1.5 font-bold leading-tight">
             <span class="truncate" title="[${topAl.codigo}] ${topAl.descripcion}">${esVenc ? 'Retraso:' : 'Próximo:'} [${topAl.codigo}] ${topAl.descripcion}</span>
             <span class="font-mono text-[10px] font-bold opacity-80 flex-shrink-0">${topAl.fecha_fin}</span>
@@ -539,13 +712,14 @@ export function renderizarTarjetasHub(lista) {
     }
 
     const card = document.createElement("div");
-    card.className = "bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs hover:shadow-md transition-all flex flex-col justify-between hover:border-teal-500/50 relative h-[320px]";
+    // Tarjeta estirada verticalmente (h-[365px]) con distribución proporcionada y elegante
+    card.className = "bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs hover:shadow-md transition-all flex flex-col justify-between hover:border-teal-500/50 relative h-[365px]";
     card.innerHTML = `
       <div>
         <!-- Fila 1: Rol + Candado/Mundo + Indicador limpio de salud | Ocultar/Eliminar + % -->
-        <div class="flex items-center justify-between mb-2.5 gap-1">
+        <div class="flex items-center justify-between mb-3.5 gap-1">
           <div class="flex items-center space-x-2">
-            <span class="text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider whitespace-nowrap border ${badgeRolClases}">
+            <span class="text-[10px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider whitespace-nowrap border ${badgeRolClases}">
               ${badgeRolTexto}
             </span>
             ${iconoAlcanceHTML}
@@ -567,11 +741,10 @@ export function renderizarTarjetasHub(lista) {
           </div>
         </div>
         
-        <!-- Fila 2: Título con altura simétrica reservada (h-[42px]) + Popover de Descripción en icono ⓘ -->
-        <div class="flex items-start justify-between gap-2 h-[42px]">
-          <h3 class="font-extrabold text-sm sm:text-[15px] text-[#0f2a4a] leading-snug line-clamp-2 break-words flex-1" title="${p.nombre.replace(/"/g, '&quot;')}">${p.nombre}</h3>
+        <!-- Fila 2: Título con altura simétrica reservada (h-[44px]) + Popover de Descripción en icono ⓘ -->
+        <div class="flex items-start justify-between gap-2 h-[44px]">
+          <h3 class="font-extrabold text-[15px] text-[#0f2a4a] leading-snug line-clamp-2 break-words flex-1" title="${p.nombre.replace(/"/g, '&quot;')}">${p.nombre}</h3>
           
-          <!-- Botón de información con Popover flotante para ver/editar la descripción sin saturar la tarjeta -->
           <div class="relative group/info flex-shrink-0 mt-0.5">
             <button type="button" onclick="event.stopPropagation(); ${esGestor ? `editarDescripcionProyecto(${p.id}, '${descEscapada}')` : ''}" class="w-5 h-5 rounded-full bg-slate-100 hover:bg-[#0f2a4a] text-slate-500 hover:text-white flex items-center justify-center text-[11px] font-serif italic font-black transition cursor-pointer" title="${esGestor ? 'Clic para editar la descripción del proyecto' : 'Descripción del proyecto'}">
               i
@@ -584,8 +757,8 @@ export function renderizarTarjetasHub(lista) {
           </div>
         </div>
         
-        <!-- Fila 3: Unidad Orgánica y Proceso (con el mismo color limpio institucional) -->
-        <div class="flex items-center gap-x-2 mt-1.5 text-[11px] truncate">
+        <!-- Fila 3: Unidad Orgánica y Proceso (con opacidad sutil en el proceso para menor protagonismo) -->
+        <div class="flex items-center gap-x-2 mt-2 text-[11px] truncate">
           <span ${tooltipUo} 
                 ondblclick="${esGestor ? `editarUnidadOrganicaProyecto(${p.id}, '${siglaUnidad}')` : ''}"
                 class="font-bold text-teal-800 inline-flex items-center space-x-1 flex-shrink-0 ${estiloCursorUo}">
@@ -595,38 +768,38 @@ export function renderizarTarjetasHub(lista) {
           <span class="text-slate-300">•</span>
           <span ${tooltipProceso} 
                 ondblclick="${esGestor ? `editarProcesoProyectoModal(${p.id})` : ''}"
-                class="font-bold text-[#0f2a4a] inline-flex items-center space-x-1 truncate ${estiloCursorProceso}">
+                class="font-semibold text-[#0f2a4a] opacity-60 hover:opacity-100 inline-flex items-center space-x-1 truncate ${estiloCursorProceso}">
             <span>⚙️</span>
             <span class="truncate">${nombreLimpioProceso}</span>
           </span>
         </div>
 
-        <!-- Fila 4: Slot de Alerta de altura fija (44px) -->
+        <!-- Fila 4: Slot de Alerta de altura fija (48px) -->
         ${slotAlertaSimetricoHTML}
       </div>
 
-      <!-- Zona Inferior Anclada: Barra + 3 KPIs + Botón Ingresar siempre en la misma coordenada Y -->
-      <div class="pt-2">
-        <div class="w-full bg-slate-100 rounded-full h-1.5 mb-2.5 overflow-hidden">
-          <div class="${barraColorClase} h-1.5 rounded-full transition-all duration-500" style="width: ${avanceVal}%"></div>
+      <!-- Zona Inferior Anclada: Barra + 3 KPIs con su Esencia de Color Restaurada + Botón Ingresar -->
+      <div class="pt-3">
+        <div class="w-full bg-slate-100 rounded-full h-2 mb-3.5 overflow-hidden shadow-inner">
+          <div class="${barraColorClase} h-2 rounded-full transition-all duration-500" style="width: ${avanceVal}%"></div>
         </div>
 
-        <div class="grid grid-cols-3 gap-2 mb-3 text-center">
-          <div class="bg-slate-50 py-1.5 px-2 rounded-xl border border-slate-200/80">
-            <span class="block text-[8.5px] font-extrabold text-slate-400 uppercase">Ejecutado</span>
-            <span class="text-xs font-black text-emerald-700">${p.ejecutadas || 0}</span>
+        <div class="grid grid-cols-3 gap-2.5 mb-4 text-center">
+          <div class="bg-emerald-50/80 py-2 px-2 rounded-xl border border-emerald-100">
+            <span class="block text-[9px] font-black text-emerald-700 uppercase">Ejecutado</span>
+            <span class="text-xs font-black text-emerald-900 mt-0.5 block">${p.ejecutadas || 0}</span>
           </div>
-          <div class="bg-slate-50 py-1.5 px-2 rounded-xl border border-slate-200/80">
-            <span class="block text-[8.5px] font-extrabold text-slate-400 uppercase">En proceso</span>
-            <span class="text-xs font-black text-amber-700">${p.en_proceso || 0}</span>
+          <div class="bg-amber-50/80 py-2 px-2 rounded-xl border border-amber-100">
+            <span class="block text-[9px] font-black text-amber-700 uppercase">En proceso</span>
+            <span class="text-xs font-black text-amber-900 mt-0.5 block">${p.en_proceso || 0}</span>
           </div>
-          <div class="bg-slate-50 py-1.5 px-2 rounded-xl border border-slate-200/80">
-            <span class="block text-[8.5px] font-extrabold text-slate-400 uppercase">No iniciado</span>
-            <span class="text-xs font-black text-rose-700">${p.pendientes || 0}</span>
+          <div class="bg-rose-50/80 py-2 px-2 rounded-xl border border-rose-100">
+            <span class="block text-[9px] font-black text-rose-700 uppercase">No iniciado</span>
+            <span class="text-xs font-black text-rose-900 mt-0.5 block">${p.pendientes || 0}</span>
           </div>
         </div>
 
-        <button onclick="ingresarAlProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', ${esGestor})" class="w-full py-2 bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white font-bold text-xs rounded-xl shadow-2xs transition flex items-center justify-center space-x-1.5 cursor-pointer">
+        <button onclick="ingresarAlProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', ${esGestor})" class="w-full py-2.5 bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center space-x-1.5 cursor-pointer">
           <span>Ingresar al proyecto</span>
           <span class="text-sm leading-none">→</span>
         </button>
@@ -638,7 +811,7 @@ export function renderizarTarjetasHub(lista) {
   if (!state.mostrandoOcultosHub) {
     const cardNuevo = document.createElement("div");
     cardNuevo.onclick = abrirModalNuevoProyecto;
-    cardNuevo.className = "bg-slate-50/60 hover:bg-white rounded-2xl p-6 border-2 border-dashed border-slate-300 hover:border-teal-500 transition-all cursor-pointer flex flex-col items-center justify-center text-center group h-[320px] shadow-2xs hover:shadow-md";
+    cardNuevo.className = "bg-slate-50/60 hover:bg-white rounded-2xl p-6 border-2 border-dashed border-slate-300 hover:border-teal-500 transition-all cursor-pointer flex flex-col items-center justify-center text-center group h-[365px] shadow-2xs hover:shadow-md";
     cardNuevo.innerHTML = `
       <div class="w-12 h-12 rounded-full bg-teal-50 group-hover:bg-teal-600 text-teal-600 group-hover:text-white flex items-center justify-center text-xl font-black mb-3 transition shadow-2xs">
         +
@@ -1993,3 +2166,10 @@ window.autocompletarProcesoNuevoProy = autocompletarProcesoNuevoProy;
 window.abrirModalMisPendientesHub = abrirModalMisPendientesHub;
 window.cerrarModalMisPendientesHub = cerrarModalMisPendientesHub;
 window.sincronizarContadorHeaderPendientes = sincronizarContadorHeaderPendientes;
+window.mostrarTooltipMiniCardRadar = mostrarTooltipMiniCardRadar;
+window.ocultarTooltipMiniCardRadar = ocultarTooltipMiniCardRadar;
+window.iniciarRedimensionVerticalRadar = iniciarRedimensionVerticalRadar;
+window.alternarColapsoPortafolioHub = alternarColapsoPortafolioHub;
+window.alternarMenuConfigVistasHub = alternarMenuConfigVistasHub;
+window.conmutarVisibilidadBloqueHub = conmutarVisibilidadBloqueHub;
+window.restablecerBloquesHub = restablecerBloquesHub;
