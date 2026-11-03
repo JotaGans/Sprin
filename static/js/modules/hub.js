@@ -1195,8 +1195,8 @@ export function renderizarTablaHub(lista) {
             <span class="text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200" title="No iniciadas">${p.pendientes || 0}</span>
           </div>
         </td>
-        <td class="p-2.5 pr-4 whitespace-nowrap">
-          <div class="flex items-center justify-end space-x-1.5">
+        <td class="p-2.5 whitespace-nowrap">
+          <div class="flex items-center justify-center space-x-1.5">
             <div class="inline-flex items-center justify-end space-x-0.5 w-[44px] flex-shrink-0">
               <button onclick="alternarOcultarProyecto(${p.id}, event)" class="p-1 rounded hover:bg-gray-200 transition cursor-pointer" title="${estaOculto ? 'Restaurar al panel' : 'Ocultar vista'}">
                 ${estaOculto ? SVG_OJO_ABIERTO : SVG_OJO_CERRADO}
@@ -2211,9 +2211,9 @@ export async function ejecutarCreacionDesdePlantilla() {
 }
 
 // =========================================================================
-// MOTOR ANALÍTICO TIPO POWER BI (ESTADÍSTICAS HUB)
+// MOTOR EJECUTIVO DE INTELIGENCIA DE PORTAFOLIO (ESTADÍSTICAS BI)
 // =========================================================================
-let tipoGraficoActual = 'bar';
+let tipoGraficoActual = 'ranking'; // 'ranking' | 'unidades' | 'salud' | 'carga'
 let chartInstancia = null;
 
 export async function cargarCatalogoProcesos() {
@@ -2232,13 +2232,13 @@ export async function abrirModalEstadisticasHub() {
 
   const selUo = document.getElementById("stat-filtro-uo");
   if (selUo) {
-    const uosExistentes = [...new Set((state.proyectosUsuarioGlobal || []).map(p => p.unidad_organica).filter(Boolean))];
-    selUo.innerHTML = '<option value="">🏢 Todas las Unidades</option>' + 
+    const uosExistentes = [...new Set((state.proyectosUsuarioGlobal || []).map(p => p.unidad_organica).filter(Boolean))].sort();
+    selUo.innerHTML = '<option value="">Todas las Unidades</option>' + 
       uosExistentes.map(u => `<option value="${u}">${u}</option>`).join("");
   }
 
   document.getElementById("modal-estadisticas-hub")?.classList.remove("hidden");
-  aplicarFiltrosEstadisticas();
+  conmutarTipoGrafico(tipoGraficoActual || 'ranking');
 }
 
 export function cerrarModalEstadisticasHub() {
@@ -2251,16 +2251,31 @@ export function cerrarModalEstadisticasHub() {
 
 export function conmutarTipoGrafico(tipo) {
   tipoGraficoActual = tipo;
-  const btnBarras = document.getElementById("btn-chart-barras");
-  const btnPastel = document.getElementById("btn-chart-pastel");
+  const modos = ["ranking", "unidades", "salud", "carga"];
+  const clsAct = "px-2.5 py-1 rounded-lg bg-white shadow-2xs text-[#0f2a4a] transition cursor-pointer";
+  const clsInact = "px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#0f2a4a] transition cursor-pointer";
 
-  if (tipo === 'bar') {
-    if (btnBarras) btnBarras.className = "px-2.5 py-1 rounded-md bg-white shadow-2xs text-[#0f2a4a] transition";
-    if (btnPastel) btnPastel.className = "px-2.5 py-1 rounded-md text-gray-500 hover:text-gray-900 transition";
-  } else {
-    if (btnPastel) btnPastel.className = "px-2.5 py-1 rounded-md bg-white shadow-2xs text-[#0f2a4a] transition";
-    if (btnBarras) btnBarras.className = "px-2.5 py-1 rounded-md text-gray-500 hover:text-gray-900 transition";
+  modos.forEach(m => {
+    const btn = document.getElementById(`btn-chart-${m}`);
+    if (btn) btn.className = (m === tipo) ? clsAct : clsInact;
+  });
+
+  const tit = document.getElementById("stat-titulo-grafico");
+  const sub = document.getElementById("stat-subtitulo-grafico");
+  if (tipo === "ranking") {
+    if (tit) tit.innerText = "Ranking de Avance y Salud por Proyecto (%)";
+    if (sub) sub.innerText = "Proyectos ordenados de mayor a menor avance (Verde: En plazo · Ámbar: Por vencer · Rojo: Con retraso)";
+  } else if (tipo === "unidades") {
+    if (tit) tit.innerText = "Avance Físico Promedio por Unidad de Organización (%)";
+    if (sub) sub.innerText = "Comparativa del rendimiento promedio entre las unidades orgánicas de la institución";
+  } else if (tipo === "salud") {
+    if (tit) tit.innerText = "Distribución de Salud de Plazos del Portafolio";
+    if (sub) sub.innerText = "Proporción de proyectos en plazo, por vencer (≤ 5 días), con retraso y completados";
+  } else if (tipo === "carga") {
+    if (tit) tit.innerText = "Balance Operativo de Actividades por Unidad Orgánica";
+    if (sub) sub.innerText = "Volumen de actividades ejecutadas, en proceso y no iniciadas asignadas a cada unidad";
   }
+
   aplicarFiltrosEstadisticas();
 }
 
@@ -2269,14 +2284,24 @@ export function aplicarFiltrosEstadisticas() {
   const procTexto = (document.getElementById("stat-filtro-proceso")?.value || "").trim().toUpperCase();
   const uoFiltro = document.getElementById("stat-filtro-uo")?.value || "";
   const estFiltro = document.getElementById("stat-filtro-estado")?.value || "";
+  const saludFiltro = document.getElementById("stat-filtro-salud")?.value || "";
 
   const proyectosFiltrados = (state.proyectosUsuarioGlobal || []).filter(p => {
+    if (state.idsProyectosOcultos.has(p.id)) return false;
     if (uoFiltro && p.unidad_organica !== uoFiltro) return false;
     
     if (estFiltro) {
       const av = p.avance_global || 0;
       const estadoCalc = av === 100 ? "Ejecutado" : (av > 0 ? "En proceso" : "No iniciado");
       if (estadoCalc !== estFiltro) return false;
+    }
+
+    if (saludFiltro) {
+      if (saludFiltro === "EN_PLAZO") {
+        if (p.salud_proyecto !== "EN_PLAZO" && p.salud_proyecto !== "COMPLETADO") return false;
+      } else if (p.salud_proyecto !== saludFiltro) {
+        return false;
+      }
     }
 
     if (procCod || procTexto) {
@@ -2297,26 +2322,42 @@ export function aplicarFiltrosEstadisticas() {
 
 function actualizarKPIsEstadisticas(lista) {
   const total = lista.length;
-  let sumaAvance = 0, enProc = 0, ejec = 0;
+  let sumaAvance = 0, enProc = 0, ejec = 0, noInic = 0;
+  let proyEnPlazo = 0, proyRetrasados = 0, totalVencidas = 0;
+  let totalTareas = 0, tareasEjec = 0;
 
   lista.forEach(p => {
     const av = p.avance_global || 0;
     sumaAvance += av;
     if (av === 100) ejec++;
     else if (av > 0) enProc++;
+    else noInic++;
+
+    if (p.salud_proyecto === "CRITICO") proyRetrasados++;
+    else if (p.salud_proyecto === "EN_PLAZO" || p.salud_proyecto === "COMPLETADO") proyEnPlazo++;
+
+    totalVencidas += (p.vencidas_count || 0);
+    totalTareas += (p.total_actividades || 0);
+    tareasEjec += (p.ejecutadas || 0);
   });
 
   const prom = total > 0 ? Math.round(sumaAvance / total) : 0;
 
-  const kTotal = document.getElementById("stat-kpi-total");
-  const kProm = document.getElementById("stat-kpi-promedio");
-  const kProc = document.getElementById("stat-kpi-en-proceso");
-  const kEjec = document.getElementById("stat-kpi-ejecutados");
+  const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+  setTxt("stat-kpi-total", total);
+  setTxt("stat-kpi-sub-total", `${(state.proyectosUsuarioGlobal || []).length} en total`);
+  setTxt("stat-kpi-promedio", `${prom}%`);
+  const barProm = document.getElementById("stat-kpi-promedio-bar");
+  if (barProm) barProm.style.width = `${prom}%`;
 
-  if (kTotal) kTotal.innerText = total;
-  if (kProm) kProm.innerText = `${prom}%`;
-  if (kProc) kProc.innerText = enProc;
-  if (kEjec) kEjec.innerText = ejec;
+  setTxt("stat-kpi-en-proceso", enProc);
+  setTxt("stat-kpi-sub-proceso", `${noInic} sin iniciar`);
+  setTxt("stat-kpi-ejecutados", ejec);
+  setTxt("stat-kpi-sub-plazo", `${proyEnPlazo} en plazo`);
+  setTxt("stat-kpi-retrasados", proyRetrasados);
+  setTxt("stat-kpi-sub-vencidas", `${totalVencidas} ${totalVencidas === 1 ? 'tarea vencida' : 'tareas vencidas'}`);
+  setTxt("stat-kpi-total-tareas", totalTareas);
+  setTxt("stat-kpi-sub-tareas", `${tareasEjec} ejecutadas`);
 }
 
 function renderizarGraficoEstadisticas(lista) {
@@ -2330,53 +2371,159 @@ function renderizarGraficoEstadisticas(lista) {
     return;
   }
 
-  if (tipoGraficoActual === 'bar') {
-    const labels = lista.map(p => p.nombre.length > 25 ? p.nombre.substring(0, 22) + "..." : p.nombre);
-    const data = lista.map(p => p.avance_global || 0);
+  // MODO 1: RANKING DE PROYECTOS (Barras horizontales legibles ordenadas por avance)
+  if (tipoGraficoActual === 'ranking') {
+    const ordenados = [...lista].sort((a, b) => (b.avance_global || 0) - (a.avance_global || 0)).slice(0, 12);
+    const labels = ordenados.map(p => {
+      const uo = p.unidad_organica ? `[${p.unidad_organica}] ` : "";
+      const nom = p.nombre.length > 34 ? p.nombre.substring(0, 32) + "…" : p.nombre;
+      return uo + nom;
+    });
+    const data = ordenados.map(p => Math.max(1.5, p.avance_global || 0)); // Mínimo 1.5 visual para que 0% muestre barra testigo
+    const colores = ordenados.map(p => {
+      if (p.salud_proyecto === "CRITICO") return "#f43f5e";
+      if (p.salud_proyecto === "ATENCION") return "#f59e0b";
+      return "#10b981";
+    });
 
     chartInstancia = new Chart(ctx, {
       type: 'bar',
       data: {
         labels: labels,
         datasets: [{
-          label: '% Avance',
+          label: '% Avance Real',
           data: data,
-          backgroundColor: data.map(v => v === 100 ? '#10b981' : (v > 0 ? '#0d9488' : '#cbd5e1')),
-          borderRadius: 6
+          backgroundColor: colores,
+          borderRadius: 6,
+          barThickness: 14
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#f1f5f9' } },
+          y: { ticks: { font: { size: 11, weight: 'bold' }, color: '#0f2a4a' }, grid: { display: false } }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const pObj = ordenados[context.dataIndex];
+                const estSalud = pObj.salud_proyecto === "CRITICO" ? `Con retraso (${pObj.vencidas_count} venc.)` : "En plazo";
+                return ` Avance: ${pObj.avance_global || 0}% · ${estSalud}`;
+              }
+            }
+          }
+        }
+      }
+    });
+    return;
+  }
+
+  // MODO 2: AVANCE PROMEDIO POR UNIDAD ORGÁNICA
+  if (tipoGraficoActual === 'unidades') {
+    const mapaUO = {};
+    lista.forEach(p => {
+      const uo = (p.unidad_organica || "Sin UO").trim();
+      if (!mapaUO[uo]) mapaUO[uo] = { suma: 0, count: 0 };
+      mapaUO[uo].suma += (p.avance_global || 0);
+      mapaUO[uo].count += 1;
+    });
+    const uos = Object.keys(mapaUO).sort((a, b) => (mapaUO[b].suma / mapaUO[b].count) - (mapaUO[a].suma / mapaUO[a].count));
+    const proms = uos.map(u => Math.round(mapaUO[u].suma / mapaUO[u].count));
+
+    chartInstancia = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: uos.map(u => `${u} (${mapaUO[u].count} proy.)`),
+        datasets: [{
+          label: '% Avance Promedio',
+          data: proms,
+          backgroundColor: '#0d9488',
+          borderRadius: 8,
+          maxBarThickness: 42
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } } },
+        scales: {
+          y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#f1f5f9' } },
+          x: { ticks: { font: { size: 11, weight: 'bold' }, color: '#0f2a4a' }, grid: { display: false } }
+        },
         plugins: { legend: { display: false } }
       }
     });
-  } else {
-    let noInic = 0, enProc = 0, ejec = 0;
+    return;
+  }
+
+  // MODO 3: SALUD DE PLAZOS DEL PORTAFOLIO (DOUGHNUT EJECUTIVO)
+  if (tipoGraficoActual === 'salud') {
+    let enPlazo = 0, porVencer = 0, criticos = 0, completados = 0;
     lista.forEach(p => {
-      const av = p.avance_global || 0;
-      if (av === 100) ejec++;
-      else if (av > 0) enProc++;
-      else noInic++;
+      if (p.avance_global === 100) completados++;
+      else if (p.salud_proyecto === "CRITICO") criticos++;
+      else if (p.salud_proyecto === "ATENCION") porVencer++;
+      else enPlazo++;
     });
 
     chartInstancia = new Chart(ctx, {
-      type: 'pie',
+      type: 'doughnut',
       data: {
-        labels: ['No iniciado', 'En proceso', 'Ejecutado'],
+        labels: ['En plazo', 'Por vencer (≤5d)', 'Con retraso (Vencidos)', 'Completados (100%)'],
         datasets: [{
-          data: [noInic, enProc, ejec],
-          backgroundColor: ['#cbd5e1', '#f59e0b', '#10b981']
+          data: [enPlazo, porVencer, criticos, completados],
+          backgroundColor: ['#10b981', '#f59e0b', '#f43f5e', '#0f2a4a'],
+          borderWidth: 2,
+          borderColor: '#ffffff'
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom' } }
+        cutout: '62%',
+        plugins: {
+          legend: { position: 'right', labels: { font: { size: 11, weight: 'bold' }, padding: 16 } }
+        }
       }
     });
+    return;
   }
+
+  // MODO 4: CARGA DE TAREAS APILADAS POR UNIDAD ORGÁNICA
+  const mapaCargaUO = {};
+  lista.forEach(p => {
+    const uo = (p.unidad_organica || "Sin UO").trim();
+    if (!mapaCargaUO[uo]) mapaCargaUO[uo] = { ejec: 0, proc: 0, pend: 0 };
+    mapaCargaUO[uo].ejec += (p.ejecutadas || 0);
+    mapaCargaUO[uo].proc += (p.en_proceso || 0);
+    mapaCargaUO[uo].pend += (p.pendientes || 0);
+  });
+  const uosCarga = Object.keys(mapaCargaUO);
+
+  chartInstancia = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: uosCarga,
+      datasets: [
+        { label: 'Ejecutadas', data: uosCarga.map(u => mapaCargaUO[u].ejec), backgroundColor: '#10b981', borderRadius: 4 },
+        { label: 'En proceso', data: uosCarga.map(u => mapaCargaUO[u].proc), backgroundColor: '#f59e0b', borderRadius: 4 },
+        { label: 'No iniciadas', data: uosCarga.map(u => mapaCargaUO[u].pend), backgroundColor: '#f43f5e', borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { font: { weight: 'bold' } } },
+        y: { stacked: true, beginAtZero: true, grid: { color: '#f1f5f9' } }
+      },
+      plugins: { legend: { position: 'top', labels: { font: { size: 11, weight: 'bold' } } } }
+    }
+  });
 }
 
 function renderizarTablaDetalleEstadisticas(lista) {
@@ -2384,32 +2531,50 @@ function renderizarTablaDetalleEstadisticas(lista) {
   const lblConteo = document.getElementById("stat-conteo-tabla");
   if (!cont) return;
 
-  if (lblConteo) lblConteo.innerText = `${lista.length} proyecto(s)`;
+  if (lblConteo) lblConteo.innerText = `${lista.length} ${lista.length === 1 ? 'proyecto' : 'proyectos'}`;
   if (lista.length === 0) {
-    cont.innerHTML = '<div class="p-4 text-center text-gray-400 italic">No hay proyectos coincidentes con los filtros seleccionados.</div>';
+    cont.innerHTML = '<div class="p-6 text-center text-slate-400 italic font-semibold">No hay proyectos coincidentes con los filtros seleccionados.</div>';
     return;
   }
 
-  cont.innerHTML = lista.map(p => `
-    <div class="p-3 flex items-center justify-between hover:bg-slate-50 transition">
-      <div class="flex-1 pr-4">
-        <h5 class="font-bold text-gray-800 text-xs">${p.nombre}</h5>
-        <p class="text-[11px] text-gray-500 flex items-center gap-2 mt-0.5">
-          <span>🏢 ${p.unidad_organica || 'Sin UO'}</span>
-          <span>•</span>
-          <span class="text-teal-700 font-semibold">⚙️ ${p.proceso_relacionado ? p.proceso_relacionado : (p.proceso_nombre ? `${p.proceso_nombre} [${p.proceso_codigo}]` : 'Sin proceso')}</span>
-        </p>
+  cont.innerHTML = lista.map(p => {
+    const esGestor = (p.es_gestor === 1 || p.es_gestor === true || state.currentUser?.rol === "ADMIN_TI");
+    const indicadorSalud = construirIndicadorSaludMinimal(p);
+    const procTxt = p.proceso_relacionado ? p.proceso_relacionado : (p.proceso_nombre ? `${p.proceso_nombre} [${p.proceso_codigo}]` : 'Sin proceso asignado');
+
+    return `
+      <div class="px-5 py-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 hover:bg-slate-50/90 transition">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center space-x-2">
+            <span class="text-[10px] font-black text-teal-900 bg-teal-50 px-1.5 py-0.2 rounded border border-teal-200 flex-shrink-0">${p.unidad_organica || 'Sin UO'}</span>
+            <h5 class="font-bold text-[#0f2a4a] text-xs truncate">${p.nombre}</h5>
+          </div>
+          <p class="text-[10.5px] text-slate-500 truncate mt-0.5">${procTxt}</p>
+        </div>
+
+        <div class="flex items-center space-x-4 flex-shrink-0">
+          <div class="w-24 text-right">${indicadorSalud}</div>
+
+          <div class="hidden md:flex items-center space-x-1 text-[10px] font-black">
+            <span class="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200" title="Ejecutadas">${p.ejecutadas || 0}</span>
+            <span class="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200" title="En proceso">${p.en_proceso || 0}</span>
+            <span class="bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded border border-rose-200" title="No iniciadas">${p.pendientes || 0}</span>
+          </div>
+
+          <div class="flex items-center space-x-2 w-20 justify-end">
+            <div class="w-10 bg-slate-200 h-1.5 rounded-full overflow-hidden hidden sm:block">
+              <div class="${p.avance_global === 100 ? 'bg-emerald-500' : 'bg-teal-600'} h-1.5 rounded-full" style="width: ${p.avance_global || 0}%"></div>
+            </div>
+            <span class="text-xs font-black text-[#0f2a4a]">${p.avance_global || 0}%</span>
+          </div>
+
+          <button type="button" onclick="cerrarModalEstadisticasHub(); ingresarAlProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', ${esGestor});" class="px-2.5 py-1 bg-[#0f2a4a] hover:bg-teal-700 text-white text-[11px] font-bold rounded-lg transition cursor-pointer">
+            Abrir →
+          </button>
+        </div>
       </div>
-      <div class="flex items-center space-x-3">
-        <span class="text-xs font-black px-2 py-0.5 rounded ${p.avance_global === 100 ? 'bg-emerald-100 text-emerald-800' : 'bg-teal-100 text-teal-800'}">
-          ${p.avance_global || 0}%
-        </span>
-        <button onclick="cerrarModalEstadisticasHub(); ingresarAlProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', ${(p.es_gestor === 1 || p.es_gestor === true)});" class="text-xs font-bold text-[#0f2a4a] hover:underline cursor-pointer">
-          Ver →
-        </button>
-      </div>
-    </div>
-  `).join("");
+    `;
+  }).join("");
 }
 
 export function autocompletarSlicerProceso(term) {
@@ -2440,7 +2605,7 @@ export function autocompletarSlicerProceso(term) {
     matches.slice(0, 6).forEach(p => {
       const item = document.createElement("div");
       item.className = "p-2 hover:bg-teal-50 cursor-pointer flex justify-between items-center font-medium";
-      item.innerHTML = `<span>${p.nombre}</span> <strong class="text-[#0f2a4a] text-[10px]">[${p.codigo}]</strong>`;
+      item.innerHTML = `<span class="truncate pr-2">${p.nombre}</span> <strong class="text-[#0f2a4a] text-[10px] flex-shrink-0">[${p.codigo}]</strong>`;
       item.onclick = () => {
         document.getElementById("stat-filtro-proceso").value = `${p.nombre} [${p.codigo}]`;
         document.getElementById("stat-filtro-proceso-val").value = p.codigo;
@@ -2467,8 +2632,10 @@ export function resetearSlicersEstadisticas() {
   limpiarSlicerProceso();
   const sUo = document.getElementById("stat-filtro-uo");
   const sEst = document.getElementById("stat-filtro-estado");
+  const sSal = document.getElementById("stat-filtro-salud");
   if (sUo) sUo.value = "";
   if (sEst) sEst.value = "";
+  if (sSal) sSal.value = "";
   aplicarFiltrosEstadisticas();
 }
 

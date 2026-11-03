@@ -421,7 +421,7 @@
                     <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[10%] text-center">% Avance</th>
                     <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[19%]">Alertas de coordinación</th>
                     <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[11%] text-center">Tareas (E/P/N)</th>
-                    <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[12%] text-right pr-4">Acción</th>
+                    <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[12%] text-center">Acción</th>
                   </tr>
                 </thead>
                 <tbody id="hub-proyectos-tabla-body" class="divide-y divide-gray-100 font-medium"></tbody>
@@ -878,8 +878,8 @@
           </div>
           <div id="kanban-dropzone-pendiente" class="kanban-col-body" ondragover="kanbanPermitirSoltar(event)" ondrop="kanbanSoltarActividad(event, 'No iniciado')" ondragleave="kanbanSalirZona(event)"></div>
           <div class="p-2.5 border-t border-slate-200/80 bg-white/60 rounded-b-xl">
-            <button type="button" onclick="botonSuperiorNuevaActividad()" class="w-full py-1.5 text-xs font-bold text-slate-600 hover:text-[#0f2a4a] hover:bg-white rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer">
-              <span>+</span>
+            <button type="button" onclick="botonSuperiorNuevaActividad()" class="w-full py-2 text-xs font-bold text-slate-600 hover:text-emerald-800 bg-transparent hover:bg-emerald-50/90 border border-transparent hover:border-emerald-300/90 rounded-lg transition-all duration-150 flex items-center justify-center space-x-1.5 cursor-pointer shadow-none hover:shadow-2xs">
+              <span class="text-sm leading-none font-black">+</span>
               <span>Crear actividad</span>
             </button>
           </div>
@@ -1496,99 +1496,104 @@
           </div>
         </div>
 
-        <!-- Modal Editor WBS de Plantilla a Pantalla Completa / Dedicado -->
-<div id="box-editar-plantilla-admin" class="hidden fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 animate-fadeIn">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200">
-    
-    <!-- Barra Superior de Navegación del Editor -->
-    <div class="px-6 py-4 bg-[#0f2a4a] text-white flex items-center justify-between shadow-md shrink-0">
-      <div class="flex items-center gap-3">
-        <button type="button" onclick="cerrarEditorPlantillaAdmin()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
-          <span>←</span> Volver a Plantillas
-        </button>
-        <div class="h-5 w-px bg-blue-300/30"></div>
-        <div>
-          <h3 id="lbl-titulo-editor-plantilla" class="text-sm font-black tracking-wide flex items-center gap-2">
-            ✏️ EDITANDO PLANTILLA
-          </h3>
-          <p class="text-[11px] text-blue-200 font-medium">Modifique los datos generales o configure la estructura jerárquica EDT / WBS</p>
-        </div>
-      </div>
-      
-      <div class="flex items-center gap-2">
-        <button type="button" onclick="cerrarEditorPlantillaAdmin()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-rose-600 text-white text-base font-bold flex items-center justify-center transition cursor-pointer" title="Cerrar (Escape)">
-          ✕
-        </button>
-      </div>
-    </div>
+        <!-- Modal Editor WBS de Plantilla a Pantalla Completa (Sin margen superior y con z-[170] total) -->
+        <div id="box-editar-plantilla-admin" onclick="if(event.target === this) cerrarEditorPlantillaAdmin()" class="hidden fixed inset-0 !mt-0 z-[170] bg-slate-900/75 backdrop-blur-[2px] flex items-center justify-center p-3 md:p-6">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200">
+            
+            <!-- Barra Superior de Navegación del Editor -->
+            <div class="px-6 py-4 bg-[#0f2a4a] text-white flex items-center justify-between shadow-md shrink-0">
+              <div class="flex items-center gap-3">
+                <button type="button" onclick="cerrarEditorPlantillaAdmin()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                  <span>←</span>
+                  <span>Volver a Plantillas</span>
+                </button>
+                <div class="h-5 w-px bg-blue-300/30"></div>
+                <div class="flex items-center space-x-2.5">
+                  <span class="w-7 h-7 rounded-lg bg-teal-500/20 border border-teal-400/30 flex items-center justify-center text-teal-300 flex-shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" /></svg>
+                  </span>
+                  <div>
+                    <h3 id="lbl-titulo-editor-plantilla" class="text-sm font-black tracking-wide">EDITANDO PLANTILLA</h3>
+                    <p class="text-[11px] text-blue-200 font-medium">Modifique los datos generales o configure la estructura jerárquica EDT / WBS</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="cerrarEditorPlantillaAdmin()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-rose-600 text-white text-base font-bold flex items-center justify-center transition cursor-pointer" title="Cerrar (Escape)">
+                  ✕
+                </button>
+              </div>
+            </div>
 
-    <!-- Cuerpo con Scroll Interno -->
-    <div class="p-6 overflow-y-auto space-y-5 bg-slate-50 flex-1">
-      <input type="hidden" id="edit-plantilla-id" value="">
-      
-      <!-- Campos de Datos Generales -->
-      <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label class="block text-xs font-bold text-gray-700 mb-1">Nombre de la plantilla:</label>
-          <input type="text" id="edit-plantilla-nombre" class="w-full p-2 bg-slate-50 border border-gray-300 rounded-lg text-xs font-bold text-gray-800 outline-none focus:border-[#0f2a4a] focus:bg-white transition">
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-gray-700 mb-1">Proceso o subproceso relacionado:</label>
-          <select id="edit-plantilla-proceso" class="w-full p-2 bg-slate-50 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 outline-none focus:border-[#0f2a4a] focus:bg-white transition"></select>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-gray-700 mb-1">Visibilidad institucional:</label>
-          <select id="edit-plantilla-visibilidad" class="w-full p-2 bg-slate-50 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#0f2a4a] focus:bg-white transition">
-            <option value="1">🏛️ Oficial IMARPE (visible para todos)</option>
-            <option value="0">🔒 Personal / En borrador</option>
-          </select>
-        </div>
-        <div class="md:col-span-3">
-          <label class="block text-xs font-bold text-gray-700 mb-1">Descripción o alcance normativo:</label>
-          <input type="text" id="edit-plantilla-descripcion" class="w-full p-2 bg-slate-50 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 outline-none focus:border-[#0f2a4a] focus:bg-white transition">
-        </div>
-      </div>
+            <!-- Cuerpo con Scroll Interno -->
+            <div class="p-6 overflow-y-auto space-y-5 bg-slate-50 flex-1">
+              <input type="hidden" id="edit-plantilla-id" value="">
+              
+              <!-- Campos de Datos Generales -->
+              <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-xs font-bold text-gray-700 mb-1">Nombre de la plantilla:</label>
+                  <input type="text" id="edit-plantilla-nombre" class="w-full p-2 bg-slate-50 border border-gray-300 rounded-lg text-xs font-bold text-gray-800 outline-none focus:border-[#0f2a4a] focus:bg-white transition">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-700 mb-1">Proceso o subproceso relacionado:</label>
+                  <select id="edit-plantilla-proceso" class="w-full p-2 bg-slate-50 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 outline-none focus:border-[#0f2a4a] focus:bg-white transition cursor-pointer"></select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-700 mb-1">Visibilidad institucional:</label>
+                  <select id="edit-plantilla-visibilidad" class="w-full p-2 bg-slate-50 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#0f2a4a] focus:bg-white transition cursor-pointer">
+                    <option value="1">Oficial IMARPE (visible para todos)</option>
+                    <option value="0">Personal / En borrador</option>
+                  </select>
+                </div>
+                <div class="md:col-span-3">
+                  <label class="block text-xs font-bold text-gray-700 mb-1">Descripción o alcance normativo:</label>
+                  <input type="text" id="edit-plantilla-descripcion" class="w-full p-2 bg-slate-50 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 outline-none focus:border-[#0f2a4a] focus:bg-white transition">
+                </div>
+              </div>
 
-      <!-- Tabla Estructura Secuencial WBS -->
-      <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-[#0f2a4a]">
-        <div class="px-4 py-3 bg-[#0f2a4a] text-white flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-black tracking-wide uppercase">📋 ESTRUCTURA SECUENCIAL DE ACTIVIDADES (EDT / WBS)</span>
-            <span id="badge-total-actividades-wbs" class="px-2 py-0.5 bg-teal-500/20 text-teal-300 border border-teal-400/30 rounded-full text-[11px] font-bold">0 actividades</span>
+              <!-- Tabla Estructura Secuencial WBS -->
+              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-[#0f2a4a]">
+                <div class="px-4 py-3 bg-[#0f2a4a] text-white flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-teal-300 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                    <span class="text-xs sm:text-sm font-black tracking-wide uppercase">Estructura Secuencial de Actividades (EDT / WBS)</span>
+                    <span id="badge-total-actividades-wbs" class="px-2 py-0.5 bg-teal-500/20 text-teal-300 border border-teal-400/30 rounded-full text-[11px] font-bold">0 actividades</span>
+                  </div>
+                  <button type="button" onclick="agregarFaseMadrePlantilla()" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer">
+                    <span>+ Nueva fase madre (nivel 1)</span>
+                  </button>
+                </div>
+                <div class="max-h-96 overflow-y-auto bg-white">
+                  <table class="w-full text-xs text-left border-collapse">
+                    <thead class="sticky top-0 bg-[#0f2a4a] text-white z-10 shadow-xs">
+                      <tr class="bg-[#0f2a4a]">
+                        <th class="p-2.5 font-bold w-28 border-none">CÓDIGO</th>
+                        <th class="p-2.5 font-bold border-none">DENOMINACIÓN DE LA ACTIVIDAD</th>
+                        <th class="p-2.5 font-bold text-center w-24 border-none">DÍAS HÁB.</th>
+                        <th class="p-2.5 font-bold text-center w-28 border-none">PREDECESOR</th>
+                        <th class="p-2.5 font-bold text-center w-36 whitespace-nowrap border-none">ACCIONES</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tbody-editor-wbs-plantilla" class="divide-y divide-gray-100 font-medium bg-white"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Botones de Acción al pie -->
+              <div class="flex items-center justify-end gap-3 pt-2">
+                <button type="button" onclick="cerrarEditorPlantillaAdmin()" class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold transition cursor-pointer">
+                  Cancelar
+                </button>
+                <button type="button" onclick="guardarCambiosPlantillaAdmin()" class="px-5 py-2 bg-[#0f2a4a] hover:bg-blue-900 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-2 cursor-pointer">
+                  <svg class="w-4 h-4 text-teal-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                  <span>Guardar cambios de plantilla</span>
+                </button>
+              </div>
+            </div>
           </div>
-          <button type="button" onclick="insertarNuevaFaseMadreWBS()" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer">
-            + Nueva fase madre (nivel 1)
-          </button>
         </div>
-        <div class="max-h-96 overflow-y-auto bg-white">
-          <table class="w-full text-xs text-left border-collapse">
-            <thead class="sticky top-0 bg-[#0f2a4a] text-white z-10 shadow-xs">
-              <tr class="bg-[#0f2a4a]">
-                <th class="p-2.5 font-bold w-28 border-none">CÓDIGO</th>
-                <th class="p-2.5 font-bold border-none">DENOMINACIÓN DE LA ACTIVIDAD</th>
-                <th class="p-2.5 font-bold text-center w-24 border-none">DÍAS HÁB.</th>
-                <th class="p-2.5 font-bold text-center w-28 border-none">PREDECESOR</th>
-                <th class="p-2.5 font-bold text-center w-36 whitespace-nowrap border-none">ACCIONES</th>
-              </tr>
-            </thead>
-            <tbody id="tbody-editor-wbs-plantilla" class="divide-y divide-gray-100 font-medium bg-white"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Botones de Acción al pie -->
-      <div class="flex items-center justify-end gap-3 pt-2">
-        <button type="button" onclick="cerrarEditorPlantillaAdmin()" class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold transition cursor-pointer">
-          Cancelar
-        </button>
-        <button type="button" onclick="guardarCambiosPlantillaAdmin()" class="px-5 py-2 bg-[#0f2a4a] hover:bg-blue-900 text-white rounded-xl text-xs font-black shadow-md transition flex items-center gap-2 cursor-pointer">
-          💾 Guardar cambios de plantilla
-        </button>
-      </div>
-
-    </div>
-  </div>
-</div>
 
         <!-- Tabla principal de plantillas -->
         <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white max-h-64 overflow-y-auto">
@@ -2546,98 +2551,151 @@
     </div>
   </div>
 
-  <!-- MODAL ESTADÍSTICAS AVANZADAS TIPO POWER BI -->
-  <div id="modal-estadisticas-hub" class="hidden fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-3 sm:p-4 backdrop-blur-[2px]">
-    <div class="bg-slate-50 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col border border-gray-200 overflow-hidden">
-      <div class="bg-[#0f2a4a] text-white px-5 py-3.5 flex justify-between items-center flex-shrink-0">
-        <div class="flex items-center space-x-2.5">
-          <span class="text-xl">📊</span>
+  <!-- MODAL: CENTRO DE INTELIGENCIA Y ESTADÍSTICAS DEL PORTAFOLIO (EXECUTIVE BI) -->
+  <div id="modal-estadisticas-hub" onclick="if(event.target === this) cerrarModalEstadisticasHub()" class="hidden fixed inset-0 bg-slate-900/65 z-[150] flex items-center justify-center p-3 sm:p-4 backdrop-blur-[2px]">
+    <div class="bg-[#f8fafc] rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col border border-slate-200 overflow-hidden">
+      
+      <!-- Cabecera Ejecutiva -->
+      <div class="bg-[#0f2a4a] text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
+        <div class="flex items-center space-x-3">
+          <span class="w-8 h-8 rounded-lg bg-teal-500/20 border border-teal-400/30 flex items-center justify-center text-teal-300">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+            </svg>
+          </span>
           <div>
-            <h3 class="font-black text-sm tracking-wide">Panel de gráficos estadísticos</h3>
-            <p class="text-[10px] text-blue-200 font-medium">Análisis de proyectos</p>
+            <h3 class="font-bold text-sm tracking-wide">Centro de Inteligencia y Estadísticas del Portafolio</h3>
+            <p class="text-[11px] text-teal-300 font-medium">Monitoreo ejecutivo de avance físico, salud de plazos y distribución por unidades orgánicas</p>
           </div>
         </div>
-        <button onclick="cerrarModalEstadisticasHub()" class="text-white hover:text-rose-300 text-2xl font-bold leading-none cursor-pointer transition">&times;</button>
+        <button type="button" onclick="cerrarModalEstadisticasHub()" class="text-white/80 hover:text-white text-2xl font-bold leading-none px-1.5 cursor-pointer transition">&times;</button>
       </div>
 
-      <div class="bg-white border-b border-gray-200 px-5 py-3 flex flex-wrap items-center gap-3 flex-shrink-0 shadow-2xs">
-        <div class="flex-1 min-w-[220px]">
-          <label class="block text-[10px] font-black text-gray-500 uppercase tracking-wider mb-1">Proceso Relacionado:</label>
+      <!-- Barra de Slicers (Segmentadores Interactivos 100% SVG) -->
+      <div class="bg-white border-b border-slate-200 px-6 py-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end flex-shrink-0 shadow-2xs">
+        <div class="lg:col-span-4">
+          <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Proceso institucional:</label>
           <div class="relative">
-            <input type="text" id="stat-filtro-proceso" oninput="autocompletarSlicerProceso(this.value)" placeholder="Todos los procesos..." class="w-full pl-2.5 pr-6 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-xs font-semibold text-gray-800 outline-none focus:bg-white focus:border-[#0f2a4a] transition" autocomplete="off">
+            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+            <input type="text" id="stat-filtro-proceso" oninput="autocompletarSlicerProceso(this.value)" placeholder="Todos los procesos..." class="w-full pl-8 pr-6 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:border-[#0f2a4a] transition" autocomplete="off">
             <input type="hidden" id="stat-filtro-proceso-val">
-            <button id="btn-limpiar-stat-proceso" onclick="limpiarSlicerProceso()" class="hidden absolute inset-y-0 right-0 pr-2 flex items-center text-gray-400 hover:text-rose-600">×</button>
-            <div id="stat-sugerencias-proceso" class="hidden absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-xl mt-1 max-h-48 overflow-y-auto z-[160] text-xs divide-y divide-gray-100"></div>
+            <button type="button" id="btn-limpiar-stat-proceso" onclick="limpiarSlicerProceso()" class="hidden absolute inset-y-0 right-0 pr-2 flex items-center text-slate-400 hover:text-rose-600 font-black cursor-pointer">×</button>
+            <div id="stat-sugerencias-proceso" class="hidden absolute top-full left-0 right-0 bg-white border border-slate-300 rounded-lg shadow-xl mt-1 max-h-48 overflow-y-auto z-[160] text-xs divide-y divide-slate-100"></div>
           </div>
         </div>
 
-        <div class="w-48 min-w-[160px]">
-          <label class="block text-[10px] font-black text-gray-500 uppercase tracking-wider mb-1">Unidad de organización:</label>
-          <select id="stat-filtro-uo" onchange="aplicarFiltrosEstadisticas()" class="w-full py-1.5 px-2 bg-gray-50 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 outline-none focus:border-[#0f2a4a] cursor-pointer">
-            <option value="">🏢 Todas las Unidades</option>
+        <div class="lg:col-span-3">
+          <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Unidad de organización:</label>
+          <select id="stat-filtro-uo" onchange="aplicarFiltrosEstadisticas()" class="w-full py-1.5 px-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-[#0f2a4a] cursor-pointer">
+            <option value="">Todas las Unidades</option>
           </select>
         </div>
 
-        <div class="w-40 min-w-[140px]">
-          <label class="block text-[10px] font-black text-gray-500 uppercase tracking-wider mb-1">Estado:</label>
-          <select id="stat-filtro-estado" onchange="aplicarFiltrosEstadisticas()" class="w-full py-1.5 px-2 bg-gray-50 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 outline-none focus:border-[#0f2a4a] cursor-pointer">
-            <option value="">📊 Todos los Estados</option>
-            <option value="Ejecutado">Ejecutado</option>
-            <option value="En proceso">En proceso</option>
-            <option value="No iniciado">No iniciado</option>
+        <div class="lg:col-span-2">
+          <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Estado de avance:</label>
+          <select id="stat-filtro-estado" onchange="aplicarFiltrosEstadisticas()" class="w-full py-1.5 px-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-[#0f2a4a] cursor-pointer">
+            <option value="">Todos los estados</option>
+            <option value="Ejecutado">Completado (100%)</option>
+            <option value="En proceso">En ejecución (1-99%)</option>
+            <option value="No iniciado">Sin iniciar (0%)</option>
           </select>
         </div>
 
-        <div class="self-end">
-          <button onclick="resetearSlicersEstadisticas()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-lg transition border border-gray-300 flex items-center space-x-1 cursor-pointer" title="Restablecer filtros">
+        <div class="lg:col-span-2">
+          <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Salud de plazo:</label>
+          <select id="stat-filtro-salud" onchange="aplicarFiltrosEstadisticas()" class="w-full py-1.5 px-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-[#0f2a4a] cursor-pointer">
+            <option value="">Toda condición</option>
+            <option value="EN_PLAZO">En plazo</option>
+            <option value="ATENCION">Por vencer (≤5d)</option>
+            <option value="CRITICO">Con retraso</option>
+          </select>
+        </div>
+
+        <div class="lg:col-span-1 flex justify-end">
+          <button type="button" onclick="resetearSlicersEstadisticas()" class="w-full py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition border border-slate-300 flex items-center justify-center space-x-1 cursor-pointer" title="Restablecer todos los segmentadores">
             <span>↺</span>
-            <span>Limpiar</span>
+            <span class="lg:hidden xl:inline">Limpiar</span>
           </button>
         </div>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-5 space-y-4">
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div class="bg-white p-3.5 rounded-xl border border-gray-200 shadow-2xs">
-            <span class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Proyectos Filtrados</span>
-            <p id="stat-kpi-total" class="text-2xl font-black text-[#0f2a4a] mt-0.5">0</p>
+      <!-- Cuerpo Principal con Scroll -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-5">
+        
+        <!-- Scorecard Ejecutivo de 6 KPIs Analíticos -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div class="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs">
+            <span class="block text-[9.5px] font-extrabold text-slate-400 uppercase tracking-wider">Proyectos Filtrados</span>
+            <p id="stat-kpi-total" class="text-2xl font-black text-[#0f2a4a] mt-1 leading-none">0</p>
+            <span id="stat-kpi-sub-total" class="text-[10px] font-semibold text-slate-400 mt-1 block">en selección</span>
           </div>
-          <div class="bg-white p-3.5 rounded-xl border border-gray-200 shadow-2xs">
-            <span class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Avance Promedio</span>
-            <p id="stat-kpi-promedio" class="text-2xl font-black text-teal-600 mt-0.5">0%</p>
-          </div>
-          <div class="bg-white p-3.5 rounded-xl border border-gray-200 shadow-2xs">
-            <span class="text-[10px] font-black text-gray-400 uppercase tracking-wider">En Ejecución</span>
-            <p id="stat-kpi-en-proceso" class="text-2xl font-black text-amber-500 mt-0.5">0</p>
-          </div>
-          <div class="bg-white p-3.5 rounded-xl border border-gray-200 shadow-2xs">
-            <span class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Completados (100%)</span>
-            <p id="stat-kpi-ejecutados" class="text-2xl font-black text-emerald-600 mt-0.5">0</p>
-          </div>
-        </div>
 
-        <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-2xs flex flex-col">
-          <div class="flex justify-between items-center mb-3">
-            <h4 id="stat-titulo-grafico" class="font-bold text-xs text-gray-700 uppercase tracking-wider">Avance Individual de Proyectos (%)</h4>
-            
-            <div class="flex items-center bg-gray-100 p-1 rounded-lg border border-gray-200 text-xs font-bold">
-              <button id="btn-chart-barras" onclick="conmutarTipoGrafico('bar')" class="px-2.5 py-1 rounded-md bg-white shadow-2xs text-[#0f2a4a] transition">Gráfico de Barras</button>
-              <button id="btn-chart-pastel" onclick="conmutarTipoGrafico('pie')" class="px-2.5 py-1 rounded-md text-gray-500 hover:text-gray-900 transition">Gráfico de Pastel</button>
+          <div class="bg-white p-3.5 rounded-xl border border-teal-200/90 shadow-2xs">
+            <span class="block text-[9.5px] font-extrabold text-teal-700 uppercase tracking-wider">Avance Promedio</span>
+            <div class="flex items-center space-x-2 mt-1">
+              <p id="stat-kpi-promedio" class="text-2xl font-black text-teal-700 leading-none">0%</p>
+            </div>
+            <div class="w-full h-1.5 bg-teal-100 rounded-full overflow-hidden mt-2">
+              <div id="stat-kpi-promedio-bar" class="h-full bg-teal-600 rounded-full transition-all duration-300" style="width: 0%"></div>
             </div>
           </div>
 
-          <div class="relative h-64 w-full flex items-center justify-center">
+          <div class="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs">
+            <span class="block text-[9.5px] font-extrabold text-amber-700 uppercase tracking-wider">En Ejecución</span>
+            <p id="stat-kpi-en-proceso" class="text-2xl font-black text-amber-600 mt-1 leading-none">0</p>
+            <span id="stat-kpi-sub-proceso" class="text-[10px] font-semibold text-slate-400 mt-1 block">0 sin iniciar</span>
+          </div>
+
+          <div class="bg-white p-3.5 rounded-xl border border-emerald-200/90 shadow-2xs">
+            <span class="block text-[9.5px] font-extrabold text-emerald-700 uppercase tracking-wider">Completados (100%)</span>
+            <p id="stat-kpi-ejecutados" class="text-2xl font-black text-emerald-600 mt-1 leading-none">0</p>
+            <span id="stat-kpi-sub-plazo" class="text-[10px] font-semibold text-emerald-700 mt-1 block">0 en plazo</span>
+          </div>
+
+          <div class="bg-white p-3.5 rounded-xl border border-rose-200/90 shadow-2xs">
+            <span class="block text-[9.5px] font-extrabold text-rose-700 uppercase tracking-wider">Proyectos con Retraso</span>
+            <p id="stat-kpi-retrasados" class="text-2xl font-black text-rose-600 mt-1 leading-none">0</p>
+            <span id="stat-kpi-sub-vencidas" class="text-[10px] font-semibold text-rose-600 mt-1 block">0 tareas vencidas</span>
+          </div>
+
+          <div class="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs">
+            <span class="block text-[9.5px] font-extrabold text-slate-500 uppercase tracking-wider">Volumen Operativo</span>
+            <p id="stat-kpi-total-tareas" class="text-2xl font-black text-[#0f2a4a] mt-1 leading-none">0</p>
+            <span id="stat-kpi-sub-tareas" class="text-[10px] font-semibold text-teal-700 mt-1 block">0 ejecutadas</span>
+          </div>
+        </div>
+
+        <!-- Lienzo Gráfico Multi-Perspectiva (4 Modos de Análisis) -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col">
+          <div class="flex flex-wrap justify-between items-center gap-3 mb-4 pb-3 border-b border-slate-100">
+            <div>
+              <h4 id="stat-titulo-grafico" class="font-bold text-xs text-[#0f2a4a] uppercase tracking-wider">Ranking de Avance y Salud por Proyecto (%)</h4>
+              <p id="stat-subtitulo-grafico" class="text-[11px] text-slate-400 font-medium mt-0.5">Proyectos ordenados de mayor a menor avance (Color según estado de plazo)</p>
+            </div>
+            
+            <!-- Conmutador de 4 Dimensiones Analíticas -->
+            <div class="inline-flex flex-wrap items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-[11px] font-bold gap-1">
+              <button type="button" id="btn-chart-ranking" onclick="conmutarTipoGrafico('ranking')" class="px-2.5 py-1 rounded-lg bg-white shadow-2xs text-[#0f2a4a] transition cursor-pointer">Ranking Proyectos</button>
+              <button type="button" id="btn-chart-unidades" onclick="conmutarTipoGrafico('unidades')" class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#0f2a4a] transition cursor-pointer">Avance por Unidad</button>
+              <button type="button" id="btn-chart-salud" onclick="conmutarTipoGrafico('salud')" class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#0f2a4a] transition cursor-pointer">Salud de Plazos</button>
+              <button type="button" id="btn-chart-carga" onclick="conmutarTipoGrafico('carga')" class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#0f2a4a] transition cursor-pointer">Carga de Tareas</button>
+            </div>
+          </div>
+
+          <div id="stat-canvas-wrapper" class="relative h-72 w-full flex items-center justify-center">
             <canvas id="canvasEstadisticasHub"></canvas>
           </div>
         </div>
 
-        <div class="bg-white rounded-xl border border-gray-200 shadow-2xs overflow-hidden">
-          <div class="px-4 py-2.5 bg-slate-100/70 border-b border-gray-200 flex justify-between items-center">
-            <span class="text-xs font-black text-gray-700 uppercase tracking-wider">Detalle de Proyectos en Vista</span>
-            <span id="stat-conteo-tabla" class="text-[11px] font-bold text-gray-500">0 registros</span>
+        <!-- Tabla Inferior de Diagnóstico Detallado -->
+        <div class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+          <div class="px-5 py-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+            <span class="text-xs font-black text-[#0f2a4a] uppercase tracking-wider">Matriz de Diagnóstico de Proyectos Filtrados</span>
+            <span id="stat-conteo-tabla" class="text-[11px] font-bold text-slate-500 bg-white px-2.5 py-0.5 rounded-full border border-slate-200">0 registros</span>
           </div>
-          <div class="max-h-48 overflow-y-auto divide-y divide-gray-100 text-xs" id="stat-tabla-proyectos"></div>
+          <div class="max-h-60 overflow-y-auto divide-y divide-slate-100 text-xs" id="stat-tabla-proyectos"></div>
         </div>
+
       </div>
     </div>
   </div>

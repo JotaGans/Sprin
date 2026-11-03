@@ -148,7 +148,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     "modal-nuevo-proyecto", "modal-guardar-plantilla", "modal-importar-plantilla-proyecto",
     "modal-dialog-imarpe", "modal-input-custom", "modal-fecha-custom", "modal-fin-interactiva",
     "modal-asignar-responsables", "modal-estadisticas-hub", "modal-editar-feriado",
-    "modal-agenda-pendiente", "modal-detalle-pendiente"
+    "modal-agenda-pendiente", "modal-detalle-pendiente", "box-editar-plantilla-admin",
+    "modal-mis-pendientes-hub"
   ];
   idsModales.forEach(id => {
     const el = document.getElementById(id);
