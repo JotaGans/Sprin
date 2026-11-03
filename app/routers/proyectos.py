@@ -269,8 +269,8 @@ def listar_proyectos_usuario(user: dict = Depends(get_current_user), db: sqlite3
         p_dict["vencidas_count"] = vencidas_count
         p_dict["por_vencer_count"] = por_vencer_count
         p_dict["salud_proyecto"] = salud
-        p_dict["alertas_responsables"] = alertas_responsables[:12]
-        p_dict["mis_tareas_proyecto"] = mis_tareas_proyecto[:12]
+        p_dict["alertas_responsables"] = alertas_responsables
+        p_dict["mis_tareas_proyecto"] = mis_tareas_proyecto
 
         proyectos_resumen.append(p_dict)
 
