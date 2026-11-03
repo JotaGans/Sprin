@@ -148,16 +148,23 @@
 
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-5 flex flex-col justify-start">
       
-      <!-- 1. BANNER EJECUTIVO CON SCORECARD DE 5 KPIS Y BOTÓN "CONFIGURAR VISTAS" -->
+      <!-- 1. BANNER EJECUTIVO CON SCORECARD DE 5 KPIS Y "CONFIGURAR VISTAS" ALINEADO SOBRE "CON RETRASO" -->
       <div class="bg-white rounded-2xl p-5 mb-4 border border-slate-200/90 shadow-xs flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div class="min-w-0">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-[10px] font-black text-teal-800 uppercase tracking-wider bg-teal-50 px-2.5 py-0.5 rounded-md border border-teal-200">SPRIN IMARPE</span>
-            <span id="hub-badge-perfil-activo" class="text-[10px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">Portafolio Institucional</span>
-            
-            <!-- Menú Desplegable: Configurar Vistas / Bloques del Hub -->
+            <span id="hub-badge-perfil-activo" class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">Portafolio Institucional</span>
+          </div>
+
+          <h2 id="hub-saludo-bienvenida" class="text-xl sm:text-2xl font-black text-[#0f2a4a] mt-1.5 tracking-tight truncate">Bienvenido(a)</h2>
+          <p id="hub-subtitulo-rol" class="text-xs text-slate-500 font-medium mt-0.5">Supervisión ejecutiva del estado de proyectos, alertas tempranas de plazos y coordinación de entregables.</p>
+        </div>
+
+        <!-- Columna Derecha: Botón "Configurar vistas" arriba a la derecha (sobre CON RETRASO) + 5 KPIs debajo -->
+        <div class="flex flex-col items-stretch lg:items-end gap-1.5 w-full lg:w-auto flex-shrink-0">
+          <div class="flex justify-end">
             <div class="relative inline-block" id="hub-menu-config-vistas-wrapper">
-              <button type="button" onclick="alternarMenuConfigVistasHub(event)" class="h-6 px-2.5 rounded-md bg-slate-100 hover:bg-slate-200 text-[#0f2a4a] border border-slate-200/90 text-[10.5px] font-bold flex items-center space-x-1.5 transition cursor-pointer shadow-2xs" title="Mostrar, ocultar o restablecer los bloques del Hub">
+              <button type="button" onclick="alternarMenuConfigVistasHub(event)" class="h-6 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200/90 text-slate-700 hover:text-[#0f2a4a] border border-slate-200/90 text-[10.5px] font-bold flex items-center space-x-1.5 transition cursor-pointer shadow-2xs" title="Mostrar, ocultar o restablecer los bloques del Hub">
                 <svg class="w-3 h-3 text-teal-700 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
                 </svg>
@@ -165,13 +172,13 @@
                 <svg class="w-2.5 h-2.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
               </button>
 
-              <div id="hub-dropdown-config-vistas" onclick="event.stopPropagation()" class="hidden absolute left-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 z-[120] text-xs space-y-2.5">
+              <div id="hub-dropdown-config-vistas" onclick="event.stopPropagation()" class="hidden absolute right-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 z-[120] text-xs space-y-2.5">
                 <div class="flex items-center justify-between border-b border-slate-100 pb-1.5">
                   <span class="text-[10px] font-black uppercase tracking-wider text-[#0f2a4a]">Bloques visibles en el Hub</span>
                   <button type="button" onclick="restablecerBloquesHub()" class="text-[10px] font-bold text-teal-700 hover:underline cursor-pointer">Mostrar todo</button>
                 </div>
                 <label class="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 cursor-pointer">
-                  <span class="font-bold text-slate-700">1. Radar de plazos y actividades</span>
+                  <span class="font-bold text-slate-700">1. Seguimiento de vencimientos</span>
                   <input type="checkbox" id="chk-hub-ver-radar" checked onchange="conmutarVisibilidadBloqueHub('radar', this.checked)" class="rounded text-teal-600 focus:ring-0 cursor-pointer">
                 </label>
                 <label class="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 cursor-pointer">
@@ -182,53 +189,50 @@
             </div>
           </div>
 
-          <h2 id="hub-saludo-bienvenida" class="text-xl sm:text-2xl font-black text-[#0f2a4a] mt-1.5 tracking-tight truncate">Bienvenido(a)</h2>
-          <p id="hub-subtitulo-rol" class="text-xs text-slate-500 font-medium mt-0.5">Supervisión ejecutiva del estado de proyectos, alertas tempranas de plazos y coordinación de entregables.</p>
-        </div>
+          <!-- Scorecard de 5 KPIs -->
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 w-full lg:w-auto">
+            <button type="button" id="hub-card-kpi-todos" onclick="hubFiltrarPorSalud('')" class="bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-xl px-3 py-2 text-left transition cursor-pointer group" title="Mostrar todos los proyectos del panel">
+              <span class="block text-[9px] font-extrabold text-slate-400 group-hover:text-[#0f2a4a] uppercase tracking-wider leading-none">En Panel</span>
+              <div class="flex items-baseline justify-between mt-1.5">
+                <span id="hub-kpi-total-proy" class="text-lg font-black text-[#0f2a4a] leading-none">0</span>
+                <span class="text-[9px] font-bold text-slate-400">proy.</span>
+              </div>
+            </button>
 
-        <!-- Scorecard de 5 KPIs -->
-        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 w-full lg:w-auto flex-shrink-0">
-          <button type="button" id="hub-card-kpi-todos" onclick="hubFiltrarPorSalud('')" class="bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-xl px-3 py-2 text-left transition cursor-pointer group" title="Mostrar todos los proyectos del panel">
-            <span class="block text-[9px] font-extrabold text-slate-400 group-hover:text-[#0f2a4a] uppercase tracking-wider leading-none">En Panel</span>
-            <div class="flex items-baseline justify-between mt-1.5">
-              <span id="hub-kpi-total-proy" class="text-lg font-black text-[#0f2a4a] leading-none">0</span>
-              <span class="text-[9px] font-bold text-slate-400">proy.</span>
-            </div>
-          </button>
-
-          <div class="bg-teal-50/60 border border-teal-200/90 rounded-xl px-3 py-2 text-left">
-            <span class="block text-[9px] font-extrabold text-teal-700 uppercase tracking-wider leading-none">Avance Prom.</span>
-            <div class="flex items-center space-x-2 mt-1.5">
-              <span id="hub-kpi-prom-avance" class="text-lg font-black text-teal-900 leading-none">0%</span>
-              <div class="w-10 h-1.5 bg-teal-100 rounded-full overflow-hidden hidden sm:block">
-                <div id="hub-kpi-prom-barra" class="h-full bg-teal-600 rounded-full transition-all duration-300" style="width: 0%"></div>
+            <div class="bg-teal-50/60 border border-teal-200/90 rounded-xl px-3 py-2 text-left">
+              <span class="block text-[9px] font-extrabold text-teal-700 uppercase tracking-wider leading-none">Avance Prom.</span>
+              <div class="flex items-center space-x-2 mt-1.5">
+                <span id="hub-kpi-prom-avance" class="text-lg font-black text-teal-900 leading-none">0%</span>
+                <div class="w-10 h-1.5 bg-teal-100 rounded-full overflow-hidden hidden sm:block">
+                  <div id="hub-kpi-prom-barra" class="h-full bg-teal-600 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
               </div>
             </div>
+
+            <button type="button" id="hub-card-kpi-plazo" onclick="hubFiltrarPorSalud('EN_PLAZO')" class="bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-200/90 rounded-xl px-3 py-2 text-left transition cursor-pointer" title="Filtrar proyectos al día (sin actividades vencidas ni por vencer)">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="text-[9px] font-extrabold text-emerald-800 uppercase tracking-wider leading-none">En Plazo</span>
+              </div>
+              <span id="hub-kpi-en-plazo" class="text-lg font-black text-emerald-700 leading-none mt-1.5 block">0</span>
+            </button>
+
+            <button type="button" id="hub-card-kpi-atencion" onclick="hubFiltrarPorSalud('ATENCION')" class="bg-amber-50/50 hover:bg-amber-50 border border-amber-200/90 rounded-xl px-3 py-2 text-left transition cursor-pointer" title="Filtrar proyectos con entregables próximos a vencer (en 5 días o menos)">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span class="text-[9px] font-extrabold text-amber-800 uppercase tracking-wider leading-none">Por Vencer</span>
+              </div>
+              <span id="hub-kpi-por-vencer" class="text-lg font-black text-amber-700 leading-none mt-1.5 block">0</span>
+            </button>
+
+            <button type="button" id="hub-card-kpi-critico" onclick="hubFiltrarPorSalud('CRITICO')" class="bg-rose-50/50 hover:bg-rose-50 border border-rose-200/90 rounded-xl px-3 py-2 text-left transition cursor-pointer col-span-2 sm:col-span-1" title="Filtrar proyectos con actividades vencidas que requieren coordinación">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                <span class="text-[9px] font-extrabold text-rose-800 uppercase tracking-wider leading-none">Con Retraso</span>
+              </div>
+              <span id="hub-kpi-vencidos" class="text-lg font-black text-rose-700 leading-none mt-1.5 block">0</span>
+            </button>
           </div>
-
-          <button type="button" id="hub-card-kpi-plazo" onclick="hubFiltrarPorSalud('EN_PLAZO')" class="bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-200/90 rounded-xl px-3 py-2 text-left transition cursor-pointer" title="Filtrar proyectos al día (sin actividades vencidas ni por vencer)">
-            <div class="flex items-center space-x-1.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span class="text-[9px] font-extrabold text-emerald-800 uppercase tracking-wider leading-none">En Plazo</span>
-            </div>
-            <span id="hub-kpi-en-plazo" class="text-lg font-black text-emerald-700 leading-none mt-1.5 block">0</span>
-          </button>
-
-          <button type="button" id="hub-card-kpi-atencion" onclick="hubFiltrarPorSalud('ATENCION')" class="bg-amber-50/50 hover:bg-amber-50 border border-amber-200/90 rounded-xl px-3 py-2 text-left transition cursor-pointer" title="Filtrar proyectos con entregables próximos a vencer (en 5 días o menos)">
-            <div class="flex items-center space-x-1.5">
-              <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-              <span class="text-[9px] font-extrabold text-amber-800 uppercase tracking-wider leading-none">Por Vencer</span>
-            </div>
-            <span id="hub-kpi-por-vencer" class="text-lg font-black text-amber-700 leading-none mt-1.5 block">0</span>
-          </button>
-
-          <button type="button" id="hub-card-kpi-critico" onclick="hubFiltrarPorSalud('CRITICO')" class="bg-rose-50/50 hover:bg-rose-50 border border-rose-200/90 rounded-xl px-3 py-2 text-left transition cursor-pointer col-span-2 sm:col-span-1" title="Filtrar proyectos con actividades vencidas que requieren coordinación">
-            <div class="flex items-center space-x-1.5">
-              <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-              <span class="text-[9px] font-extrabold text-rose-800 uppercase tracking-wider leading-none">Con Retraso</span>
-            </div>
-            <span id="hub-kpi-vencidos" class="text-lg font-black text-rose-700 leading-none mt-1.5 block">0</span>
-          </button>
         </div>
       </div>
 
@@ -341,8 +345,8 @@
 
             <!-- Controles derechos -->
             <div class="flex items-center justify-between sm:justify-end gap-2 overflow-x-auto no-scrollbar">
-              <button type="button" onclick="abrirModalEstadisticasHub()" class="h-[32px] bg-[#0f2a4a] hover:bg-[#1a3d66] text-white text-xs font-bold px-3 rounded-lg transition shadow-2xs flex items-center space-x-1.5 cursor-pointer whitespace-nowrap">
-                <svg class="w-3.5 h-3.5 text-teal-300 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <button type="button" onclick="abrirModalEstadisticasHub()" class="h-[32px] bg-slate-100 hover:bg-slate-200/80 text-[#0f2a4a] border border-slate-300/90 text-xs font-bold px-3 rounded-lg transition shadow-2xs flex items-center space-x-1.5 cursor-pointer whitespace-nowrap" title="Abrir panel de gráficos estadísticos">
+                <svg class="w-3.5 h-3.5 text-teal-700 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
                 </svg>
                 <span>Estadísticas</span>
@@ -427,6 +431,13 @@
         </div>
 
       </div>
+
+      <!-- Botón Flotante Inteligente: Volver a la parte superior del Hub -->
+      <button type="button" id="btn-scroll-top-hub" onclick="volverArribaHubSuave()" class="fixed bottom-6 right-6 z-[95] w-10 h-10 rounded-full bg-[#0f2a4a]/90 hover:bg-teal-600 text-white shadow-xl border border-white/20 flex items-center justify-center transition-all duration-300 opacity-0 translate-y-4 pointer-events-none cursor-pointer group" title="Volver a la parte superior">
+        <svg class="w-4 h-4 text-white group-hover:-translate-y-0.5 transition-transform" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
+        </svg>
+      </button>
     </main>
 
     <!-- MODAL EJECUTIVO: MI AGENDA PERSONAL -->
@@ -2725,6 +2736,6 @@
   </div>
 
     <!-- Carga del Módulo Orquestador Principal ES6 -->
-    <script type="module" src="/static/js/main.js?v=100048"></script>
+    <script type="module" src="/static/js/main.js?v=100049"></script>
 </body>
 </html>

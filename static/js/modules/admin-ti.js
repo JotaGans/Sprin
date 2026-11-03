@@ -33,10 +33,10 @@ export function cambiarTabTI(tab) {
     if (!btn || !content) return;
 
     if (t === tab) {
-      btn.className = "px-3.5 py-2 rounded-t-lg bg-white text-[#0f2a4a] border-t border-l border-r border-gray-200 shadow-xs font-bold whitespace-nowrap cursor-pointer";
+      btn.className = "px-3.5 py-2 rounded-t-lg bg-white text-[#0f2a4a] border-t border-l border-r border-gray-200 shadow-xs font-bold whitespace-nowrap cursor-pointer inline-flex items-center gap-1.5";
       content.classList.remove("hidden");
     } else {
-      btn.className = "px-3.5 py-2 rounded-t-lg text-gray-500 hover:text-[#0f2a4a] transition font-bold whitespace-nowrap cursor-pointer";
+      btn.className = "px-3.5 py-2 rounded-t-lg text-gray-500 hover:text-[#0f2a4a] transition font-bold whitespace-nowrap cursor-pointer inline-flex items-center gap-1.5";
       content.classList.add("hidden");
     }
   });

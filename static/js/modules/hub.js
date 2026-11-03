@@ -53,11 +53,13 @@ export async function cargarHubProyectos() {
     const badgePerfil = document.getElementById("hub-badge-perfil-activo");
     if (badgePerfil) {
       const esAutoridad = (state.proyectosUsuarioGlobal || []).some(p => p.rol_efectivo === "AUTORIDAD");
-      if (state.currentUser?.rol === "ADMIN_TI") badgePerfil.innerText = "🛡️ Supervisión Global TI";
-      else if (esAutoridad) badgePerfil.innerText = `🏛️ Supervisión Directiva (${state.currentUser?.unidad_organica || 'ROF'})`;
-      else if (tieneRolDirectivoOGestor) badgePerfil.innerText = `👑 Gestión de Proyectos (${state.currentUser?.unidad_organica || 'IMARPE'})`;
-      else badgePerfil.innerText = `👤 Panel Operativo (${state.currentUser?.unidad_organica || 'IMARPE'})`;
+      if (state.currentUser?.rol === "ADMIN_TI") badgePerfil.innerHTML = `${SVG_ROL_GESTOR}<span>Supervisión Global TI</span>`;
+      else if (esAutoridad) badgePerfil.innerHTML = `${SVG_ROL_AUTORIDAD}<span>Supervisión Directiva (${state.currentUser?.unidad_organica || 'ROF'})</span>`;
+      else if (tieneRolDirectivoOGestor) badgePerfil.innerHTML = `${SVG_ROL_GESTOR}<span>Gestión de Proyectos (${state.currentUser?.unidad_organica || 'IMARPE'})</span>`;
+      else badgePerfil.innerText = `Panel Operativo (${state.currentUser?.unidad_organica || 'IMARPE'})`;
     }
+
+    inicializarScrollTopHub();
 
     inicializarFiltrosHub();
     actualizarKPIsHub(state.proyectosUsuarioGlobal);
@@ -196,18 +198,18 @@ export function renderizarRadarPreventivoHub() {
   if (badgeEquipo) badgeEquipo.innerText = proyectosConAlertas.length;
   if (badgeMio) badgeMio.innerText = tareasMias.length;
 
-  const clsActivo = "px-2.5 py-1 rounded-md text-[11px] font-black bg-[#0f2a4a] text-white shadow-2xs transition cursor-pointer flex items-center space-x-1.5";
-  const clsInactivo = "px-2.5 py-1 rounded-md text-[11px] font-bold text-slate-600 hover:text-[#0f2a4a] transition cursor-pointer flex items-center space-x-1.5";
+  // Estilo Segmented Control Sutil (Blanco flotante con sombra suave cuando está activo, sin saturar de azul oscuro)
+  const clsActivo = "px-3 py-1 rounded-md text-[11px] font-extrabold bg-white text-[#0f2a4a] border border-slate-200/90 shadow-2xs transition cursor-pointer flex items-center space-x-1.5";
+  const clsInactivo = "px-3 py-1 rounded-md text-[11px] font-semibold text-slate-500 hover:text-[#0f2a4a] border border-transparent transition cursor-pointer flex items-center space-x-1.5";
   if (btnEquipo) btnEquipo.className = (modoRadarHub === "equipo") ? clsActivo : clsInactivo;
   if (btnMio) btnMio.className = (modoRadarHub === "mio") ? clsActivo : clsInactivo;
 
-  // Asegurar alto contraste del icono de alerta tanto en modo activo como en modo inactivo
   if (icoEquipo) {
     icoEquipo.setAttribute(
       "class",
       modoRadarHub === "equipo"
-        ? "w-3.5 h-3.5 text-amber-300 flex-shrink-0 transition-colors"
-        : "w-3.5 h-3.5 text-amber-600 flex-shrink-0 transition-colors"
+        ? "w-3.5 h-3.5 text-amber-600 flex-shrink-0 transition-colors"
+        : "w-3.5 h-3.5 text-amber-500/80 flex-shrink-0 transition-colors"
     );
   }
 
@@ -941,7 +943,7 @@ export function renderizarTarjetasHub(lista) {
       const jsonAlertasProy = encodeURIComponent(JSON.stringify(p.alertas_responsables));
 
       const etiquetaPrefijo = esVenc
-        ? `<span class="text-rose-600 font-extrabold">Retraso:</span>`
+        ? `<span class="text-rose-600 font-extrabold">Con retraso:</span>`
         : `<span class="text-amber-700 font-extrabold">Por vencer:</span>`;
       const claseFecha = esVenc ? "text-rose-600 font-bold" : "text-amber-700 font-bold";
 
@@ -1126,7 +1128,7 @@ export function renderizarTablaHub(lista) {
       const esV = al.tipo_alerta === "VENCIDA";
       const extras = p.alertas_responsables.length - 1;
       const jsonAlertasTabla = encodeURIComponent(JSON.stringify(p.alertas_responsables));
-      const prefijoTxt = esV ? `<span class="text-rose-600 font-bold">Retraso:</span>` : `<span class="text-amber-700 font-bold">Por vencer:</span>`;
+      const prefijoTxt = esV ? `<span class="text-rose-600 font-bold">Con retraso:</span>` : `<span class="text-amber-700 font-bold">Por vencer:</span>`;
 
       hitoCoordHTML = `
         <div onmouseenter="mostrarTooltipProyectoAlertasHub(event, this)"
@@ -2396,6 +2398,34 @@ export function resetearSlicersEstadisticas() {
   aplicarFiltrosEstadisticas();
 }
 
+let scrollListenerHubInicializado = false;
+
+export function inicializarScrollTopHub() {
+  if (scrollListenerHubInicializado) return;
+  const viewHub = document.getElementById("view-hub");
+  if (!viewHub) return;
+
+  scrollListenerHubInicializado = true;
+  viewHub.addEventListener("scroll", () => {
+    const btnTop = document.getElementById("btn-scroll-top-hub");
+    if (!btnTop) return;
+    if (viewHub.scrollTop > 240) {
+      btnTop.classList.remove("opacity-0", "translate-y-4", "pointer-events-none");
+      btnTop.classList.add("opacity-100", "translate-y-0", "pointer-events-auto");
+    } else {
+      btnTop.classList.remove("opacity-100", "translate-y-0", "pointer-events-auto");
+      btnTop.classList.add("opacity-0", "translate-y-4", "pointer-events-none");
+    }
+  }, { passive: true });
+}
+
+export function volverArribaHubSuave() {
+  const viewHub = document.getElementById("view-hub");
+  if (viewHub) {
+    viewHub.scrollTo({ top: 0, behavior: "smooth" });
+  }
+}
+
 // Exposición pública completa al objeto window
 window.cargarHubProyectos = cargarHubProyectos;
 window.cambiarVistaHub = cambiarVistaHub;
@@ -2449,3 +2479,4 @@ window.conmutarVisibilidadBloqueHub = conmutarVisibilidadBloqueHub;
 window.restablecerBloquesHub = restablecerBloquesHub;
 window.mostrarTooltipProyectoAlertasHub = mostrarTooltipProyectoAlertasHub;
 window.mostrarTooltipDescripcionHub = mostrarTooltipDescripcionHub;
+window.volverArribaHubSuave = volverArribaHubSuave;
