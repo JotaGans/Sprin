@@ -932,9 +932,42 @@ function iniciarBucleAutoScroll() {
   animacionAutoScrollId = requestAnimationFrame(pasoScroll);
 }
 
+// Calcula cuántos niveles hacia abajo tiene la actividad que se está arrastrando (1 si no tiene hijos, 2 si tiene hijos, etc.)
+function obtenerProfundidadRama(codBase) {
+  const limpio = String(codBase || "").replace(/\.+$/, "");
+  if (!limpio) return 1;
+  const nivBase = limpio.split(".").length;
+  let maxNiv = nivBase;
+
+  (state.actividadesGlobal || []).forEach(a => {
+    const c = String(a.codigo || "").replace(/\.+$/, "");
+    if (c === limpio || c.startsWith(limpio + ".")) {
+      const n = c.split(".").length;
+      if (n > maxNiv) maxNiv = n;
+    }
+  });
+  return (maxNiv - nivBase) + 1;
+}
+
+// Verifica si reubicar codOrigen respecto a codDestino en el modo indicado excedería los 4 niveles permitidos
+function excedeLimiteJerarquicoWBS(codOrigen, codDestino, modo) {
+  const origLimpio = String(codOrigen || "").replace(/\.+$/, "");
+  const destLimpio = String(codDestino || "").replace(/\.+$/, "");
+  if (!origLimpio || !destLimpio) return false;
+
+  const nivelDestino = destLimpio.split(".").length;
+  const profOrigen = obtenerProfundidadRama(origLimpio);
+
+  // Si se intenta meter "adentro" (inside), el nuevo nivel raíz de la rama será nivelDestino + 1
+  // Si se coloca "arriba" o "abajo" (hermano), el nuevo nivel raíz de la rama será nivelDestino
+  const nuevoNivelRaizRama = (modo === "inside") ? (nivelDestino + 1) : nivelDestino;
+  const nivelMaximoResultante = nuevoNivelRaizRama + profOrigen - 1;
+
+  return nivelMaximoResultante > 4;
+}
+
 export function sobrevolarFilaArrastre(e, trElement) {
   e.preventDefault();
-  e.dataTransfer.dropEffect = "move";
 
   const cont = document.getElementById("vista-tabla-gantt-wrapper") || document.getElementById("view-dashboard");
   if (cont) {
@@ -948,9 +981,8 @@ export function sobrevolarFilaArrastre(e, trElement) {
 
   if (trElement.classList.contains("row-dragging")) return;
 
-  // Limpiar únicamente la fila anterior en O(1) sin recorrer toda la tabla
   if (ultimaFilaObjetivoArrastre && ultimaFilaObjetivoArrastre !== trElement) {
-    ultimaFilaObjetivoArrastre.classList.remove("drop-target-above", "drop-target-below", "drop-target-inside");
+    ultimaFilaObjetivoArrastre.classList.remove("drop-target-above", "drop-target-below", "drop-target-inside", "drop-target-invalid");
   }
   ultimaFilaObjetivoArrastre = trElement;
 
@@ -962,16 +994,22 @@ export function sobrevolarFilaArrastre(e, trElement) {
   if (yRel <= margen) nuevoModo = "above";
   else if (yRel >= rect.height - margen) nuevoModo = "below";
 
-  const claseDeseada = `drop-target-${nuevoModo}`;
+  // Extraer el código de la fila destino a partir de su ID (ej. fila-act-1_1_1_1 -> 1.1.1.1)
+  const codDestino = (trElement.id || "").replace("fila-act-", "").replace(/_/g, ".");
+  const esInvalidoPorNivel = excedeLimiteJerarquicoWBS(codigoActividadArrastrada, codDestino, nuevoModo);
+
+  const claseDeseada = esInvalidoPorNivel ? "drop-target-invalid" : `drop-target-${nuevoModo}`;
+  e.dataTransfer.dropEffect = esInvalidoPorNivel ? "none" : "move";
+
   if (!trElement.classList.contains(claseDeseada)) {
-    trElement.classList.remove("drop-target-above", "drop-target-below", "drop-target-inside");
+    trElement.classList.remove("drop-target-above", "drop-target-below", "drop-target-inside", "drop-target-invalid");
     trElement.classList.add(claseDeseada);
   }
   modoInsercion = nuevoModo;
 }
 
 export function limpiarBordeArrastre(trElement) {
-  // Manejado en tiempo real por ultimaFilaObjetivoArrastre para evitar parpadeos al cruzar entre celdas <td> de la misma fila
+  // Controlado por ultimaFilaObjetivoArrastre para mantener fluidez 60fps
 }
 
 export function finalizarArrastre() {
@@ -979,7 +1017,7 @@ export function finalizarArrastre() {
   if (animacionAutoScrollId) { cancelAnimationFrame(animacionAutoScrollId); animacionAutoScrollId = null; }
   document.body.classList.remove("is-dragging-row");
   if (ultimaFilaObjetivoArrastre) {
-    ultimaFilaObjetivoArrastre.classList.remove("drop-target-above", "drop-target-below", "drop-target-inside");
+    ultimaFilaObjetivoArrastre.classList.remove("drop-target-above", "drop-target-below", "drop-target-inside", "drop-target-invalid");
     ultimaFilaObjetivoArrastre = null;
   }
   document.querySelectorAll("#lista-actividades tr.row-dragging").forEach(tr => tr.classList.remove("row-dragging"));
@@ -988,9 +1026,11 @@ export function finalizarArrastre() {
 
 export async function soltarFilaArrastre(e, codigoDestino, trElement) {
   e.preventDefault();
-  limpiarBordeArrastre(trElement);
   const codOrigen = codigoActividadArrastrada;
-  if (!codOrigen || codOrigen === codigoDestino) { finalizarArrastre(); return; }
+  const modo Elegido = modoInsercion;
+  finalizarArrastre();
+
+  if (!codOrigen || codOrigen === codigoDestino) return;
 
   const codOrigenLimpio = String(codOrigen).replace(/\.+$/, "");
   const codDestinoLimpio = String(codigoDestino).replace(/\.+$/, "");
@@ -1001,13 +1041,26 @@ export async function soltarFilaArrastre(e, codigoDestino, trElement) {
   }).map(a => String(a.codigo).replace(/\.+$/, ""));
 
   if (bloqueOrigen.includes(codDestinoLimpio)) {
-    alert("⚠️ No puedes mover una actividad dentro de sus propias componentes subordinadas.");
-    finalizarArrastre();
+    notificarToast(`No es posible mover la actividad [${codOrigenLimpio}] dentro de sus propias subtareas.`, "warning", 3500);
     return;
   }
 
-  finalizarArrastre();
-  const confirma = await confirmModal(`¿Desea reubicar la actividad [${codOrigenLimpio}] respecto a [${codDestinoLimpio}]?`, "Confirmar Reubicación", "question");
+  // Validación preventiva de límite de 4 niveles jerárquicos con mensaje sutil y amigable
+  if (excedeLimiteJerarquicoWBS(codOrigenLimpio, codDestinoLimpio, modoElegido)) {
+    const nivelDest = codDestinoLimpio.split(".").length;
+    if (modoElegido === "inside" && nivelDest >= 4) {
+      notificarToast(`Límite de niveles: [${codDestinoLimpio}] ya es de Nivel 4 (máximo permitido). Suelte la actividad arriba o abajo para ubicarla al mismo nivel.`, "warning", 4200);
+    } else {
+      notificarToast(`Límite de niveles: Reubicar [${codOrigenLimpio}] con sus subtareas aquí generaría un Nivel 5 (el sistema permite hasta 4 niveles).`, "warning", 4200);
+    }
+    return;
+  }
+
+  const etiquetaPosicion = modoElegido === "inside"
+    ? `dentro de [${codDestinoLimpio}] (como subtarea)`
+    : (modoElegido === "above" ? `antes de [${codDestinoLimpio}]` : `después de [${codDestinoLimpio}]`);
+
+  const confirma = await confirmModal(`¿Desea reubicar la actividad [${codOrigenLimpio}] ${etiquetaPosicion}?`, "Confirmar reubicación", "question");
   if (!confirma) return;
 
   registrarSnapshotAntesDeAccion(`Reordenar actividad [${codOrigenLimpio}]`);
@@ -1019,15 +1072,18 @@ export async function soltarFilaArrastre(e, codigoDestino, trElement) {
         proyecto_id: parseInt(state.proyectoActualId),
         codigo_origen: codOrigenLimpio,
         codigo_destino: codDestinoLimpio,
-        modo: modoInsercion
+        modo: modoElegido
       })
     });
     if (res.ok) {
       notificarToast("Estructura WBS reorganizada con éxito.", "success");
       await sincronizarDatosProyecto(state.proyectoActualId);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      notificarToast(err.detail || "No se pudo reubicar la actividad por límite de niveles.", "warning", 4000);
     }
   } catch (err) {
-    alert("Error de conexión al reordenar.");
+    notificarToast("Error de conexión al intentar reordenar la estructura.", "error");
   }
 }
 
@@ -1036,7 +1092,7 @@ let opcionesModoWizard = [];
 
 export function botonSuperiorNuevaActividad() {
   if (!state.proyectoEsGestor) {
-    alert("Solo el Gestor del Proyecto puede crear actividades.");
+    notificarToast("Solo el Gestor del Proyecto puede crear actividades.", "warning");
     return;
   }
   if (!state.codigoFilaSeleccionada) {
@@ -1044,8 +1100,12 @@ export function botonSuperiorNuevaActividad() {
   } else {
     const codLimpio = String(state.codigoFilaSeleccionada).replace(/\.+$/, "");
     const nivel = codLimpio.split(".").length;
-    if (nivel < 4) abrirWizardCreacion(codLimpio, "hijo");
-    else abrirWizardCreacion(codLimpio, "hermano");
+    if (nivel < 4) {
+      abrirWizardCreacion(codLimpio, "hijo");
+    } else {
+      notificarToast(`ℹ️ [${codLimpio}] ya se encuentra en el Nivel 4 (máximo permitido). Se creará una actividad hermana en el mismo nivel.`, "info", 3800);
+      abrirWizardCreacion(codLimpio, "hermano");
+    }
   }
 }
 
@@ -1080,6 +1140,12 @@ export function abrirWizardCreacion(codigoBase = null, modoForzado = "hijo") {
     const nombresSub = ["", "Tarea (Nivel 2)", "Subtarea (Nivel 3)", "Paso (Nivel 4)"];
     const nombresMismo = ["", "actividad principal (Nivel 1)", "tarea (Nivel 2)", "subtarea (Nivel 3)", "paso (Nivel 4)"];
 
+    // Si se intenta forzar "hijo" sobre una actividad que ya es de Nivel 4, avisar sutilmente y pasar a "hermano"
+    if (nivel >= 4 && modoForzado === "hijo") {
+      notificarToast(`Alcance jerárquico: El sistema admite hasta 4 niveles de desglose. Se creará al mismo nivel que [${codLimpio}].`, "info", 3800);
+      modoForzado = "hermano";
+    }
+
     if (nivel < 4) {
       const hijos = state.actividadesGlobal.filter(a => {
         const c = a.codigo.replace(/\.$/, "");
@@ -1099,36 +1165,37 @@ export function abrirWizardCreacion(codigoBase = null, modoForzado = "hijo") {
         titulo: `Nueva ${nombresSub[nivel]} para [${codLimpio}]`,
         subtitulo: `Depende de: ${descBase}`
       });
-
-      let codHermano = "1";
-      const partes = codLimpio.split(".");
-      if (partes.length === 1) {
-        const raices = state.actividadesGlobal.filter(a => !a.codigo.replace(/\.$/, "").includes("."));
-        let maxR = 0;
-        raices.forEach(r => {
-          const n = parseInt(r.codigo.replace(/\.$/, ""));
-          if (!isNaN(n) && n > maxR) maxR = n;
-        });
-        codHermano = `${maxR + 1}`;
-      } else {
-        const padre = partes.slice(0, -1).join(".");
-        const hermanos = state.actividadesGlobal.filter(a => a.codigo.startsWith(padre + ".") && a.codigo.split(".").length === partes.length);
-        let maxHer = 0;
-        hermanos.forEach(h => {
-          const ult = parseInt(h.codigo.split(".").pop());
-          if (!isNaN(ult) && ult > maxHer) maxHer = ult;
-        });
-        codHermano = `${padre}.${maxHer + 1}`;
-      }
-
-      opcionesModoWizard.push({
-        modo: "hermano",
-        codigo: codHermano,
-        label: `📋 Agregar actividad hermana (${nombresMismo[nivel]})`,
-        titulo: `Nueva actividad hermana (${nombresMismo[nivel]})`,
-        subtitulo: `Al mismo nivel que [${codLimpio}]`
-      });
     }
+
+    // Cálculo de código hermano (disponible desde Nivel 1 hasta Nivel 4)
+    let codHermano = "1";
+    const partes = codLimpio.split(".");
+    if (partes.length === 1) {
+      const raices = state.actividadesGlobal.filter(a => !a.codigo.replace(/\.$/, "").includes("."));
+      let maxR = 0;
+      raices.forEach(r => {
+        const n = parseInt(r.codigo.replace(/\.$/, ""));
+        if (!isNaN(n) && n > maxR) maxR = n;
+      });
+      codHermano = `${maxR + 1}`;
+    } else {
+      const padre = partes.slice(0, -1).join(".");
+      const hermanos = state.actividadesGlobal.filter(a => a.codigo.startsWith(padre + ".") && a.codigo.split(".").length === partes.length);
+      let maxHer = 0;
+      hermanos.forEach(h => {
+        const ult = parseInt(h.codigo.split(".").pop());
+        if (!isNaN(ult) && ult > maxHer) maxHer = ult;
+      });
+      codHermano = `${padre}.${maxHer + 1}`;
+    }
+
+    opcionesModoWizard.push({
+      modo: "hermano",
+      codigo: codHermano,
+      label: `📋 Agregar actividad hermana (${nombresMismo[nivel]})`,
+      titulo: `Nueva actividad hermana (${nombresMismo[nivel]})`,
+      subtitulo: `Al mismo nivel que [${codLimpio}]`
+    });
   }
 
   if (selToggle) {
