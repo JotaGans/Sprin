@@ -410,15 +410,16 @@ export function renderizarGanttFila(act, esMadre, codLimpio) {
       const esBarraAncha = widthPct >= 8.5;
       const predsLista = (act.predecesores || "").split(",").map(s => s.trim()).filter(Boolean);
       const tienePredecesor = predsLista.length > 0;
-      const tooltipBarra = `[${codLimpio}] ${act.descripcion} | ${act.fecha_inicio} → ${act.fecha_fin} (${act.avance}%) ${tienePredecesor ? '| Predecesora(s): ' + predsLista.join(', ') : ''} — Arrastra el círculo derecho para conectar con otra tarea`;
 
       if (esMadre) {
         barraOElementoHTML = `
           <div id="gantt-bar-el-${codLimpio.replace(/\./g, '_')}"
                data-cod="${codLimpio}"
+               onmouseenter="mostrarTooltipGantt(event, '${codLimpio}')"
+               onmousemove="moverTooltipGantt(event)"
+               onmouseleave="ocultarTooltipGantt()"
                class="absolute top-2 bottom-2 z-10 gantt-bar-interactive"
-               style="left: ${leftPct}%; width: ${widthPct}%;"
-               title="${tooltipBarra}">
+               style="left: ${leftPct}%; width: ${widthPct}%;">
             <div class="w-full h-full bg-[#0f2a4a] rounded-md shadow-xs relative overflow-hidden flex items-center justify-between px-2">
               <div class="absolute top-0 bottom-0 left-0 bg-teal-500/35 transition-all duration-300" style="width: ${act.avance}%;"></div>
               <span class="relative z-10 text-[9.5px] font-bold text-teal-200 truncate pr-2">${esBarraAncha ? act.descripcion : ''}</span>
@@ -450,7 +451,7 @@ export function renderizarGanttFila(act, esMadre, codLimpio) {
             ? (primerNom.split(",")[0].trim()[0] + (primerNom.split(",")[1]?.trim()[0] || "")).toUpperCase()
             : (primerNom.split(" ")[0][0] + (primerNom.split(" ")[1]?.[0] || "")).toUpperCase();
           avatarInternoHTML = `
-            <span class="w-5 h-5 rounded-full bg-white/95 text-[#0f2a4a] font-black text-[8.5px] flex items-center justify-center shadow-xs flex-shrink-0 border border-white" title="${act.responsable}">
+            <span class="w-5 h-5 rounded-full bg-white/95 text-[#0f2a4a] font-black text-[8.5px] flex items-center justify-center shadow-xs flex-shrink-0 border border-white">
               ${ini}
             </span>
           `;
@@ -458,32 +459,31 @@ export function renderizarGanttFila(act, esMadre, codLimpio) {
 
         const checkDoneHTML = act.estado === "Ejecutado" ? `<span class="text-[10px] font-black text-white drop-shadow-2xs">✓</span>` : "";
         const badgePredHTML = tienePredecesor
-          ? `<span onclick="event.stopPropagation(); abrirModalDependencias('${codLimpio}')" class="text-[9px] font-black text-white bg-black/25 hover:bg-black/45 px-1 rounded flex items-center gap-0.5 cursor-pointer" title="Predecesora(s): ${predsLista.join(', ')} (Clic para editar)">🔗${predsLista.join(',')}</span>`
+          ? `<span onclick="event.stopPropagation(); abrirModalDependencias('${codLimpio}')" class="text-[9px] font-black text-white bg-black/25 hover:bg-black/45 px-1 rounded flex items-center gap-0.5 cursor-pointer" title="Configurar predecesoras">🔗${predsLista.join(',')}</span>`
           : "";
         const opacidadCpm = (state.capaCpmActiva && !esActividadCritica) ? "opacity-45" : "opacity-100";
 
-        // Puertos de conexión interactivos (solo para Gestor)
         const puertosConexionHTML = state.proyectoEsGestor ? `
           <span class="gantt-connect-handle gantt-connect-handle-in"
                 data-cod="${codLimpio}"
-                title="Soltar aquí para que [${codLimpio}] dependa de la tarea arrastrada"></span>
+                title="Soltar aquí para conectar dependencia"></span>
           <span class="gantt-connect-handle gantt-connect-handle-out"
                 data-cod="${codLimpio}"
                 onmousedown="iniciarConexionGanttMouse(event, '${codLimpio}')"
-                title="Arrastrar hacia otra barra para conectar [${codLimpio}] como predecesora"></span>
+                title="Arrastrar hacia otra tarea para crear dependencia"></span>
         ` : "";
 
         barraOElementoHTML = `
           <div id="gantt-bar-el-${codLimpio.replace(/\./g, '_')}"
                data-cod="${codLimpio}"
-               onclick="event.stopPropagation(); editarEstado('${codLimpio}')"
-               ondblclick="event.stopPropagation(); editarFechaFin('${codLimpio}')"
-               onmouseenter="resaltarDestinoConexionGantt('${codLimpio}', true)"
-               onmouseleave="resaltarDestinoConexionGantt('${codLimpio}', false)"
+               onclick="event.stopPropagation(); abrirInspectorActividad('${codLimpio}')"
+               ondblclick="event.stopPropagation(); abrirInspectorActividad('${codLimpio}')"
+               onmouseenter="resaltarDestinoConexionGantt('${codLimpio}', true); mostrarTooltipGantt(event, '${codLimpio}')"
+               onmousemove="moverTooltipGantt(event)"
+               onmouseleave="resaltarDestinoConexionGantt('${codLimpio}', false); ocultarTooltipGantt()"
                onmouseup="finalizarConexionEnBarraGantt(event, '${codLimpio}')"
                class="absolute top-1.5 bottom-1.5 z-10 rounded-md shadow-xs flex items-center justify-between px-1.5 gantt-bar-interactive ${opacidadCpm}"
-               style="left: ${leftPct}%; width: ${widthPct}%; background-color: ${bgBarra};"
-               title="${tooltipBarra}">
+               style="left: ${leftPct}%; width: ${widthPct}%; background-color: ${bgBarra};">
             
             ${act.estado === "En proceso" && act.avance > 0 ? `<div class="absolute inset-y-0 left-0 rounded-l-md pointer-events-none" style="width: ${act.avance}%; background-color: ${bgProgreso};"></div>` : ''}
 
@@ -689,12 +689,91 @@ export async function finalizarConexionEnBarraGantt(e, codDestino) {
   }
 }
 
+export function mostrarTooltipGantt(e, codLimpio) {
+  if (document.body.classList.contains("is-connecting-gantt")) return;
+  const act = (state.actividadesGlobal || []).find(a => String(a.codigo).replace(/\.+$/, "") === codLimpio);
+  if (!act) return;
+
+  let tip = document.getElementById("gantt-custom-tooltip");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.id = "gantt-custom-tooltip";
+    document.body.appendChild(tip);
+  }
+
+  const esMadre = (state.actividadesGlobal || []).some(sub => {
+    const subC = String(sub.codigo).replace(/\.+$/, "");
+    return subC.startsWith(codLimpio + ".") && subC !== codLimpio;
+  });
+
+  const unidadTxt = (state.proyectoModoDuracion === "hours") ? "horas" : "días hábiles";
+  const badgeEstColor = act.estado === "Ejecutado"
+    ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40"
+    : (act.estado === "En proceso" ? "bg-blue-500/25 text-blue-200 border-blue-400/40" : "bg-slate-500/25 text-slate-300 border-slate-400/40");
+
+  const preds = (act.predecesores || "").trim();
+  const resp = (act.responsable && act.responsable !== "No asignado") ? act.responsable : "Sin responsable asignado";
+
+  tip.innerHTML = `
+    <div class="flex items-center justify-between gap-2 mb-1.5">
+      <div class="flex items-center space-x-1.5">
+        <span class="font-mono font-black text-[10px] bg-teal-400 text-[#0f2a4a] px-1.5 py-0.2 rounded">[${codLimpio}]</span>
+        <span class="text-[9.5px] font-bold uppercase tracking-wider text-teal-300">${esMadre ? '📁 Fase resumen' : 'Tarea operativa'}</span>
+      </div>
+      <span class="text-[9.5px] font-extrabold px-2 py-0.2 rounded-full border ${badgeEstColor}">${act.estado}</span>
+    </div>
+
+    <div class="text-xs font-extrabold text-white leading-snug mb-2.5 border-b border-white/10 pb-2">${act.descripcion}</div>
+
+    <div class="grid grid-cols-2 gap-2 text-[10.5px] mb-2">
+      <div class="bg-white/5 rounded-lg p-1.5 border border-white/10">
+        <span class="block text-[9px] uppercase font-bold text-slate-400">Plazo programado</span>
+        <span class="font-bold text-teal-200">${act.fecha_inicio} → ${act.fecha_fin}</span>
+      </div>
+      <div class="bg-white/5 rounded-lg p-1.5 border border-white/10">
+        <span class="block text-[9px] uppercase font-bold text-slate-400">Duración y avance</span>
+        <span class="font-bold text-white">${act.dias} ${unidadTxt} · <strong class="text-teal-300">${act.avance}%</strong></span>
+      </div>
+    </div>
+
+    <div class="text-[10px] text-slate-300 space-y-1">
+      <div class="truncate"><strong class="text-slate-400">👤 Resp:</strong> ${resp}</div>
+      ${preds ? `<div><strong class="text-slate-400">🔗 Predecesora(s):</strong> <span class="font-mono text-amber-300">[${preds}]</span></div>` : ''}
+    </div>
+  `;
+
+  tip.classList.add("is-visible");
+  moverTooltipGantt(e);
+}
+
+export function moverTooltipGantt(e) {
+  const tip = document.getElementById("gantt-custom-tooltip");
+  if (!tip || !tip.classList.contains("is-visible")) return;
+
+  const anchoTip = 295;
+  const altoTip = tip.offsetHeight || 165;
+  let x = e.clientX + 14;
+  let y = e.clientY + 16;
+
+  if (x + anchoTip > window.innerWidth - 12) x = e.clientX - anchoTip - 12;
+  if (y + altoTip > window.innerHeight - 12) y = e.clientY - altoTip - 12;
+
+  tip.style.left = `${Math.max(8, x)}px`;
+  tip.style.top = `${Math.max(8, y)}px`;
+}
+
+export function ocultarTooltipGantt() {
+  const tip = document.getElementById("gantt-custom-tooltip");
+  if (tip) tip.classList.remove("is-visible");
+}
+
 export function actualizarEstadoBotonesNavegacionGantt(modoActivo) {
   const btnInicio = document.getElementById("btn-nav-gantt-inicio");
   const btnHoy = document.getElementById("btn-nav-gantt-hoy");
 
-  const claseActiva = "h-[22px] bg-[#0f2a4a] text-white text-[11px] font-black px-2.5 rounded transition whitespace-nowrap flex items-center cursor-pointer shadow-2xs";
-  const claseInactiva = "h-[22px] hover:bg-white text-[#0f2a4a] text-[11px] font-bold px-2 rounded transition whitespace-nowrap flex items-center cursor-pointer";
+  // Mismo padding exacto (px-2.5) y sin transición de layout para evitar cualquier parpadeo al pulsar las flechas ◀ ▶
+  const claseActiva = "h-[22px] bg-[#0f2a4a] text-white text-[11px] font-bold px-2.5 rounded whitespace-nowrap flex items-center cursor-pointer shadow-2xs";
+  const claseInactiva = "h-[22px] hover:bg-white text-[#0f2a4a] text-[11px] font-bold px-2.5 rounded whitespace-nowrap flex items-center cursor-pointer";
 
   if (btnInicio) btnInicio.className = (modoActivo === "inicio") ? claseActiva : claseInactiva;
   if (btnHoy) btnHoy.className = (modoActivo === "hoy") ? claseActiva : claseInactiva;
@@ -848,11 +927,15 @@ export function fijarModoZoomDirecto(modo) {
   irASemanaActual();
 }
 
+window.addEventListener("resize", () => {
+  requestAnimationFrame(dibujarFlechasDependenciasGantt);
+});
+
 window.desplazarGanttPorEscala = desplazarGanttPorEscala;
 window.dibujarFlechasDependenciasGantt = dibujarFlechasDependenciasGantt;
 window.iniciarConexionGanttMouse = iniciarConexionGanttMouse;
 window.resaltarDestinoConexionGantt = resaltarDestinoConexionGantt;
 window.finalizarConexionEnBarraGantt = finalizarConexionEnBarraGantt;
-window.addEventListener("resize", () => {
-  requestAnimationFrame(dibujarFlechasDependenciasGantt);
-});
+window.mostrarTooltipGantt = mostrarTooltipGantt;
+window.moverTooltipGantt = moverTooltipGantt;
+window.ocultarTooltipGantt = ocultarTooltipGantt;

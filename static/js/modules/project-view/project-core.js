@@ -223,6 +223,12 @@ export async function sincronizarDatosProyecto(id) {
       poblarFiltroResponsablesDinamico();
       renderizarCabeceraGantt();
       renderizarTabla();
+      if (typeof window.renderizarBarraAvataresEquipoToolbar === "function") {
+        window.renderizarBarraAvataresEquipoToolbar();
+      }
+      if (state.vistaProyectoActiva === "kanban" && typeof window.renderizarTableroKanban === "function") {
+        window.renderizarTableroKanban();
+      }
       actualizarKPIs();
       actualizarBotonPlantillaDinamico();
     }

@@ -789,3 +789,66 @@ body.is-connecting-gantt .gantt-connect-handle {
   -moz-appearance: textfield;
   appearance: textfield;
 }
+
+/* ==========================================================================
+   SELECCIÓN UNIFORME EN FILAS MADRE, DRAG & DROP 60FPS Y TOOLTIP GANTT PRO
+   ========================================================================== */
+
+/* 1. Garantizar que al seleccionar cualquier fila (incluso actividades madre), todas sus celdas pinten el mismo fondo continuo sin parches blancos */
+#tabla-gantt-main tbody tr.row-selected,
+#tabla-gantt-main tbody tr.row-selected > td {
+  background-color: #e0e7ff !important;
+}
+
+#tabla-gantt-main tbody tr.tree-row-l1:not(.row-selected) > td {
+  background-color: #f1f5f9;
+}
+
+/* 2. Aceleración 60fps en Drag & Drop de filas WBS: desactivar transiciones lentas durante el arrastre y pintar línea continua de extremo a extremo */
+body.is-dragging-row #tabla-gantt-main tbody tr,
+body.is-dragging-row #tabla-gantt-main tbody td {
+  transition: none !important;
+}
+
+#tabla-gantt-main tbody tr.row-dragging {
+  opacity: 0.35 !important;
+  background-color: #f8fafc !important;
+}
+
+#tabla-gantt-main tbody tr.drop-target-above > td {
+  box-shadow: inset 0 3px 0 0 #0d9488 !important;
+  background-color: #f0fdfa !important;
+}
+
+#tabla-gantt-main tbody tr.drop-target-below > td {
+  box-shadow: inset 0 -3px 0 0 #0d9488 !important;
+  background-color: #f0fdfa !important;
+}
+
+#tabla-gantt-main tbody tr.drop-target-inside > td {
+  background-color: #ccfbf1 !important;
+  box-shadow: inset 0 2px 0 0 #0f766e, inset 0 -2px 0 0 #0f766e !important;
+}
+
+/* 3. Popover / Tooltip Ejecutivo de Clase Mundial para el Cronograma Gantt */
+#gantt-custom-tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  width: 290px;
+  background: rgba(15, 42, 74, 0.97);
+  backdrop-filter: blur(6px);
+  color: #f8fafc;
+  border: 1px solid rgba(45, 212, 191, 0.35);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: 0 14px 28px -6px rgba(15, 23, 42, 0.45), 0 4px 10px -2px rgba(15, 23, 42, 0.25);
+  transition: opacity 0.1s ease, transform 0.1s ease;
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+#gantt-custom-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}

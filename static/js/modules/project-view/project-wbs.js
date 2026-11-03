@@ -270,23 +270,13 @@ export function renderizarTabla() {
     const enModoLista = (state.vistaProyectoActiva === "lista");
 
     const claseEditable = "cell-editable cursor-pointer";
-    const claseBloqueada = "bg-slate-50/70 text-slate-500 cursor-not-allowed select-none";
+    const claseBloqueada = "text-slate-500 cursor-default select-none";
 
-    // Columna Responsables: En Vista Lista muestra Avatar + Nombre legible (estilo Jira List); en Dividida/Gantt muestra Avatar compacto
-    let contenidoRespHTML = obtenerAvatarHTML(act.responsable);
-    if (enModoLista && act.responsable && act.responsable !== "No asignado") {
-      const primerResp = act.responsable.split(";")[0].trim();
-      const extraCount = act.responsable.split(";").filter(Boolean).length - 1;
-      contenidoRespHTML = `
-        <div class="inline-flex items-center space-x-2 max-w-[180px]">
-          ${obtenerAvatarHTML(act.responsable)}
-          <span class="text-xs font-semibold text-slate-700 truncate">${primerResp}${extraCount > 0 ? ` (+${extraCount})` : ''}</span>
-        </div>
-      `;
-    }
+    // Columna Responsables: Muestra exclusivamente los avatares circulares centrados con su tooltip completo al pasar el mouse
+    const contenidoRespHTML = obtenerAvatarHTML(act.responsable);
 
     const tdResp = state.visibilidadColumnas.responsable 
-      ? `<td class="p-2 border-b border-gray-200 ${enModoLista ? 'text-left pl-3' : 'text-center'} whitespace-nowrap ${state.proyectoEsGestor ? 'cell-editable cursor-pointer' : ''}" ondblclick="${state.proyectoEsGestor ? `editarResponsable('${cod}')` : ''}" title="${act.responsable || 'Sin asignar'}">${contenidoRespHTML}</td>` 
+      ? `<td class="p-2 border-b border-gray-200 text-center whitespace-nowrap ${state.proyectoEsGestor ? 'cell-editable cursor-pointer' : ''}" ondblclick="${state.proyectoEsGestor ? `editarResponsable('${cod}')` : ''}" title="${act.responsable || 'Sin asignar'}">${contenidoRespHTML}</td>` 
       : '';
 
     // Columna Estado: Píldoras semánticas estilo Jira (DONE / IN PROGRESS / TO DO)
@@ -901,13 +891,15 @@ export async function guardarCambioDirecto(act) {
   }
 }
 
-// --- DRAG AND DROP WBS ---
+// --- DRAG AND DROP WBS DE ALTO RENDIMIENTO (60FPS SIN RECORRIDO DOM MASIVO) ---
 let codigoActividadArrastrada = null;
 let modoInsercion = "below";
 let animacionAutoScrollId = null;
 let velocidadAutoScroll = 0;
+let ultimaFilaObjetivoArrastre = null;
 
 export function iniciarArrastreFila(e, cod) {
+  if (typeof window.ocultarTooltipGantt === "function") window.ocultarTooltipGantt();
   codigoActividadArrastrada = cod;
   e.dataTransfer.effectAllowed = "move";
   e.dataTransfer.setData("text/plain", cod);
@@ -915,7 +907,7 @@ export function iniciarArrastreFila(e, cod) {
   document.getElementById(`fila-act-${cod.replace(/\./g, '_')}`)?.classList.add("row-dragging");
 
   const actObj = state.actividadesGlobal.find(a => String(a.codigo).replace(/\.+$/, "") === String(cod).replace(/\.+$/, ""));
-  const descCorta = actObj ? actObj.descripcion.substring(0, 24) + '...' : cod;
+  const descCorta = actObj ? actObj.descripcion.substring(0, 26) + (actObj.descripcion.length > 26 ? "…" : "") : cod;
 
   const dragBadge = document.createElement("div");
   dragBadge.className = "fixed top-[-1000px] left-[-1000px] bg-[#0f2a4a] text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-2xl border border-teal-400 flex items-center space-x-2 z-[9999] pointer-events-none";
@@ -931,7 +923,7 @@ function iniciarBucleAutoScroll() {
   if (animacionAutoScrollId) return;
   const pasoScroll = () => {
     if (codigoActividadArrastrada && velocidadAutoScroll !== 0) {
-      const cont = document.querySelector("#view-dashboard > div.overflow-auto") || document.getElementById("view-dashboard");
+      const cont = document.getElementById("vista-tabla-gantt-wrapper") || document.getElementById("view-dashboard");
       if (cont) cont.scrollTop += velocidadAutoScroll;
     }
     if (codigoActividadArrastrada) animacionAutoScrollId = requestAnimationFrame(pasoScroll);
@@ -944,53 +936,53 @@ export function sobrevolarFilaArrastre(e, trElement) {
   e.preventDefault();
   e.dataTransfer.dropEffect = "move";
 
-  const cont = document.querySelector("#view-dashboard > div.overflow-auto") || document.getElementById("view-dashboard");
+  const cont = document.getElementById("vista-tabla-gantt-wrapper") || document.getElementById("view-dashboard");
   if (cont) {
     const cRect = cont.getBoundingClientRect();
-    const umbral = 75;
+    const umbral = 70;
     const yMouse = e.clientY;
-    if (yMouse < cRect.top + umbral) velocidadAutoScroll = -Math.round(14 * Math.max(0.2, (cRect.top + umbral - yMouse) / umbral));
-    else if (yMouse > cRect.bottom - umbral) velocidadAutoScroll = Math.round(14 * Math.max(0.2, (yMouse - (cRect.bottom - umbral)) / umbral));
+    if (yMouse < cRect.top + umbral) velocidadAutoScroll = -Math.round(12 * Math.max(0.2, (cRect.top + umbral - yMouse) / umbral));
+    else if (yMouse > cRect.bottom - umbral) velocidadAutoScroll = Math.round(12 * Math.max(0.2, (yMouse - (cRect.bottom - umbral)) / umbral));
     else velocidadAutoScroll = 0;
   }
 
   if (trElement.classList.contains("row-dragging")) return;
 
-  const rect = trElement.getBoundingClientRect();
-  const altura = rect.height;
-  const yRel = e.clientY - rect.top;
-  const margen = Math.max(5, altura * 0.18);
-
-  document.querySelectorAll("#lista-actividades tr").forEach(tr => {
-    if (tr !== trElement) tr.classList.remove("drop-target-above", "drop-target-below", "drop-target-inside");
-  });
-
-  if (yRel <= margen) {
-    modoInsercion = "above";
-    trElement.classList.remove("drop-target-below", "drop-target-inside");
-    trElement.classList.add("drop-target-above");
-  } else if (yRel >= altura - margen) {
-    modoInsercion = "below";
-    trElement.classList.remove("drop-target-above", "drop-target-inside");
-    trElement.classList.add("drop-target-below");
-  } else {
-    modoInsercion = "inside";
-    trElement.classList.remove("drop-target-above", "drop-target-below");
-    trElement.classList.add("drop-target-inside");
+  // Limpiar únicamente la fila anterior en O(1) sin recorrer toda la tabla
+  if (ultimaFilaObjetivoArrastre && ultimaFilaObjetivoArrastre !== trElement) {
+    ultimaFilaObjetivoArrastre.classList.remove("drop-target-above", "drop-target-below", "drop-target-inside");
   }
+  ultimaFilaObjetivoArrastre = trElement;
+
+  const rect = trElement.getBoundingClientRect();
+  const yRel = e.clientY - rect.top;
+  const margen = Math.max(6, rect.height * 0.24);
+
+  let nuevoModo = "inside";
+  if (yRel <= margen) nuevoModo = "above";
+  else if (yRel >= rect.height - margen) nuevoModo = "below";
+
+  const claseDeseada = `drop-target-${nuevoModo}`;
+  if (!trElement.classList.contains(claseDeseada)) {
+    trElement.classList.remove("drop-target-above", "drop-target-below", "drop-target-inside");
+    trElement.classList.add(claseDeseada);
+  }
+  modoInsercion = nuevoModo;
 }
 
 export function limpiarBordeArrastre(trElement) {
-  if (trElement) trElement.classList.remove("drop-target-above", "drop-target-below", "drop-target-inside");
+  // Manejado en tiempo real por ultimaFilaObjetivoArrastre para evitar parpadeos al cruzar entre celdas <td> de la misma fila
 }
 
 export function finalizarArrastre() {
   velocidadAutoScroll = 0;
   if (animacionAutoScrollId) { cancelAnimationFrame(animacionAutoScrollId); animacionAutoScrollId = null; }
   document.body.classList.remove("is-dragging-row");
-  document.querySelectorAll("#lista-actividades tr").forEach(tr => {
-    tr.classList.remove("row-dragging", "drop-target-above", "drop-target-below", "drop-target-inside");
-  });
+  if (ultimaFilaObjetivoArrastre) {
+    ultimaFilaObjetivoArrastre.classList.remove("drop-target-above", "drop-target-below", "drop-target-inside");
+    ultimaFilaObjetivoArrastre = null;
+  }
+  document.querySelectorAll("#lista-actividades tr.row-dragging").forEach(tr => tr.classList.remove("row-dragging"));
   codigoActividadArrastrada = null;
 }
 

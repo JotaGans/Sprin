@@ -391,11 +391,13 @@
             </button>
           </div>
 
-          <!-- Indicador Temporal de Filtros con Borde Naranja/Ámbar Tenue Intermitente (Separado 118px en desktop para no chocar jamás con la casita expandida ni con el Gantt) -->
-          <div id="badge-filtro-activo" class="hidden items-center filter-active-pill-animated text-[10.5px] font-bold pl-2.5 pr-1.5 h-7 rounded-full space-x-1.5 whitespace-nowrap ml-2 md:ml-[118px] max-w-[200px] xl:max-w-[270px] transition-all">
-            <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping flex-shrink-0" style="animation-duration: 1.8s;"></span>
+          <!-- Indicador Temporal de Filtros con Icono de Embudo SVG y Borde Ámbar Tenue Intermitente -->
+          <div id="badge-filtro-activo" class="hidden items-center filter-active-pill-animated text-[10.5px] font-bold pl-2.5 pr-1.5 h-7 rounded-full space-x-1.5 whitespace-nowrap ml-2 md:ml-[118px] max-w-[210px] xl:max-w-[280px]">
+            <svg class="w-3.5 h-3.5 text-amber-700 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+            </svg>
             <span id="badge-filtro-texto" class="truncate leading-none font-extrabold text-amber-950">Filtro</span>
-            <button type="button" onclick="limpiarTodosFiltros()" class="w-4 h-4 rounded-full bg-amber-200/80 hover:bg-rose-500 text-amber-900 hover:text-white font-black text-[9.5px] flex items-center justify-center transition cursor-pointer flex-shrink-0 ml-0.5" title="Quitar todos los filtros de golpe">✕</button>
+            <button type="button" onclick="limpiarTodosFiltros()" class="w-4 h-4 rounded-full bg-amber-200/80 hover:bg-rose-500 text-amber-900 hover:text-white font-black text-[9.5px] flex items-center justify-center transition cursor-pointer flex-shrink-0 ml-0.5" title="Limpiar todos los filtros">✕</button>
           </div>
         </div>
 
@@ -2544,6 +2546,6 @@
   </div>
 
     <!-- Carga del Módulo Orquestador Principal ES6 -->
-    <script type="module" src="/static/js/main.js?v=100046"></script>
+    <script type="module" src="/static/js/main.js?v=100047"></script>
 </body>
 </html>
