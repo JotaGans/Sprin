@@ -146,120 +146,226 @@
       </div>
     </header>
 
-    <main class="flex-1 max-w-6xl w-full mx-auto px-6 py-8 flex flex-col justify-start">
-      <div class="bg-white rounded-2xl p-6 mb-5 border border-gray-200/90 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <span class="text-[11px] font-black text-teal-700 uppercase tracking-wider bg-teal-50 px-2.5 py-1 rounded-md border border-teal-100">SPRIN IMARPE</span>
-          <h2 id="hub-saludo-bienvenida" class="text-2xl md:text-3xl font-extrabold text-[#0f2a4a] mt-2 tracking-tight">Mis proyectos y programas</h2>
-          <p class="text-xs text-gray-500 font-medium mt-1">Seleccione un espacio de trabajo para registrar avances o supervisar la ruta de actividades.</p>
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col justify-start">
+      
+      <!-- 1. BANNER EJECUTIVO CON SCORECARD INTERACTIVO DE 5 KPIS DEL PORTAFOLIO -->
+      <div class="bg-white rounded-2xl p-5 mb-4 border border-slate-200/90 shadow-xs flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div class="min-w-0">
+          <div class="inline-flex items-center space-x-2">
+            <span class="text-[10px] font-black text-teal-800 uppercase tracking-wider bg-teal-50 px-2.5 py-0.5 rounded-md border border-teal-200">SPRIN IMARPE</span>
+            <span id="hub-badge-perfil-activo" class="text-[10px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">Portafolio Institucional</span>
+          </div>
+          <h2 id="hub-saludo-bienvenida" class="text-xl sm:text-2xl font-black text-[#0f2a4a] mt-1.5 tracking-tight truncate">Bienvenido(a)</h2>
+          <p id="hub-subtitulo-rol" class="text-xs text-slate-500 font-medium mt-0.5">Supervisión ejecutiva del estado de proyectos, alertas tempranas de plazos y coordinación de entregables.</p>
         </div>
 
-        <div class="flex items-center space-x-2.5 self-start md:self-auto flex-shrink-0">
-          <div class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-center min-w-[85px] shadow-xs">
-            <span class="block text-[9px] font-black text-slate-500 uppercase tracking-wider">En Panel</span>
-            <span id="hub-kpi-total-proy" class="text-lg font-black text-[#0f2a4a] leading-tight">0</span>
+        <!-- Scorecard de 5 KPIs (Clic para filtrar el portafolio en tiempo real) -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 w-full lg:w-auto flex-shrink-0">
+          <button type="button" id="hub-card-kpi-todos" onclick="hubFiltrarPorSalud('')" class="bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-xl px-3 py-2 text-left transition cursor-pointer group" title="Mostrar todos los proyectos del panel">
+            <span class="block text-[9px] font-extrabold text-slate-400 group-hover:text-[#0f2a4a] uppercase tracking-wider leading-none">En Panel</span>
+            <div class="flex items-baseline justify-between mt-1.5">
+              <span id="hub-kpi-total-proy" class="text-lg font-black text-[#0f2a4a] leading-none">0</span>
+              <span class="text-[9px] font-bold text-slate-400">proy.</span>
+            </div>
+          </button>
+
+          <div class="bg-teal-50/60 border border-teal-200/90 rounded-xl px-3 py-2 text-left">
+            <span class="block text-[9px] font-extrabold text-teal-700 uppercase tracking-wider leading-none">Avance Prom.</span>
+            <div class="flex items-center space-x-2 mt-1.5">
+              <span id="hub-kpi-prom-avance" class="text-lg font-black text-teal-900 leading-none">0%</span>
+              <div class="w-10 h-1.5 bg-teal-100 rounded-full overflow-hidden hidden sm:block">
+                <div id="hub-kpi-prom-barra" class="h-full bg-teal-600 rounded-full transition-all duration-300" style="width: 0%"></div>
+              </div>
+            </div>
           </div>
-          <div class="bg-teal-50 border border-teal-200 rounded-xl px-4 py-2 text-center min-w-[85px] shadow-xs">
-            <span class="block text-[9px] font-black text-teal-700 uppercase tracking-wider">Avance Prom.</span>
-            <span id="hub-kpi-prom-avance" class="text-lg font-black text-teal-800 leading-tight">0%</span>
-          </div>
+
+          <button type="button" id="hub-card-kpi-plazo" onclick="hubFiltrarPorSalud('EN_PLAZO')" class="bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-200/90 rounded-xl px-3 py-2 text-left transition cursor-pointer" title="Filtrar proyectos al día (sin actividades vencidas ni por vencer)">
+            <div class="flex items-center space-x-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span class="text-[9px] font-extrabold text-emerald-800 uppercase tracking-wider leading-none">En Plazo</span>
+            </div>
+            <span id="hub-kpi-en-plazo" class="text-lg font-black text-emerald-700 leading-none mt-1.5 block">0</span>
+          </button>
+
+          <button type="button" id="hub-card-kpi-atencion" onclick="hubFiltrarPorSalud('ATENCION')" class="bg-amber-50/50 hover:bg-amber-50 border border-amber-200/90 rounded-xl px-3 py-2 text-left transition cursor-pointer" title="Filtrar proyectos con entregables próximos a vencer (en 5 días o menos)">
+            <div class="flex items-center space-x-1.5">
+              <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+              <span class="text-[9px] font-extrabold text-amber-800 uppercase tracking-wider leading-none">Por Vencer</span>
+            </div>
+            <span id="hub-kpi-por-vencer" class="text-lg font-black text-amber-700 leading-none mt-1.5 block">0</span>
+          </button>
+
+          <button type="button" id="hub-card-kpi-critico" onclick="hubFiltrarPorSalud('CRITICO')" class="bg-rose-50/50 hover:bg-rose-50 border border-rose-200/90 rounded-xl px-3 py-2 text-left transition cursor-pointer col-span-2 sm:col-span-1" title="Filtrar proyectos con actividades vencidas que requieren coordinación">
+            <div class="flex items-center space-x-1.5">
+              <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+              <span class="text-[9px] font-extrabold text-rose-800 uppercase tracking-wider leading-none">Con Retraso</span>
+            </div>
+            <span id="hub-kpi-vencidos" class="text-lg font-black text-rose-700 leading-none mt-1.5 block">0</span>
+          </button>
         </div>
       </div>
 
-      <div class="bg-white rounded-xl p-2.5 mb-4 border border-gray-200 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 relative z-50">
-        <!-- Filtros superiores / apilables en móvil -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 md:flex md:flex-nowrap items-center gap-2 w-full md:w-auto">
-          <div class="relative w-full sm:w-auto md:w-40">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-gray-400 text-xs">🔍</span>
-            <input type="text" id="hub-filtro-busqueda" oninput="filtrarProyectosHub()" placeholder="Buscar..." class="w-full pl-7 pr-2 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-xs font-semibold text-gray-800 outline-none focus:bg-white focus:border-[#0f2a4a] transition truncate" title="Buscar por nombre o descripción">
+      <!-- 2. RADAR PREVENTIVO DE COORDINACIÓN DIRECTIVA Y BANDEJA OPERATIVA DE ACTIVIDADES -->
+      <div id="hub-contenedor-radar-alertas" class="mb-4 bg-white border border-slate-200/95 rounded-2xl shadow-xs overflow-hidden">
+        <div class="px-4 py-2.5 bg-slate-50/90 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center space-x-2">
+            <!-- Conmutador de Modo del Radar: Supervisión de Responsables vs Mis Entregables -->
+            <div class="inline-flex items-center bg-slate-200/75 p-0.5 rounded-lg border border-slate-300/60">
+              <button type="button" id="btn-radar-modo-equipo" onclick="cambiarModoRadarHub('equipo')" class="px-2.5 py-1 rounded-md text-[11px] font-black bg-[#0f2a4a] text-white shadow-2xs transition cursor-pointer flex items-center space-x-1.5">
+                <svg class="w-3.5 h-3.5 text-amber-300 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <span>Radar de Plazos y Responsables</span>
+                <span id="hub-radar-badge-equipo" class="px-1.5 py-0.2 rounded-full text-[9.5px] bg-amber-400 text-[#0f2a4a] font-black">0</span>
+              </button>
+              <button type="button" id="btn-radar-modo-mio" onclick="cambiarModoRadarHub('mio')" class="px-2.5 py-1 rounded-md text-[11px] font-bold text-slate-600 hover:text-[#0f2a4a] transition cursor-pointer flex items-center space-x-1.5">
+                <svg class="w-3.5 h-3.5 text-teal-700 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                </svg>
+                <span>Mis Actividades en Proyectos</span>
+                <span id="hub-radar-badge-mio" class="px-1.5 py-0.2 rounded-full text-[9.5px] bg-teal-100 text-teal-900 font-black">0</span>
+              </button>
+            </div>
           </div>
 
-          <div class="relative w-full sm:w-auto md:w-44 z-[60]">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-gray-400 text-xs">🏢</span>
-            <input type="text" id="hub-filtro-uo-busq" oninput="autocompletarUOHub(this.value)" placeholder="Filtrar por UUOO" class="w-full pl-7 pr-5 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-xs font-semibold text-gray-800 outline-none focus:bg-white focus:border-[#0f2a4a] transition truncate" autocomplete="off" title="Filtrar por Unidad de Organización">
+          <div class="flex items-center space-x-2">
+            <!-- Filtro rápido por responsable o unidad dentro del radar -->
+            <input type="text" id="hub-radar-input-filtro" oninput="renderizarRadarPreventivoHub()" placeholder="Filtrar responsable, tarea o UUOO..." class="hidden sm:block w-52 text-[11px] bg-white border border-slate-300 rounded-lg px-2.5 py-1 outline-none focus:border-[#0f2a4a] font-semibold text-slate-700">
+            <button type="button" onclick="alternarColapsoRadar()" id="btn-colapso-radar" class="h-7 px-2 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-[11px] font-bold text-slate-600 flex items-center space-x-1 cursor-pointer transition" title="Mostrar u ocultar el radar preventivo">
+              <span id="txt-colapso-radar" class="hidden md:inline">Contraer</span>
+              <span id="ico-colapso-radar">▲</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="hub-radar-cuerpo" class="p-3.5 bg-white">
+          <div id="hub-radar-lista-items" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[210px] overflow-y-auto pr-1"></div>
+        </div>
+      </div>
+
+      <!-- 3. BARRA OPERATIVA DE FILTROS Y CONMUTADOR DE VISTAS (100% ICONOS SVG) -->
+      <div class="bg-white rounded-xl p-2.5 mb-4 border border-gray-200 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 relative z-50">
+        <div class="grid grid-cols-1 sm:grid-cols-3 md:flex md:flex-nowrap items-center gap-2 w-full md:w-auto">
+          <div class="relative w-full sm:w-auto md:w-48">
+            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+            </svg>
+            <input type="text" id="hub-filtro-busqueda" oninput="filtrarProyectosHub()" placeholder="Buscar proyecto o proceso..." class="w-full pl-7 pr-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-gray-800 outline-none focus:bg-white focus:border-[#0f2a4a] transition truncate" title="Buscar por nombre, proceso o descripción">
+          </div>
+
+          <div class="relative w-full sm:w-auto md:w-48 z-[60]">
+            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+            </svg>
+            <input type="text" id="hub-filtro-uo-busq" oninput="autocompletarUOHub(this.value)" placeholder="Filtrar por UUOO..." class="w-full pl-7 pr-5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-gray-800 outline-none focus:bg-white focus:border-[#0f2a4a] transition truncate" autocomplete="off" title="Filtrar por Unidad de Organización">
             <input type="hidden" id="hub-filtro-uo-valor" onchange="filtrarProyectosHub()">
             
             <button type="button" id="btn-limpiar-filtro-uo" onclick="limpiarFiltroUnidadHub()" class="hidden absolute inset-y-0 right-0 pr-1.5 flex items-center text-gray-400 hover:text-rose-600 transition cursor-pointer" title="Limpiar filtro de unidad">
-              <span class="text-[10px] font-black bg-gray-200 hover:bg-rose-100 rounded-full w-3 h-3 flex items-center justify-center">×</span>
+              <span class="text-[10px] font-black bg-gray-200 hover:bg-rose-100 rounded-full w-3.5 h-3.5 flex items-center justify-center">×</span>
             </button>
 
             <div id="hub-sugerencias-uo" class="hidden absolute top-full left-0 right-0 md:w-64 bg-white border border-gray-300 rounded-lg shadow-2xl mt-1.5 max-h-56 overflow-y-auto z-[70] text-xs divide-y divide-gray-100"></div>
           </div>
 
-          <div class="relative w-full sm:w-auto md:w-40">
-            <select id="hub-filtro-estado" onchange="filtrarProyectosHub()" class="w-full text-xs bg-gray-50 border border-gray-300 rounded-lg pl-2 pr-6 py-1.5 font-semibold text-gray-700 outline-none focus:border-[#0f2a4a] cursor-pointer truncate">
-              <option value="">📊 Estados</option>
-              <option value="Ejecutado">Ejecutado</option>
-              <option value="En proceso">En proceso</option>
-              <option value="No iniciado">No iniciado</option>
+          <div class="relative w-full sm:w-auto md:w-44">
+            <select id="hub-filtro-estado" onchange="filtrarProyectosHub()" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 font-semibold text-gray-700 outline-none focus:border-[#0f2a4a] cursor-pointer truncate">
+              <option value="">Todos los estados</option>
+              <option value="Ejecutado">Ejecutado (100%)</option>
+              <option value="En proceso">En proceso (1% - 99%)</option>
+              <option value="No iniciado">No iniciado (0%)</option>
             </select>
           </div>
         </div>
 
-        <!-- Botones de acción inferiores / adaptables -->
-        <div class="flex items-center justify-between sm:justify-end gap-2 overflow-x-auto pb-1 sm:pb-0">
-          <button onclick="abrirModalEstadisticasHub()" class="bg-indigo-700 hover:bg-indigo-800 text-white text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 py-1.5 rounded-lg transition shadow flex items-center space-x-1 cursor-pointer whitespace-nowrap">
-            <span>📈</span>
+        <!-- Controles derechos: Estadísticas, Ocultos, Tarjetas/Tabla y Excel -->
+        <div class="flex items-center justify-between sm:justify-end gap-2 overflow-x-auto no-scrollbar">
+          <button type="button" onclick="abrirModalEstadisticasHub()" class="h-[32px] bg-[#0f2a4a] hover:bg-[#1a3d66] text-white text-xs font-bold px-3 rounded-lg transition shadow-2xs flex items-center space-x-1.5 cursor-pointer whitespace-nowrap">
+            <svg class="w-3.5 h-3.5 text-teal-300 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+            </svg>
             <span>Estadísticas</span>
           </button>
 
-          <button id="btn-toggle-proyectos-ocultos" onclick="alternarVerProyectosOcultos()" class="hidden w-[30px] h-[30px] rounded-lg bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition flex items-center justify-center cursor-pointer flex-shrink-0" title="Ver proyectos ocultos">
+          <button type="button" id="btn-toggle-proyectos-ocultos" onclick="alternarVerProyectosOcultos()" class="hidden w-[32px] h-[32px] rounded-lg bg-amber-500 hover:bg-amber-600 text-white shadow-2xs transition flex items-center justify-center cursor-pointer flex-shrink-0" title="Ver proyectos ocultos">
             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
             </svg>
           </button>
 
-          <div class="flex items-center bg-slate-100 border border-slate-200 p-0.5 sm:p-1 rounded-xl shadow-inner">
-            <button id="btn-vista-grid" onclick="cambiarVistaHub('cards')" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-black bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition-all flex items-center space-x-1 cursor-pointer">
+          <div class="sprin-view-switcher flex-shrink-0">
+            <button type="button" id="btn-vista-grid" onclick="cambiarVistaHub('cards')" class="sprin-view-btn active">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
               <span>Tarjetas</span>
             </button>
-            <button id="btn-vista-table" onclick="cambiarVistaHub('table')" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold text-slate-500 hover:text-teal-700 transition-all flex items-center space-x-1 cursor-pointer">
+            <button type="button" id="btn-vista-table" onclick="cambiarVistaHub('table')" class="sprin-view-btn">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <line x1="8" y1="6" x2="21" y2="6" />
+                <line x1="8" y1="12" x2="21" y2="12" />
+                <line x1="8" y1="18" x2="21" y2="18" />
+                <line x1="3" y1="6" x2="3.01" y2="6" />
+                <line x1="3" y1="12" x2="3.01" y2="12" />
+                <line x1="3" y1="18" x2="3.01" y2="18" />
+              </svg>
               <span>Tabla</span>
             </button>
           </div>
 
-          <button onclick="exportarResumenProyectosExcel()" class="bg-[#27ae60] hover:bg-[#219150] text-white text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 py-1.5 rounded-lg transition shadow flex items-center space-x-1 cursor-pointer" title="Descargar reporte en Excel">
-            <span>📊</span>
+          <button type="button" onclick="exportarResumenProyectosExcel()" class="h-[32px] bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-bold px-3 rounded-lg transition shadow-2xs flex items-center space-x-1.5 cursor-pointer" title="Descargar reporte consolidado en Excel">
+            <svg class="w-3.5 h-3.5 text-white flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
             <span class="hidden sm:inline">Excel</span>
           </button>
         </div>
       </div>
 
-      <div id="hub-badge-filtro-activo" class="hidden mb-4 items-center justify-between bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs">
-        <div class="flex items-center space-x-2">
-          <span>🔍</span>
-          <span><strong>Filtros activos:</strong> <span id="hub-badge-filtro-texto">Ninguno</span></span>
+      <!-- Indicador de Filtros Aplicados en el Hub con Icono de Embudo SVG y Borde Intermitente Ámbar -->
+      <div id="hub-badge-filtro-activo" class="hidden mb-4 items-center justify-between filter-active-pill-animated text-xs font-bold px-4 py-2 rounded-xl">
+        <div class="flex items-center space-x-2 truncate">
+          <svg class="w-4 h-4 text-amber-700 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+          </svg>
+          <span class="truncate"><strong>Filtros activos:</strong> <span id="hub-badge-filtro-texto">Ninguno</span></span>
         </div>
-        <button onclick="hubLimpiarTodosFiltros()" class="bg-amber-200 hover:bg-amber-300 text-amber-950 font-black px-2.5 py-1 rounded-lg text-xs transition cursor-pointer flex items-center space-x-1">
-          <span>Limpiar filtros ✕</span>
+        <button type="button" onclick="hubLimpiarTodosFiltros()" class="bg-amber-200/90 hover:bg-rose-500 text-amber-950 hover:text-white font-black px-2.5 py-1 rounded-lg text-xs transition cursor-pointer flex-shrink-0 ml-2">
+          Limpiar filtros ✕
         </button>
       </div>
 
-      <!-- CONTENEDOR PRINCIPAL DE TARJETAS DEL HUB (VISTA CARDS) -->
-      <div id="hub-vista-cards-wrapper" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10 items-stretch">
+      <!-- 4. VISTA TARJETAS DEL HUB (CARDS) -->
+      <div id="hub-vista-cards-wrapper" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 relative z-10 items-stretch">
         
-        <!-- 1. TARJETA FIJA: MIS PENDIENTES (Con sombra permanente destacada) -->
-        <div id="tarjeta-fija-pendientes-hub" class="bg-white border border-gray-200 rounded-2xl p-5 shadow-md hover:shadow-lg transition-shadow flex flex-col justify-between h-[345px]">
+        <!-- Tarjeta Fija: Mis pendientes privados -->
+        <div id="tarjeta-fija-pendientes-hub" class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between min-h-[355px]">
           <div class="flex flex-col h-full overflow-hidden">
-            <!-- Header Tarjeta -->
             <div class="flex items-center justify-between pb-3 border-b border-gray-100 flex-shrink-0">
               <div class="flex items-center space-x-2">
-                <span class="text-base leading-none">📝</span>
-                <h3 class="font-bold text-sm text-[#0f2a4a]">Mis pendientes</h3>
+                <span class="w-7 h-7 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </span>
+                <div>
+                  <h3 class="font-black text-sm text-[#0f2a4a] leading-none">Mis pendientes</h3>
+                  <span class="text-[10px] text-slate-400 font-semibold">Agenda privada personal</span>
+                </div>
               </div>
-              <span id="hub-tarjeta-pendientes-badge" class="text-[10px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+              <span id="hub-tarjeta-pendientes-badge" class="text-[10px] font-black text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
                 0 activos
               </span>
             </div>
 
-            <!-- Lista de pendientes activos -->
-            <div id="hub-tarjeta-pendientes-lista" class="mt-3 space-y-2 flex-1 overflow-y-auto pr-1">
+            <div id="hub-tarjeta-pendientes-lista" class="mt-3 space-y-2 flex-1 overflow-y-auto pr-1 max-h-[210px]">
               <div class="p-4 text-center text-gray-400 text-xs italic">
                 🎉 Todo al día. No tienes pendientes registrados.
               </div>
             </div>
 
-            <!-- Cajita Colapsable de Finalizados -->
             <div id="hub-bloque-finalizados" class="hidden mt-2 pt-2 border-t border-gray-100 flex-shrink-0">
               <button type="button" onclick="alternarDesplegableFinalizados()" class="w-full flex items-center justify-between text-[11px] font-bold text-gray-500 hover:text-teal-700 transition cursor-pointer py-1 px-1 rounded hover:bg-gray-50">
                 <span class="flex items-center space-x-1">
@@ -272,62 +378,66 @@
             </div>
           </div>
 
-          <!-- Botón unificado con el estilo de "Ingresar al Proyecto" -->
-          <button type="button" onclick="abrirModalCrearPendiente()" class="mt-3 w-full bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white text-xs font-bold py-2.5 rounded-xl transition shadow flex items-center justify-center space-x-1 cursor-pointer flex-shrink-0">
+          <button type="button" onclick="abrirModalCrearPendiente()" class="mt-3 w-full bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white text-xs font-bold py-2.5 rounded-xl transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer flex-shrink-0">
             <span class="text-sm leading-none">+</span>
             <span>Anotar un nuevo pendiente</span>
           </button>
         </div>
 
-        <!-- 2. CONTENEDOR DINÁMICO DE PROYECTOS -->
+        <!-- Contenedor Dinámico de Tarjetas de Proyectos -->
         <div id="grid-proyectos-hub" class="contents"></div>
-
       </div>
 
-      <!-- SECCIÓN VISTA TABLA DEL HUB -->
+      <!-- 5. VISTA TABLA DEL HUB (MATRIZ EJECUTIVA DE PORTAFOLIO + MIS PENDIENTES) -->
       <div id="hub-proyectos-tabla-contenedor" class="hidden space-y-5 mt-2 relative z-10">
         
-        <!-- Bloque Tabular: Mis pendientes -->
+        <!-- Bloque Tabular 1: Mis pendientes privados -->
         <div class="border border-gray-200 rounded-2xl overflow-hidden shadow-xs bg-white">
           <div class="bg-slate-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between">
             <div class="flex items-center space-x-2">
               <span class="text-sm">📝</span>
-              <h4 class="font-bold text-xs text-[#0f2a4a]">Mis pendientes</h4>
+              <h4 class="font-black text-xs text-[#0f2a4a]">Mis pendientes privados</h4>
               <span id="hub-tabla-pendientes-badge" class="text-[10px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">0 activos</span>
             </div>
             <button type="button" onclick="abrirModalCrearPendiente()" class="h-6 px-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-[11px] rounded-lg transition shadow-2xs flex items-center space-x-1 cursor-pointer">
               <span>+ Nuevo pendiente</span>
             </button>
           </div>
-          <table class="w-full text-xs text-left">
-            <thead class="bg-[#0f2a4a] text-white">
-              <tr>
-                <th class="p-2.5 font-bold text-white border-b border-blue-900 w-12 text-center">Estado</th>
-                <th class="p-2.5 font-bold text-white border-b border-blue-900 min-w-[220px]">Pendiente / Tarea</th>
-                <th class="p-2.5 font-bold text-white border-b border-blue-900 w-32 text-center whitespace-nowrap">Plazo límite</th>
-                <th class="p-2.5 font-bold text-white border-b border-blue-900 min-w-[200px]">Descripción detallada</th>
-                <th class="p-2.5 font-bold text-white border-b border-blue-900 w-24 text-center whitespace-nowrap">Acción</th>
-              </tr>
-            </thead>
-            <tbody id="hub-tabla-pendientes-body" class="divide-y divide-gray-100 font-medium"></tbody>
-          </table>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left">
+              <thead class="bg-[#0f2a4a] text-white">
+                <tr>
+                  <th class="p-2.5 font-bold text-white border-b border-blue-900 w-12 text-center">Estado</th>
+                  <th class="p-2.5 font-bold text-white border-b border-blue-900 min-w-[220px]">Pendiente / Tarea</th>
+                  <th class="p-2.5 font-bold text-white border-b border-blue-900 w-32 text-center whitespace-nowrap">Plazo límite</th>
+                  <th class="p-2.5 font-bold text-white border-b border-blue-900 min-w-[200px]">Descripción detallada</th>
+                  <th class="p-2.5 font-bold text-white border-b border-blue-900 w-24 text-center whitespace-nowrap">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="hub-tabla-pendientes-body" class="divide-y divide-gray-100 font-medium"></tbody>
+            </table>
+          </div>
         </div>
 
-        <!-- Tabla Institucional: Mis proyectos (Encabezado azul original) -->
+        <!-- Bloque Tabular 2: Matriz Ejecutiva de Proyectos y Programas -->
         <div class="border border-gray-200 rounded-2xl overflow-hidden shadow-sm bg-white">
-          <table class="w-full text-xs text-left">
-            <thead class="bg-[#0f2a4a] text-white">
-              <tr>
-                <th class="p-3 font-bold text-white border-b border-blue-900 w-12 text-center">#</th>
-                <th class="p-3 font-bold text-white border-b border-blue-900 min-w-[200px]">Mis proyectos</th>
-                <th class="p-3 font-bold text-white border-b border-blue-900 w-36 text-center whitespace-nowrap">Rol</th>
-                <th class="p-3 font-bold text-white border-b border-blue-900 w-32 text-center">% Avance</th>
-                <th class="p-3 font-bold text-white border-b border-blue-900 min-w-[280px] text-center whitespace-nowrap">Estado de tareas</th>
-                <th class="p-3 font-bold text-white border-b border-blue-900 w-44 text-center whitespace-nowrap">Acción</th>
-              </tr>
-            </thead>
-            <tbody id="hub-proyectos-tabla-body" class="divide-y divide-gray-100 font-medium"></tbody>
-          </table>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left">
+              <thead class="bg-[#0f2a4a] text-white">
+                <tr>
+                  <th class="p-3 font-bold text-white border-b border-blue-900 w-10 text-center">#</th>
+                  <th class="p-3 font-bold text-white border-b border-blue-900 min-w-[230px]">Proyecto / Proceso institucional</th>
+                  <th class="p-3 font-bold text-white border-b border-blue-900 w-28 text-center whitespace-nowrap">Salud</th>
+                  <th class="p-3 font-bold text-white border-b border-blue-900 w-28 text-center whitespace-nowrap">Rol</th>
+                  <th class="p-3 font-bold text-white border-b border-blue-900 w-32 text-center">% Avance</th>
+                  <th class="p-3 font-bold text-white border-b border-blue-900 min-w-[210px]">Próximo hito / Coordinación</th>
+                  <th class="p-3 font-bold text-white border-b border-blue-900 min-w-[200px] text-center whitespace-nowrap">Resumen de tareas</th>
+                  <th class="p-3 font-bold text-white border-b border-blue-900 w-36 text-center whitespace-nowrap">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="hub-proyectos-tabla-body" class="divide-y divide-gray-100 font-medium"></tbody>
+            </table>
+          </div>
         </div>
 
       </div>
@@ -2546,6 +2656,6 @@
   </div>
 
     <!-- Carga del Módulo Orquestador Principal ES6 -->
-    <script type="module" src="/static/js/main.js?v=100047"></script>
+    <script type="module" src="/static/js/main.js?v=100048"></script>
 </body>
 </html>

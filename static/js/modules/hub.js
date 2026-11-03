@@ -16,15 +16,16 @@ const SVG_OJO_CERRADO = `
   </svg>
 `;
 
+let filtroSaludActivoHub = "";
+let modoRadarHub = "equipo"; // 'equipo' | 'mio'
+
 export async function cargarHubProyectos() {
   if (!state.token) return;
 
   document.getElementById("view-login")?.classList.add("hidden");
 
   try {
-    const promesasHub = [
-      apiFetch("/proyectos")
-    ];
+    const promesasHub = [apiFetch("/proyectos")];
 
     if (typeof window.cargarMisPendientesServidor === "function") {
       promesasHub.push(window.cargarMisPendientesServidor().catch(() => null));
@@ -44,8 +45,23 @@ export async function cargarHubProyectos() {
     state.proyectosUsuarioGlobal = await res.json();
     sessionStorage.setItem("sprin_cache_proyectos_hub", JSON.stringify(state.proyectosUsuarioGlobal));
 
+    // Seleccionar automáticamente el modo inicial del Radar según el rol del usuario
+    const tieneRolDirectivoOGestor = state.currentUser?.rol === "ADMIN_TI" ||
+      (state.proyectosUsuarioGlobal || []).some(p => p.es_gestor === 1 || p.rol_efectivo === "AUTORIDAD" || p.rol_efectivo === "GESTOR");
+    modoRadarHub = tieneRolDirectivoOGestor ? "equipo" : "mio";
+
+    const badgePerfil = document.getElementById("hub-badge-perfil-activo");
+    if (badgePerfil) {
+      const esAutoridad = (state.proyectosUsuarioGlobal || []).some(p => p.rol_efectivo === "AUTORIDAD");
+      if (state.currentUser?.rol === "ADMIN_TI") badgePerfil.innerText = "🛡️ Supervisión Global TI";
+      else if (esAutoridad) badgePerfil.innerText = `🏛️ Supervisión Directiva (${state.currentUser?.unidad_organica || 'ROF'})`;
+      else if (tieneRolDirectivoOGestor) badgePerfil.innerText = `👑 Gestión de Proyectos (${state.currentUser?.unidad_organica || 'IMARPE'})`;
+      else badgePerfil.innerText = `👤 Panel Operativo (${state.currentUser?.unidad_organica || 'IMARPE'})`;
+    }
+
     inicializarFiltrosHub();
     actualizarKPIsHub(state.proyectosUsuarioGlobal);
+    renderizarRadarPreventivoHub();
     aplicarConmutadorVistaHub();
     filtrarProyectosHub();
   } catch (err) {
@@ -56,14 +72,198 @@ export async function cargarHubProyectos() {
 }
 
 export function actualizarKPIsHub(lista) {
-  const total = lista.length;
-  const sumaAvance = lista.reduce((acc, p) => acc + (p.avance_global || 0), 0);
+  const visibles = (lista || []).filter(p => !state.idsProyectosOcultos.has(p.id));
+  const total = visibles.length;
+  const sumaAvance = visibles.reduce((acc, p) => acc + (p.avance_global || 0), 0);
   const promAvance = total > 0 ? Math.round(sumaAvance / total) : 0;
+
+  const enPlazo = visibles.filter(p => p.salud_proyecto === "EN_PLAZO" || p.salud_proyecto === "COMPLETADO").length;
+  const porVencer = visibles.filter(p => p.salud_proyecto === "ATENCION").length;
+  const vencidos = visibles.filter(p => p.salud_proyecto === "CRITICO").length;
 
   const elTotal = document.getElementById("hub-kpi-total-proy");
   const elProm = document.getElementById("hub-kpi-prom-avance");
+  const elBarra = document.getElementById("hub-kpi-prom-barra");
+  const elPlazo = document.getElementById("hub-kpi-en-plazo");
+  const elPorVenc = document.getElementById("hub-kpi-por-vencer");
+  const elVenc = document.getElementById("hub-kpi-vencidos");
+
   if (elTotal) elTotal.innerText = total;
   if (elProm) elProm.innerText = `${promAvance}%`;
+  if (elBarra) elBarra.style.width = `${promAvance}%`;
+  if (elPlazo) elPlazo.innerText = enPlazo;
+  if (elPorVenc) elPorVenc.innerText = porVencer;
+  if (elVenc) elVenc.innerText = vencidos;
+}
+
+export function hubFiltrarPorSalud(saludKey) {
+  if (!saludKey || filtroSaludActivoHub === saludKey) {
+    filtroSaludActivoHub = "";
+  } else {
+    filtroSaludActivoHub = saludKey;
+  }
+
+  const mapaCards = {
+    "EN_PLAZO": { id: "hub-card-kpi-plazo", cls: "kpi-pill-active-emerald" },
+    "ATENCION": { id: "hub-card-kpi-atencion", cls: "kpi-pill-active-amber" },
+    "CRITICO": { id: "hub-card-kpi-critico", cls: "kpi-pill-active-rose" }
+  };
+
+  Object.entries(mapaCards).forEach(([key, conf]) => {
+    const el = document.getElementById(conf.id);
+    if (el) {
+      el.classList.remove("kpi-pill-active-emerald", "kpi-pill-active-amber", "kpi-pill-active-rose");
+      if (filtroSaludActivoHub === key) el.classList.add(conf.cls);
+    }
+  });
+
+  filtrarProyectosHub();
+}
+
+export function cambiarModoRadarHub(nuevoModo) {
+  modoRadarHub = nuevoModo;
+  renderizarRadarPreventivoHub();
+}
+
+export function renderizarRadarPreventivoHub() {
+  const listaContenedor = document.getElementById("hub-radar-lista-items");
+  const badgeEquipo = document.getElementById("hub-radar-badge-equipo");
+  const badgeMio = document.getElementById("hub-radar-badge-mio");
+  const btnEquipo = document.getElementById("btn-radar-modo-equipo");
+  const btnMio = document.getElementById("btn-radar-modo-mio");
+  if (!listaContenedor) return;
+
+  const qFiltro = (document.getElementById("hub-radar-input-filtro")?.value || "").toLowerCase().trim();
+
+  const alertasEquipo = [];
+  const tareasMias = [];
+
+  (state.proyectosUsuarioGlobal || []).forEach(p => {
+    if (state.idsProyectosOcultos.has(p.id)) return;
+
+    (p.alertas_responsables || []).forEach(al => {
+      alertasEquipo.push({
+        ...al,
+        proyecto_id: p.id,
+        proyecto_nombre: p.nombre,
+        unidad_organica: p.unidad_organica || "S/U",
+        es_gestor: (p.es_gestor === 1 || p.es_gestor === true || state.currentUser?.rol === "ADMIN_TI") && p.rol_efectivo !== "AUTORIDAD"
+      });
+    });
+
+    (p.mis_tareas_proyecto || []).forEach(t => {
+      tareasMias.push({
+        ...t,
+        proyecto_id: p.id,
+        proyecto_nombre: p.nombre,
+        unidad_organica: p.unidad_organica || "S/U",
+        es_gestor: (p.es_gestor === 1 || p.es_gestor === true || state.currentUser?.rol === "ADMIN_TI") && p.rol_efectivo !== "AUTORIDAD",
+        tipo_alerta: (t.dias_restantes !== null && t.dias_restantes < 0)
+          ? "VENCIDA"
+          : ((t.dias_restantes !== null && t.dias_restantes <= 5) ? "POR_VENCER" : "EN_PLAZO")
+      });
+    });
+  });
+
+  alertasEquipo.sort((a, b) => (a.dias_restantes ?? 999) - (b.dias_restantes ?? 999));
+  tareasMias.sort((a, b) => (a.dias_restantes ?? 999) - (b.dias_restantes ?? 999));
+
+  if (badgeEquipo) badgeEquipo.innerText = alertasEquipo.length;
+  if (badgeMio) badgeMio.innerText = tareasMias.length;
+
+  const clsActivo = "px-2.5 py-1 rounded-md text-[11px] font-black bg-[#0f2a4a] text-white shadow-2xs transition cursor-pointer flex items-center space-x-1.5";
+  const clsInactivo = "px-2.5 py-1 rounded-md text-[11px] font-bold text-slate-600 hover:text-[#0f2a4a] transition cursor-pointer flex items-center space-x-1.5";
+  if (btnEquipo) btnEquipo.className = (modoRadarHub === "equipo") ? clsActivo : clsInactivo;
+  if (btnMio) btnMio.className = (modoRadarHub === "mio") ? clsActivo : clsInactivo;
+
+  const fuenteActiva = (modoRadarHub === "equipo") ? alertasEquipo : tareasMias;
+  const itemsFiltrados = fuenteActiva.filter(item => {
+    if (!qFiltro) return true;
+    const texto = `${item.responsable || ''} ${item.descripcion || ''} ${item.proyecto_nombre || ''} ${item.unidad_organica || ''} ${item.codigo || ''}`.toLowerCase();
+    return texto.includes(qFiltro);
+  });
+
+  if (itemsFiltrados.length === 0) {
+    const msgVacio = modoRadarHub === "equipo"
+      ? "✅ Excelente: Ningún proyecto bajo su supervisión presenta actividades vencidas ni próximas a vencer en los siguientes 5 días."
+      : "🎉 No tienes actividades operativas pendientes o próximas a vencer asignadas a tu nombre en los proyectos.";
+    listaContenedor.innerHTML = `
+      <div class="col-span-full py-3.5 px-4 text-center text-slate-500 font-semibold text-xs bg-slate-50 rounded-xl border border-slate-200/70">
+        ${msgVacio}
+      </div>
+    `;
+    return;
+  }
+
+  listaContenedor.innerHTML = itemsFiltrados.slice(0, 12).map(al => {
+    const esVencida = al.tipo_alerta === "VENCIDA";
+    const esPorVencer = al.tipo_alerta === "POR_VENCER";
+
+    let badgePlazoClase = "bg-emerald-50 text-emerald-800 border-emerald-200";
+    let cardBordeClase = "border-slate-200 bg-slate-50/40";
+    let plazoTexto = al.fecha_fin ? `Plazo: ${al.fecha_fin}` : "En curso";
+
+    if (esVencida) {
+      badgePlazoClase = "bg-rose-100 text-rose-800 border-rose-300";
+      cardBordeClase = "border-rose-200 bg-rose-50/35";
+      plazoTexto = `⚠️ Vencido hace ${Math.abs(al.dias_restantes)}d (${al.fecha_fin})`;
+    } else if (esPorVencer) {
+      badgePlazoClase = "bg-amber-100 text-amber-900 border-amber-300";
+      cardBordeClase = "border-amber-200 bg-amber-50/35";
+      plazoTexto = al.dias_restantes === 0 ? `⏱️ Vence HOY (${al.fecha_fin})` : `⏱️ Vence en ${al.dias_restantes}d (${al.fecha_fin})`;
+    }
+
+    const respLista = (al.responsable || "No asignado").split(";").map(s => s.trim()).filter(Boolean);
+    const primerResp = respLista[0] || "No asignado";
+    const extraResp = respLista.length > 1 ? ` (+${respLista.length - 1})` : "";
+    const ini = primerResp.includes(",")
+      ? (primerResp.split(",")[0].trim()[0] + (primerResp.split(",")[1]?.trim()[0] || "")).toUpperCase()
+      : (primerResp.split(" ")[0][0] + (primerResp.split(" ")[1]?.[0] || "")).toUpperCase();
+
+    return `
+      <div class="p-2.5 rounded-xl border ${cardBordeClase} flex flex-col justify-between space-y-2 hover:shadow-xs transition">
+        <div>
+          <div class="flex items-center justify-between gap-1.5 mb-1">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black border ${badgePlazoClase}">
+              ${plazoTexto}
+            </span>
+            <span class="text-[10px] font-black text-[#0f2a4a] bg-white px-1.5 py-0.2 rounded border border-slate-200 flex-shrink-0" title="Unidad Orgánica">${al.unidad_organica}</span>
+          </div>
+
+          <p class="text-xs font-bold text-slate-800 leading-snug line-clamp-1" title="[${al.codigo}] ${al.descripcion}">
+            <span class="font-mono text-[#0f2a4a] font-black mr-1">[${al.codigo}]</span>${al.descripcion}
+          </p>
+          <p class="text-[10.5px] font-semibold text-teal-800 truncate mt-0.5" title="Proyecto: ${al.proyecto_nombre}">
+            📁 ${al.proyecto_nombre}
+          </p>
+        </div>
+
+        <div class="flex items-center justify-between pt-1.5 border-t border-slate-200/70 text-[11px]">
+          <div class="flex items-center space-x-1.5 min-w-0" title="Responsable(s) en manos de la tarea: ${al.responsable}">
+            <span class="w-5 h-5 rounded-full bg-[#0f2a4a] text-white text-[8.5px] font-black flex items-center justify-center flex-shrink-0">
+              ${ini || '?'}
+            </span>
+            <span class="font-bold text-slate-700 truncate max-w-[135px]">${primerResp}${extraResp}</span>
+          </div>
+
+          <button type="button" onclick="ingresarAlProyecto(${al.proyecto_id}, '${al.proyecto_nombre.replace(/'/g, "\\'")}', ${al.es_gestor})" class="px-2 py-0.5 rounded bg-[#0f2a4a] hover:bg-teal-700 text-white font-bold text-[10px] transition cursor-pointer flex-shrink-0">
+            Abrir →
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+export function alternarColapsoRadar() {
+  const cuerpo = document.getElementById("hub-radar-cuerpo");
+  const ico = document.getElementById("ico-colapso-radar");
+  const txt = document.getElementById("txt-colapso-radar");
+  if (!cuerpo) return;
+
+  const oculto = cuerpo.classList.toggle("hidden");
+  if (ico) ico.innerText = oculto ? "▼" : "▲";
+  if (txt) txt.innerText = oculto ? "Expandir" : "Contraer";
 }
 
 export function cambiarVistaHub(modo) {
@@ -84,17 +284,14 @@ export function aplicarConmutadorVistaHub() {
   const cardsWrapper = document.getElementById("hub-vista-cards-wrapper") || document.getElementById("grid-proyectos-hub");
   const tableCont = document.getElementById("hub-proyectos-tabla-contenedor");
 
-  const estiloActivo = "px-3 py-1.5 rounded-lg text-xs font-black bg-teal-600 hover:bg-teal-700 text-white shadow-sm flex items-center space-x-1.5 transition-all duration-150 cursor-pointer";
-  const estiloInactivo = "px-3 py-1.5 rounded-lg text-xs font-bold text-slate-500 hover:text-teal-700 hover:bg-slate-200/60 transition-all duration-150 flex items-center space-x-1.5 cursor-pointer";
-
   if (state.vistaHubActual === "table") {
-    if (btnTable) btnTable.className = estiloActivo;
-    if (btnGrid) btnGrid.className = estiloInactivo;
+    if (btnTable) btnTable.className = "sprin-view-btn active";
+    if (btnGrid) btnGrid.className = "sprin-view-btn";
     if (cardsWrapper) cardsWrapper.classList.add("hidden");
     if (tableCont) tableCont.classList.remove("hidden");
   } else {
-    if (btnGrid) btnGrid.className = estiloActivo;
-    if (btnTable) btnTable.className = estiloInactivo;
+    if (btnGrid) btnGrid.className = "sprin-view-btn active";
+    if (btnTable) btnTable.className = "sprin-view-btn";
     if (cardsWrapper) cardsWrapper.classList.remove("hidden");
     if (tableCont) tableCont.classList.add("hidden");
   }
@@ -113,7 +310,7 @@ export function actualizarBotonOcultosHubUI() {
   if (cant > 0) {
     btnOcultos.classList.remove("hidden");
     if (state.mostrandoOcultosHub) {
-      btnOcultos.className = "h-[30px] px-2.5 rounded-lg text-xs font-black bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition flex items-center space-x-1 cursor-pointer whitespace-nowrap flex-shrink-0";
+      btnOcultos.className = "h-[32px] px-2.5 rounded-lg text-xs font-black bg-teal-600 hover:bg-teal-700 text-white shadow-xs transition flex items-center space-x-1 cursor-pointer whitespace-nowrap flex-shrink-0";
       btnOcultos.innerHTML = `
         <svg class="w-3.5 h-3.5 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -123,7 +320,7 @@ export function actualizarBotonOcultosHubUI() {
       `;
       btnOcultos.title = "Volver al panel principal de proyectos";
     } else {
-      btnOcultos.className = "w-[30px] h-[30px] rounded-lg bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition flex items-center justify-center cursor-pointer flex-shrink-0";
+      btnOcultos.className = "w-[32px] h-[32px] rounded-lg bg-amber-500 hover:bg-amber-600 text-white shadow-xs transition flex items-center justify-center cursor-pointer flex-shrink-0";
       btnOcultos.innerHTML = `
         <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -157,6 +354,8 @@ export function alternarOcultarProyecto(id, event) {
     notificarToast("Proyecto ocultado de la vista principal.", "info");
   }
   guardarOcultosLocalStorage();
+  actualizarKPIsHub(state.proyectosUsuarioGlobal);
+  renderizarRadarPreventivoHub();
   filtrarProyectosHub();
 }
 
@@ -226,6 +425,14 @@ export function renderizarTarjetasHub(lista) {
       badgeRolTexto = "👁️ Visualizador";
     }
 
+    // Semáforo de salud ejecutiva del proyecto
+    let badgeSaludHTML = `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200" title="Todas las actividades dentro del plazo programado">🟢 En plazo</span>`;
+    if (p.salud_proyecto === "CRITICO") {
+      badgeSaludHTML = `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200" title="Actividades con fecha de vencimiento superada">🔴 ${p.vencidas_count} vencida(s)</span>`;
+    } else if (p.salud_proyecto === "ATENCION") {
+      badgeSaludHTML = `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-50 text-amber-900 border border-amber-200" title="Actividades que vencen en los próximos 5 días">🟡 ${p.por_vencer_count} por vencer</span>`;
+    }
+
     const badgeAlcanceHTML = esPublico
       ? `<span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-teal-50 text-teal-700 border border-teal-200 text-xs shadow-2xs cursor-help" title="Proyecto visible a nivel institucional">🌐</span>`
       : `<span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-slate-100 text-slate-600 border border-slate-200 text-xs shadow-2xs cursor-help" title="Proyecto privado">🔒</span>`;
@@ -237,15 +444,15 @@ export function renderizarTarjetasHub(lista) {
     const avanceVal = parseInt(p.avance_global) || 0;
     const estaOculto = state.idsProyectosOcultos.has(p.id);
 
-    let badgeAvanceClases = "bg-rose-50 text-rose-700 border border-rose-200";
-    let barraColorClase = "bg-rose-500";
+    let badgeAvanceClases = "bg-slate-100 text-slate-800 border border-slate-200";
+    let barraColorClase = "bg-teal-600";
 
     if (avanceVal === 100) {
       badgeAvanceClases = "bg-emerald-50 text-emerald-800 border border-emerald-200";
       barraColorClase = "bg-emerald-500";
     } else if (avanceVal > 0) {
-      badgeAvanceClases = "bg-amber-50 text-amber-800 border border-amber-200";
-      barraColorClase = "bg-amber-500";
+      badgeAvanceClases = "bg-teal-50 text-teal-900 border border-teal-200";
+      barraColorClase = "bg-teal-600";
     }
 
     let siglaUnidad = "";
@@ -260,25 +467,43 @@ export function renderizarTarjetasHub(lista) {
       nombreCompletoUnidad = uObj ? uObj.nombre : p.unidad_organica.trim();
     }
 
-    const tooltipUo = nombreCompletoUnidad ? `title="${nombreCompletoUnidad}"` : '';
+    const tooltipUo = nombreCompletoUnidad ? `title="${nombreCompletoUnidad} (Doble clic para cambiar)"` : '';
     const estiloCursorUo = esGestor ? 'cursor-pointer hover:text-teal-900 transition' : '';
 
     const procesoValor = (p.proceso_relacionado || p.proceso_nombre || p.proceso_codigo || "").trim();
     const tieneProceso = Boolean(procesoValor);
     const nombreLimpioProceso = tieneProceso ? procesoValor : "Sin proceso asignado";
-    const tooltipProceso = `title="${nombreLimpioProceso}"`;
+    const tooltipProceso = `title="${nombreLimpioProceso} (Doble clic para cambiar)"`;
     const estiloCursorProceso = esGestor ? 'cursor-pointer hover:text-teal-900 transition' : '';
 
+    // Franja interna de coordinación preventiva (si hay entregables vencidos o por vencer)
+    let franjaCoordinacionHTML = "";
+    if (p.alertas_responsables && p.alertas_responsables.length > 0) {
+      const topAl = p.alertas_responsables[0];
+      const esVenc = topAl.tipo_alerta === "VENCIDA";
+      const respCorto = (topAl.responsable || "No asignado").split(";")[0].trim();
+      franjaCoordinacionHTML = `
+        <div class="mt-2.5 px-2.5 py-1.5 rounded-xl border ${esVenc ? 'bg-rose-50/60 border-rose-200 text-rose-900' : 'bg-amber-50/60 border-amber-200 text-amber-950'} text-[10.5px]">
+          <div class="flex items-center justify-between gap-1 font-bold">
+            <span class="truncate" title="[${topAl.codigo}] ${topAl.descripcion}">${esVenc ? '⚠️ Retraso:' : '⏱️ Por vencer:'} [${topAl.codigo}] ${topAl.descripcion}</span>
+            <span class="font-mono text-[10px] font-black flex-shrink-0">${topAl.fecha_fin}</span>
+          </div>
+          <div class="text-[10px] text-slate-600 truncate mt-0.5">👤 En manos de: <strong class="text-slate-800">${respCorto}</strong></div>
+        </div>
+      `;
+    }
+
     const card = document.createElement("div");
-    card.className = "bg-white rounded-2xl p-6 border border-gray-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between hover:border-teal-500/50 relative";
+    card.className = "bg-white rounded-2xl p-5 border border-gray-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between hover:border-teal-500/50 relative min-h-[355px]";
     card.innerHTML = `
       <div>
-        <div class="flex items-center justify-between mb-3.5 gap-1">
+        <div class="flex items-center justify-between mb-3 gap-1">
           <div class="flex items-center space-x-1.5 flex-wrap">
-            <span class="text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider whitespace-nowrap border ${badgeRolClases}">
+            <span class="text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider whitespace-nowrap border ${badgeRolClases}">
               ${badgeRolTexto}
             </span>
             ${badgeAlcanceHTML}
+            ${badgeSaludHTML}
           </div>
           <div class="flex items-center space-x-1">
             <button onclick="alternarOcultarProyecto(${p.id}, event)" class="p-1 rounded hover:bg-gray-100 transition cursor-pointer" title="${estaOculto ? 'Restaurar al panel principal' : 'Ocultar proyecto de la vista'}">
@@ -291,11 +516,11 @@ export function renderizarTarjetasHub(lista) {
                 </svg>
               </button>
             ` : ''}
-            <span class="text-xs font-black px-2 py-0.5 rounded whitespace-nowrap ${badgeAvanceClases}">${avanceVal}% avance</span>
+            <span class="text-xs font-black px-2 py-0.5 rounded whitespace-nowrap ${badgeAvanceClases}">${avanceVal}%</span>
           </div>
         </div>
         
-        <h3 class="font-bold text-base text-[#0f2a4a] leading-snug line-clamp-2 break-words" title="${p.nombre.replace(/"/g, '&quot;')}">${p.nombre}</h3>
+        <h3 class="font-extrabold text-sm sm:text-base text-[#0f2a4a] leading-snug line-clamp-2 break-words" title="${p.nombre.replace(/"/g, '&quot;')}">${p.nombre}</h3>
         
         <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
           <p ${tooltipUo} 
@@ -307,7 +532,7 @@ export function renderizarTarjetasHub(lista) {
           <span class="text-gray-300 text-xs">•</span>
           <p ${tooltipProceso} 
              ondblclick="${esGestor ? `editarProcesoProyectoModal(${p.id})` : ''}"
-             class="text-[11px] font-semibold text-slate-600 inline-flex items-center space-x-1 max-w-[220px] truncate ${estiloCursorProceso}">
+             class="text-[11px] font-semibold text-slate-600 inline-flex items-center space-x-1 max-w-[210px] truncate ${estiloCursorProceso}">
             <span>⚙️</span>
             <span class="truncate ${tieneProceso ? 'text-[#0f2a4a] font-bold' : 'italic text-amber-600 font-bold'}">${nombreLimpioProceso}</span>
           </p>
@@ -315,31 +540,33 @@ export function renderizarTarjetasHub(lista) {
 
         <p ${tooltipEdit} 
            ondblclick="${esGestor ? `editarDescripcionProyecto(${p.id}, '${descEscapada}')` : ''}" 
-           class="text-xs text-gray-500 mt-2 line-clamp-2 min-h-[32px] leading-relaxed ${estiloCursor}">
+           class="text-xs text-gray-500 mt-1.5 line-clamp-2 min-h-[30px] leading-relaxed ${estiloCursor}">
           ${textoDesc}
         </p>
+
+        ${franjaCoordinacionHTML}
         
-        <div class="w-full bg-gray-100 rounded-full h-2 mt-4 overflow-hidden shadow-inner">
+        <div class="w-full bg-gray-100 rounded-full h-2 mt-3 overflow-hidden shadow-inner">
           <div class="${barraColorClase} h-2 rounded-full transition-all duration-500" style="width: ${avanceVal}%"></div>
         </div>
 
-        <div class="grid grid-cols-3 gap-2 mt-4 text-center">
-          <div class="bg-emerald-50/80 p-2 rounded-xl border border-emerald-100">
-            <span class="block text-[9px] font-black text-emerald-700 uppercase">Ejecutado</span>
+        <div class="grid grid-cols-3 gap-2 mt-3 text-center">
+          <div class="bg-emerald-50/80 p-1.5 rounded-xl border border-emerald-100">
+            <span class="block text-[8.5px] font-black text-emerald-700 uppercase">Ejecutado</span>
             <span class="text-xs font-black text-emerald-900">${p.ejecutadas || 0}</span>
           </div>
-          <div class="bg-amber-50/80 p-2 rounded-xl border border-amber-100">
-            <span class="block text-[9px] font-black text-amber-700 uppercase">En proceso</span>
+          <div class="bg-amber-50/80 p-1.5 rounded-xl border border-amber-100">
+            <span class="block text-[8.5px] font-black text-amber-700 uppercase">En proceso</span>
             <span class="text-xs font-black text-amber-900">${p.en_proceso || 0}</span>
           </div>
-          <div class="bg-rose-50/80 p-2 rounded-xl border border-rose-100">
-            <span class="block text-[9px] font-black text-rose-700 uppercase">No iniciado</span>
+          <div class="bg-rose-50/80 p-1.5 rounded-xl border border-rose-100">
+            <span class="block text-[8.5px] font-black text-rose-700 uppercase">No iniciado</span>
             <span class="text-xs font-black text-rose-900">${p.pendientes || 0}</span>
           </div>
         </div>
       </div>
 
-      <button onclick="ingresarAlProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', ${esGestor})" class="w-full mt-6 py-2.5 bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center space-x-2 cursor-pointer">
+      <button onclick="ingresarAlProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', ${esGestor})" class="w-full mt-4 py-2.5 bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center space-x-2 cursor-pointer">
         <span>Ingresar al proyecto</span>
         <span class="text-sm">→</span>
       </button>
@@ -350,9 +577,9 @@ export function renderizarTarjetasHub(lista) {
   if (!state.mostrandoOcultosHub) {
     const cardNuevo = document.createElement("div");
     cardNuevo.onclick = abrirModalNuevoProyecto;
-    cardNuevo.className = "bg-slate-50/60 hover:bg-white rounded-2xl p-6 border-2 border-dashed border-slate-300 hover:border-teal-500 transition-all cursor-pointer flex flex-col items-center justify-center text-center group min-h-[290px] shadow-sm hover:shadow-md";
+    cardNuevo.className = "bg-slate-50/60 hover:bg-white rounded-2xl p-6 border-2 border-dashed border-slate-300 hover:border-teal-500 transition-all cursor-pointer flex flex-col items-center justify-center text-center group min-h-[355px] shadow-xs hover:shadow-md";
     cardNuevo.innerHTML = `
-      <div class="w-12 h-12 rounded-full bg-teal-50 group-hover:bg-teal-600 text-teal-600 group-hover:text-white flex items-center justify-center text-xl font-black mb-3 transition shadow-sm">
+      <div class="w-12 h-12 rounded-full bg-teal-50 group-hover:bg-teal-600 text-teal-600 group-hover:text-white flex items-center justify-center text-xl font-black mb-3 transition shadow-xs">
         +
       </div>
       <h4 class="text-sm font-black text-gray-700 group-hover:text-[#0f2a4a] transition">Nuevo proyecto o programa</h4>
@@ -373,7 +600,7 @@ export function renderizarTablaHub(lista) {
   const listaFinal = lista.filter(p => state.mostrandoOcultosHub ? state.idsProyectosOcultos.has(p.id) : !state.idsProyectosOcultos.has(p.id));
 
   if (listaFinal.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-400 font-semibold italic">No se encontraron proyectos.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-400 font-semibold italic">No se encontraron proyectos con los filtros seleccionados.</td></tr>`;
     return;
   }
 
@@ -394,6 +621,13 @@ export function renderizarTablaHub(lista) {
       badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase whitespace-nowrap bg-slate-100 text-slate-700 border border-slate-300">👁️ VISUALIZADOR</span>`;
     }
 
+    let badgeSaludHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200">🟢 En plazo</span>`;
+    if (p.salud_proyecto === "CRITICO") {
+      badgeSaludHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">🔴 ${p.vencidas_count} vencida(s)</span>`;
+    } else if (p.salud_proyecto === "ATENCION") {
+      badgeSaludHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-50 text-amber-900 border border-amber-200">🟡 ${p.por_vencer_count} por vencer</span>`;
+    }
+
     const badgeAlcanceHTML = esPublico
       ? `<span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-teal-50 text-teal-700 border border-teal-200 text-xs shadow-2xs cursor-help flex-shrink-0" title="Proyecto visible a nivel institucional">🌐</span>`
       : `<span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-slate-100 text-slate-600 border border-slate-200 text-xs shadow-2xs cursor-help flex-shrink-0" title="Proyecto privado">🔒</span>`;
@@ -404,19 +638,35 @@ export function renderizarTablaHub(lista) {
     const descEscapada = (p.descripcion || "").replace(/'/g, "\\'").replace(/"/g, '&quot;');
     const tooltipDesc = esGestor ? 'title="Doble clic para editar descripción"' : '';
     const cursorDesc = esGestor ? 'cursor-pointer hover:text-teal-700 transition' : '';
-
     const procesoValor = (p.proceso_relacionado || p.proceso_nombre || p.proceso_codigo || "").trim();
+
+    let hitoCoordHTML = `<span class="text-[11px] text-slate-400 italic">Al día sin alertas</span>`;
+    if (p.alertas_responsables && p.alertas_responsables.length > 0) {
+      const al = p.alertas_responsables[0];
+      const esV = al.tipo_alerta === "VENCIDA";
+      hitoCoordHTML = `
+        <div class="text-[11px] leading-tight">
+          <div class="font-bold ${esV ? 'text-rose-700' : 'text-amber-900'} truncate max-w-[210px]" title="[${al.codigo}] ${al.descripcion}">
+            ${esV ? '⚠️' : '⏱️'} [${al.codigo}] ${al.descripcion}
+          </div>
+          <div class="text-[10px] text-slate-500 mt-0.5 truncate max-w-[210px]">
+            👤 <strong>${(al.responsable || '').split(';')[0]}</strong> · 📅 ${al.fecha_fin}
+          </div>
+        </div>
+      `;
+    }
 
     tbody.innerHTML += `
       <tr class="hover:bg-gray-50 transition border-b border-gray-100">
         <td class="p-3 text-center text-gray-400 font-mono text-xs">${idx + 1}</td>
         <td class="p-3">
           <div class="flex items-center gap-1.5">
+            <span class="bg-teal-50 text-teal-900 border border-teal-200 px-1.5 py-0.2 rounded text-[10px] font-black">${p.unidad_organica || 'S/U'}</span>
             <span class="font-bold text-gray-800 text-xs">${p.nombre}</span>${badgeAlcanceHTML}
           </div>
           <div ${tooltipDesc} 
                ondblclick="${esGestor ? `editarDescripcionProyecto(${p.id}, '${descEscapada}')` : ''}" 
-               class="text-[11px] text-gray-500 line-clamp-1 ${cursorDesc}">
+               class="text-[11px] text-gray-500 line-clamp-1 mt-0.5 ${cursorDesc}">
             ${p.descripcion && p.descripcion.trim() !== '' ? p.descripcion : '<span class="italic text-gray-400">Sin descripción</span>'}
           </div>
           <div class="text-[10px] text-teal-800 font-semibold mt-0.5 flex items-center gap-1">
@@ -428,9 +678,8 @@ export function renderizarTablaHub(lista) {
             </span>
           </div>
         </td>
-        <td class="p-3 text-center whitespace-nowrap">
-          ${badgeRolHTML}
-        </td>
+        <td class="p-3 text-center whitespace-nowrap">${badgeSaludHTML}</td>
+        <td class="p-3 text-center whitespace-nowrap">${badgeRolHTML}</td>
         <td class="p-3 text-center">
           <div class="flex items-center space-x-2 justify-center">
             <div class="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
@@ -439,35 +688,27 @@ export function renderizarTablaHub(lista) {
             <span class="font-black text-gray-800 text-xs">${pct}%</span>
           </div>
         </td>
+        <td class="p-3">${hitoCoordHTML}</td>
         <td class="p-3 text-center">
-          <div class="inline-flex items-center space-x-1.5 text-[10px] font-bold whitespace-nowrap">
-            <span class="bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded whitespace-nowrap inline-flex items-center space-x-1" title="Ejecutadas">
-              <span>${p.ejecutadas || 0}</span><span>Ejec.</span>
-            </span>
-            <span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded whitespace-nowrap inline-flex items-center space-x-1" title="En proceso">
-              <span>${p.en_proceso || 0}</span><span>En proc.</span>
-            </span>
-            <span class="bg-rose-50 text-rose-800 border border-rose-200 px-2 py-0.5 rounded whitespace-nowrap inline-flex items-center space-x-1" title="No iniciadas">
-              <span>${p.pendientes || 0}</span><span>No inic.</span>
-            </span>
+          <div class="inline-flex items-center space-x-1 text-[10px] font-bold whitespace-nowrap">
+            <span class="bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded" title="Ejecutadas">${p.ejecutadas || 0} Ejec.</span>
+            <span class="bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded" title="En proceso">${p.en_proceso || 0} Proc.</span>
+            <span class="bg-rose-50 text-rose-800 border border-rose-200 px-1.5 py-0.5 rounded" title="No iniciadas">${p.pendientes || 0} Pend.</span>
           </div>
         </td>
         <td class="p-3 text-right whitespace-nowrap">
           <div class="inline-flex items-center justify-end space-x-1.5 w-full">
-            <div class="inline-flex items-center justify-end space-x-1 min-w-[52px]">
-              <button onclick="alternarOcultarProyecto(${p.id}, event)" class="p-1 rounded hover:bg-gray-200 transition cursor-pointer inline-flex items-center justify-center" title="${estaOculto ? 'Restaurar al panel' : 'Ocultar vista'}">
-                ${estaOculto ? SVG_OJO_ABIERTO : SVG_OJO_CERRADO}
+            <button onclick="alternarOcultarProyecto(${p.id}, event)" class="p-1 rounded hover:bg-gray-200 transition cursor-pointer" title="${estaOculto ? 'Restaurar al panel' : 'Ocultar vista'}">
+              ${estaOculto ? SVG_OJO_ABIERTO : SVG_OJO_CERRADO}
+            </button>
+            ${puedeEliminar ? `
+              <button onclick="solicitarEliminarProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', event)" class="p-1 rounded text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer" title="Eliminar proyecto vacío">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
               </button>
-              ${puedeEliminar ? `
-                <button onclick="solicitarEliminarProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', event)" class="p-1 rounded text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer inline-flex items-center justify-center" title="Eliminar proyecto vacío">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              ` : ''}
-            </div>
-            
-            <button onclick="ingresarAlProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', ${esGestor})" class="bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition shadow cursor-pointer whitespace-nowrap">
+            ` : ''}
+            <button onclick="ingresarAlProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', ${esGestor})" class="bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition shadow-xs cursor-pointer whitespace-nowrap">
               Ingresar →
             </button>
           </div>
@@ -483,12 +724,13 @@ export function exportarResumenProyectosExcel() {
     return;
   }
 
-  let csv = "ID;Proyecto / Programa;Unidad Responsable;Descripcion;Rol Asignado;% Avance;Total Actividades;Ejecutadas;En Proceso;No Iniciadas;Fecha de Creacion\n";
+  let csv = "ID;Proyecto / Programa;Unidad Responsable;Proceso;Salud;Descripcion;Rol Asignado;% Avance;Total Actividades;Ejecutadas;En Proceso;No Iniciadas;Vencidas;Por Vencer (<=5d);Fecha de Creacion\n";
   
   state.proyectosUsuarioGlobal.forEach(p => {
-    const rol = (p.es_gestor === 1 || p.es_gestor === true || state.currentUser.rol === "ADMIN_TI") ? "GESTOR" : "RESPONSABLE";
+    const rol = p.rol_efectivo || ((p.es_gestor === 1 || p.es_gestor === true || state.currentUser.rol === "ADMIN_TI") ? "GESTOR" : "RESPONSABLE");
     const desc = (p.descripcion || "").replace(/(\r\n|\n|\r|")/gm, " ");
-    csv += `"${p.id}";"${p.nombre.replace(/"/g, '""')}";"${p.unidad_organica || ''}";"${desc}";"${rol}";${p.avance_global || 0}%;${p.total_actividades || 0};${p.ejecutadas || 0};${p.en_proceso || 0};${p.pendientes || 0};"${p.fecha_creacion || ''}"\n`;
+    const proc = (p.proceso_relacionado || p.proceso_nombre || "").replace(/(\r\n|\n|\r|")/gm, " ");
+    csv += `"${p.id}";"${p.nombre.replace(/"/g, '""')}";"${p.unidad_organica || ''}";"${proc}";"${p.salud_proyecto || 'EN_PLAZO'}";"${desc}";"${rol}";${p.avance_global || 0}%;${p.total_actividades || 0};${p.ejecutadas || 0};${p.en_proceso || 0};${p.pendientes || 0};${p.vencidas_count || 0};${p.por_vencer_count || 0};"${p.fecha_creacion || ''}"\n`;
   });
 
   const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
@@ -496,7 +738,7 @@ export function exportarResumenProyectosExcel() {
   link.href = URL.createObjectURL(blob);
   link.download = `IMARPE_Consolidado_Proyectos_${new Date().toISOString().split("T")[0]}.csv`;
   link.click();
-  notificarToast("Resumen consolidado descargado en Excel.", "success");
+  notificarToast("Resumen ejecutivo descargado en Excel.", "success");
 }
 
 export function abrirModalNuevoProyecto() { 
@@ -622,6 +864,37 @@ export function autocompletarUOProyecto(termino) {
       item.onclick = () => {
         document.getElementById("input-nuevo-proy-uo-busq").value = `${u.sigla} - ${u.nombre}`;
         document.getElementById("input-nuevo-proy-uo-valor").value = u.sigla;
+        divSug.classList.add("hidden");
+      };
+      divSug.appendChild(item);
+    });
+  }
+  divSug.classList.remove("hidden");
+}
+
+export function autocompletarUOClonacion(termino) {
+  const term = (termino || "").toLowerCase().trim();
+  const divSug = document.getElementById("sugerencias-uo-clonacion");
+  if (!divSug) return;
+
+  if (!term) {
+    divSug.classList.add("hidden");
+    return;
+  }
+  const matches = (state.catalogoUnidadesGlobal || []).filter(u =>
+    u.sigla.toLowerCase().includes(term) || u.nombre.toLowerCase().includes(term)
+  );
+  divSug.innerHTML = "";
+  if (matches.length === 0) {
+    divSug.innerHTML = `<div class="p-2 text-gray-400">Sin coincidencias</div>`;
+  } else {
+    matches.slice(0, 5).forEach(u => {
+      const item = document.createElement("div");
+      item.className = "p-2 hover:bg-teal-50 cursor-pointer flex justify-between font-semibold";
+      item.innerHTML = `<span>${u.nombre}</span><strong class="text-[#0f2a4a] ml-2">[${u.sigla}]</strong>`;
+      item.onclick = () => {
+        document.getElementById("np-input-clon-uo-busq").value = `${u.sigla} - ${u.nombre}`;
+        document.getElementById("np-input-clon-uo-valor").value = u.sigla;
         divSug.classList.add("hidden");
       };
       divSug.appendChild(item);
@@ -1108,19 +1381,32 @@ export function obtenerProyectosFiltradosHub() {
   const filtroEstado = document.getElementById("hub-filtro-estado")?.value || "";
 
   return (state.proyectosUsuarioGlobal || []).filter(p => {
-    const matchTexto = !query || (p.nombre && p.nombre.toLowerCase().includes(query)) || (p.descripcion && p.descripcion.toLowerCase().includes(query));
+    const matchTexto = !query ||
+      (p.nombre && p.nombre.toLowerCase().includes(query)) ||
+      (p.descripcion && p.descripcion.toLowerCase().includes(query)) ||
+      (p.proceso_nombre && p.proceso_nombre.toLowerCase().includes(query)) ||
+      (p.proceso_codigo && p.proceso_codigo.toLowerCase().includes(query));
+
     let matchUo = true;
     if (filtroUo !== "") {
       const pUo = (p.unidad_organica || "").trim().toUpperCase();
       const fUo = filtroUo.toUpperCase();
       matchUo = (pUo === fUo || pUo.startsWith(fUo + " ") || pUo.includes(`[${fUo}]`));
     }
+
     let matchEstado = true;
     if (filtroEstado === "Ejecutado") matchEstado = (p.avance_global === 100);
     else if (filtroEstado === "En proceso") matchEstado = (p.avance_global > 0 && p.avance_global < 100);
     else if (filtroEstado === "No iniciado") matchEstado = (p.avance_global === 0);
 
-    return matchTexto && matchUo && matchEstado;
+    let matchSalud = true;
+    if (filtroSaludActivoHub === "EN_PLAZO") {
+      matchSalud = (p.salud_proyecto === "EN_PLAZO" || p.salud_proyecto === "COMPLETADO");
+    } else if (filtroSaludActivoHub) {
+      matchSalud = (p.salud_proyecto === filtroSaludActivoHub);
+    }
+
+    return matchTexto && matchUo && matchEstado && matchSalud;
   });
 }
 
@@ -1136,7 +1422,7 @@ export function actualizarBadgeFiltrosHub() {
   const uoVal = (document.getElementById("hub-filtro-uo-busq")?.value || "").trim();
   const estadoVal = document.getElementById("hub-filtro-estado")?.value || "";
 
-  const hayFiltro = (query !== "" || uoVal !== "" || estadoVal !== "");
+  const hayFiltro = (query !== "" || uoVal !== "" || estadoVal !== "" || filtroSaludActivoHub !== "");
   const badgeDiv = document.getElementById("hub-badge-filtro-activo");
   const badgeTxt = document.getElementById("hub-badge-filtro-texto");
 
@@ -1146,7 +1432,11 @@ export function actualizarBadgeFiltrosHub() {
     if (query) descripciones.push(`Texto: "${query}"`);
     if (uoVal) descripciones.push(`Unidad: "${uoVal}"`);
     if (estadoVal) descripciones.push(`Estado: "${estadoVal}"`);
-    badgeTxt.innerText = descripciones.join(" | ");
+    if (filtroSaludActivoHub) {
+      const etq = filtroSaludActivoHub === "CRITICO" ? "Con retraso" : (filtroSaludActivoHub === "ATENCION" ? "Por vencer" : "En plazo");
+      descripciones.push(`Salud: ${etq}`);
+    }
+    badgeTxt.innerText = descripciones.join(" · ");
     badgeDiv.classList.remove("hidden");
     badgeDiv.classList.add("flex");
   } else {
@@ -1156,6 +1446,11 @@ export function actualizarBadgeFiltrosHub() {
 }
 
 export function hubLimpiarTodosFiltros() {
+  filtroSaludActivoHub = "";
+  ["hub-card-kpi-plazo", "hub-card-kpi-atencion", "hub-card-kpi-critico"].forEach(idEl => {
+    document.getElementById(idEl)?.classList.remove("kpi-pill-active-emerald", "kpi-pill-active-amber", "kpi-pill-active-rose");
+  });
+
   const inpBusq = document.getElementById("hub-filtro-busqueda");
   const inpUo = document.getElementById("hub-filtro-uo-busq");
   const inpUoVal = document.getElementById("hub-filtro-uo-valor");
@@ -1602,9 +1897,13 @@ export function resetearSlicersEstadisticas() {
   aplicarFiltrosEstadisticas();
 }
 
-// Exposición pública al objeto window
+// Exposición pública completa al objeto window
 window.cargarHubProyectos = cargarHubProyectos;
 window.cambiarVistaHub = cambiarVistaHub;
+window.hubFiltrarPorSalud = hubFiltrarPorSalud;
+window.cambiarModoRadarHub = cambiarModoRadarHub;
+window.renderizarRadarPreventivoHub = renderizarRadarPreventivoHub;
+window.alternarColapsoRadar = alternarColapsoRadar;
 window.alternarVerProyectosOcultos = alternarVerProyectosOcultos;
 window.alternarOcultarProyecto = alternarOcultarProyecto;
 window.solicitarEliminarProyecto = solicitarEliminarProyecto;
@@ -1612,6 +1911,7 @@ window.exportarResumenProyectosExcel = exportarResumenProyectosExcel;
 window.abrirModalNuevoProyecto = abrirModalNuevoProyecto;
 window.cerrarModalNuevoProyecto = cerrarModalNuevoProyecto;
 window.autocompletarUOProyecto = autocompletarUOProyecto;
+window.autocompletarUOClonacion = autocompletarUOClonacion;
 window.guardarNuevoProyecto = guardarNuevoProyecto;
 window.editarDescripcionProyecto = editarDescripcionProyecto;
 window.editarUnidadOrganicaProyecto = editarUnidadOrganicaProyecto;

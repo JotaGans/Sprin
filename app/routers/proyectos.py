@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime, date
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from app.database.connection import get_db
@@ -95,15 +96,56 @@ def listar_proyectos_usuario(user: dict = Depends(get_current_user), db: sqlite3
             mi_sigla_autoridad
         )).fetchall()
     
+    hoy_date = datetime.now().date()
+    u_username_low = (user.get("username") or "").strip().lower()
+    u_nombre_low = (user.get("nombre_completo") or "").strip().lower()
+
+    def parsear_fecha_str(f_str):
+        if not f_str:
+            return None
+        s = str(f_str).strip().split("T")[0]
+        try:
+            if "/" in s:
+                partes = s.split("/")
+                if len(partes) == 3:
+                    if len(partes[0]) == 4:
+                        return date(int(partes[0]), int(partes[1]), int(partes[2]))
+                    return date(int(partes[2]), int(partes[1]), int(partes[0]))
+            elif "-" in s:
+                partes = s.split("-")
+                if len(partes) == 3:
+                    if len(partes[0]) == 4:
+                        return date(int(partes[0]), int(partes[1]), int(partes[2]))
+                    return date(int(partes[2]), int(partes[1]), int(partes[0]))
+        except Exception:
+            return None
+        return None
+
     proyectos_resumen = []
     for r in rows:
         p_dict = dict(r)
         p_id = p_dict["id"]
         
-        acts_raw = db.execute("SELECT codigo, avance, estado FROM actividades WHERE proyecto_id = ? ORDER BY codigo ASC", (p_id,)).fetchall()
+        acts_raw = db.execute("""
+            SELECT codigo, descripcion, responsable, avance, estado, fecha_inicio, fecha_fin, dias 
+            FROM actividades 
+            WHERE proyecto_id = ? 
+            ORDER BY codigo ASC
+        """, (p_id,)).fetchall()
         
         if not acts_raw:
-            p_dict.update({"total_actividades": 0, "ejecutadas": 0, "en_proceso": 0, "pendientes": 0, "avance_global": 0})
+            p_dict.update({
+                "total_actividades": 0,
+                "ejecutadas": 0,
+                "en_proceso": 0,
+                "pendientes": 0,
+                "avance_global": 0,
+                "vencidas_count": 0,
+                "por_vencer_count": 0,
+                "salud_proyecto": "EN_PLAZO",
+                "alertas_responsables": [],
+                "mis_tareas_proyecto": []
+            })
             proyectos_resumen.append(p_dict)
             continue
 
@@ -112,8 +154,13 @@ def listar_proyectos_usuario(user: dict = Depends(get_current_user), db: sqlite3
             cod = str(a["codigo"]).rstrip(".")
             acts_dict[cod] = {
                 "codigo": cod,
+                "descripcion": str(a["descripcion"] or ""),
+                "responsable": str(a["responsable"] or "No asignado"),
                 "avance": int(a["avance"] or 0),
-                "estado": str(a["estado"] or "No iniciado")
+                "estado": str(a["estado"] or "No iniciado"),
+                "fecha_inicio": str(a["fecha_inicio"] or ""),
+                "fecha_fin": str(a["fecha_fin"] or ""),
+                "dias": int(a["dias"] or 1)
             }
 
         def round_half_up(n):
@@ -130,15 +177,101 @@ def listar_proyectos_usuario(user: dict = Depends(get_current_user), db: sqlite3
                         act["avance"] = prom_av
                         act["estado"] = "Ejecutado" if prom_av == 100 else ("En proceso" if prom_av > 0 else "No iniciado")
 
-        acts_finales = list(acts_dict.values())
-        raices = [a for a in acts_finales if "." not in a["codigo"]]
+        # Evaluar actividades operativas (hojas sin subtareas) para no duplicar alertas con las fases madre
+        acts_hojas = [
+            act for cod, act in acts_dict.items()
+            if not any(c.startswith(f"{cod}.") and c != cod for c in todos_cods)
+        ]
+        if not acts_hojas:
+            acts_hojas = list(acts_dict.values())
+
+        raices = [a for a in acts_dict.values() if "." not in a["codigo"]]
         pct_global = round_half_up(sum(a["avance"] for a in raices) / len(raices)) if raices else 0
 
-        p_dict["total_actividades"] = len(acts_finales)
-        p_dict["ejecutadas"] = sum(1 for a in acts_finales if a["estado"] == "Ejecutado")
-        p_dict["en_proceso"] = sum(1 for a in acts_finales if a["estado"] == "En proceso")
-        p_dict["pendientes"] = sum(1 for a in acts_finales if a["estado"] in ["No iniciado", "Pendiente"])
+        vencidas_count = 0
+        por_vencer_count = 0
+        alertas_responsables = []
+        mis_tareas_proyecto = []
+
+        for h in acts_hojas:
+            est_h = h["estado"]
+            dt_fin = parsear_fecha_str(h["fecha_fin"])
+            dias_restantes = (dt_fin - hoy_date).days if dt_fin else None
+            resp_str = h["responsable"]
+
+            if est_h != "Ejecutado" and dias_restantes is not None:
+                if dias_restantes < 0:
+                    vencidas_count += 1
+                    alertas_responsables.append({
+                        "proyecto_id": p_id,
+                        "proyecto_nombre": p_dict["nombre"],
+                        "unidad_organica": p_dict.get("unidad_organica") or "S/U",
+                        "es_gestor": p_dict.get("es_gestor", 0),
+                        "codigo": h["codigo"],
+                        "descripcion": h["descripcion"],
+                        "responsable": resp_str,
+                        "estado": est_h,
+                        "avance": h["avance"],
+                        "fecha_fin": h["fecha_fin"],
+                        "dias_restantes": dias_restantes,
+                        "tipo_alerta": "VENCIDA"
+                    })
+                elif dias_restantes <= 5:
+                    por_vencer_count += 1
+                    alertas_responsables.append({
+                        "proyecto_id": p_id,
+                        "proyecto_nombre": p_dict["nombre"],
+                        "unidad_organica": p_dict.get("unidad_organica") or "S/U",
+                        "es_gestor": p_dict.get("es_gestor", 0),
+                        "codigo": h["codigo"],
+                        "descripcion": h["descripcion"],
+                        "responsable": resp_str,
+                        "estado": est_h,
+                        "avance": h["avance"],
+                        "fecha_fin": h["fecha_fin"],
+                        "dias_restantes": dias_restantes,
+                        "tipo_alerta": "POR_VENCER"
+                    })
+
+            resp_low = resp_str.lower()
+            if est_h != "Ejecutado" and ((u_nombre_low and u_nombre_low in resp_low) or (u_username_low and u_username_low in resp_low)):
+                mis_tareas_proyecto.append({
+                    "proyecto_id": p_id,
+                    "proyecto_nombre": p_dict["nombre"],
+                    "unidad_organica": p_dict.get("unidad_organica") or "S/U",
+                    "es_gestor": p_dict.get("es_gestor", 0),
+                    "codigo": h["codigo"],
+                    "descripcion": h["descripcion"],
+                    "responsable": resp_str,
+                    "estado": est_h,
+                    "avance": h["avance"],
+                    "fecha_fin": h["fecha_fin"],
+                    "dias_restantes": dias_restantes
+                })
+
+        alertas_responsables.sort(key=lambda x: x["dias_restantes"] if x["dias_restantes"] is not None else 999)
+        mis_tareas_proyecto.sort(key=lambda x: x["dias_restantes"] if x["dias_restantes"] is not None else 999)
+
+        if vencidas_count > 0:
+            salud = "CRITICO"
+        elif por_vencer_count > 0:
+            salud = "ATENCION"
+        elif pct_global == 100:
+            salud = "COMPLETADO"
+        else:
+            salud = "EN_PLAZO"
+
+        p_dict["total_actividades"] = len(acts_hojas)
+        p_dict["ejecutadas"] = sum(1 for a in acts_hojas if a["estado"] == "Ejecutado")
+        p_dict["en_proceso"] = sum(1 for a in acts_hojas if a["estado"] == "En proceso")
+        p_dict["pendientes"] = sum(1 for a in acts_hojas if a["estado"] in ["No iniciado", "Pendiente"])
         p_dict["avance_global"] = pct_global
+        p_dict["vencidas_count"] = vencidas_count
+        p_dict["por_vencer_count"] = por_vencer_count
+        p_dict["salud_proyecto"] = salud
+        p_dict["alertas_responsables"] = alertas_responsables[:12]
+        p_dict["mis_tareas_proyecto"] = mis_tareas_proyecto[:12]
+
         proyectos_resumen.append(p_dict)
 
     return proyectos_resumen
