@@ -1027,7 +1027,7 @@ export function finalizarArrastre() {
 export async function soltarFilaArrastre(e, codigoDestino, trElement) {
   e.preventDefault();
   const codOrigen = codigoActividadArrastrada;
-  const modo Elegido = modoInsercion;
+  const modoElegido = modoInsercion;
   finalizarArrastre();
 
   if (!codOrigen || codOrigen === codigoDestino) return;
