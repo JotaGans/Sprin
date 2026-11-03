@@ -198,9 +198,9 @@ export function renderizarRadarPreventivoHub() {
   if (badgeEquipo) badgeEquipo.innerText = proyectosConAlertas.length;
   if (badgeMio) badgeMio.innerText = tareasMias.length;
 
-  // Estilo Segmented Control Sutil (Blanco flotante con sombra suave cuando está activo, sin saturar de azul oscuro)
-  const clsActivo = "px-3 py-1 rounded-md text-[11px] font-extrabold bg-white text-[#0f2a4a] border border-slate-200/90 shadow-2xs transition cursor-pointer flex items-center space-x-1.5";
-  const clsInactivo = "px-3 py-1 rounded-md text-[11px] font-semibold text-slate-500 hover:text-[#0f2a4a] border border-transparent transition cursor-pointer flex items-center space-x-1.5";
+  // Fondo institucional #0f2a4a al estar activo, pero con peso tipográfico estilizado (font-semibold en lugar de font-black)
+  const clsActivo = "px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[#0f2a4a] text-white shadow-2xs transition cursor-pointer flex items-center space-x-1.5 tracking-wide";
+  const clsInactivo = "px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-600 hover:text-[#0f2a4a] transition cursor-pointer flex items-center space-x-1.5";
   if (btnEquipo) btnEquipo.className = (modoRadarHub === "equipo") ? clsActivo : clsInactivo;
   if (btnMio) btnMio.className = (modoRadarHub === "mio") ? clsActivo : clsInactivo;
 
@@ -208,8 +208,8 @@ export function renderizarRadarPreventivoHub() {
     icoEquipo.setAttribute(
       "class",
       modoRadarHub === "equipo"
-        ? "w-3.5 h-3.5 text-amber-600 flex-shrink-0 transition-colors"
-        : "w-3.5 h-3.5 text-amber-500/80 flex-shrink-0 transition-colors"
+        ? "w-3.5 h-3.5 text-amber-300 flex-shrink-0 transition-colors"
+        : "w-3.5 h-3.5 text-amber-600 flex-shrink-0 transition-colors"
     );
   }
 
@@ -960,7 +960,7 @@ export function renderizarTarjetasHub(lista) {
           </div>
           <div class="flex items-center justify-between gap-1 text-[10px] text-slate-500 leading-tight mt-0.5">
             <span class="truncate">Responsable: <strong class="text-slate-700">${respCorto}</strong></span>
-            ${extrasEnProyecto > 0 ? `<span class="text-[9.5px] font-bold text-[#0f2a4a] bg-slate-200/75 px-1.5 py-0.2 rounded flex-shrink-0">+${extrasEnProyecto} más ⓘ</span>` : ''}
+            ${extrasEnProyecto > 0 ? `<span class="inline-flex items-center space-x-1 text-[9.5px] font-bold text-[#0f2a4a] bg-slate-200/80 px-1.5 py-0.5 rounded-md flex-shrink-0"><span>+${extrasEnProyecto} más</span><span class="w-3.5 h-3.5 rounded-full bg-[#0f2a4a] text-white inline-flex items-center justify-center text-[8.5px] font-serif italic font-bold leading-none">i</span></span>` : ''}
           </div>
         </div>
       `;
@@ -1142,7 +1142,7 @@ export function renderizarTablaHub(lista) {
           </div>
           <div class="text-[10px] text-slate-500 mt-0.5 flex items-center justify-between gap-1">
             <span class="truncate"><strong>${(al.responsable || '').split(';')[0]}</strong> · <span class="${esV ? 'text-rose-600 font-bold' : 'text-amber-700 font-bold'}">${al.fecha_fin}</span></span>
-            ${extras > 0 ? `<span class="text-[9px] font-bold text-[#0f2a4a] bg-slate-200/75 px-1 rounded flex-shrink-0">+${extras} ⓘ</span>` : ''}
+            ${extras > 0 ? `<span class="inline-flex items-center space-x-1 text-[9px] font-bold text-[#0f2a4a] bg-slate-200/80 px-1.5 py-0.2 rounded flex-shrink-0"><span>+${extras}</span><span class="w-3 h-3 rounded-full bg-[#0f2a4a] text-white inline-flex items-center justify-center text-[8px] font-serif italic font-bold leading-none">i</span></span>` : ''}
           </div>
         </div>
       `;
@@ -1225,21 +1225,95 @@ export function exportarResumenProyectosExcel() {
     return;
   }
 
-  let csv = "ID;Proyecto / Programa;Unidad Responsable;Proceso;Salud;Descripcion;Rol Asignado;% Avance;Total Actividades;Ejecutadas;En Proceso;No Iniciadas;Vencidas;Por Vencer (<=5d);Fecha de Creacion\n";
-  
+  const limpiarCeldaCSV = (val) => String(val ?? "").replace(/(\r\n|\n|\r)/gm, " ").replace(/;/g, ",").replace(/"/g, '""').trim();
+
+  const cabeceras = [
+    "ID_Proyecto",
+    "Nombre_Proyecto",
+    "Sigla_Unidad_Organica",
+    "Codigo_Proceso",
+    "Nombre_Proceso_Institucional",
+    "Alcance_Visibilidad",
+    "Modalidad_Temporal",
+    "Rol_Usuario_Actual",
+    "Estado_Salud_Portafolio",
+    "Estado_General_Avance",
+    "Avance_Porcentaje_Num",
+    "Total_Actividades_Operativas",
+    "Actividades_Ejecutadas",
+    "Actividades_En_Proceso",
+    "Actividades_No_Iniciadas",
+    "Actividades_Vencidas",
+    "Actividades_Por_Vencer_5d",
+    "Proximo_Hito_O_Retraso_Critico",
+    "Responsable_Hito_Critico",
+    "Fecha_Limite_Hito_Critico",
+    "Descripcion_Alcance_Proyecto",
+    "Fecha_Registro_Proyecto"
+  ];
+
+  let csv = "\uFEFF" + cabeceras.join(";") + "\n";
+
   state.proyectosUsuarioGlobal.forEach(p => {
     const rol = p.rol_efectivo || ((p.es_gestor === 1 || p.es_gestor === true || state.currentUser.rol === "ADMIN_TI") ? "GESTOR" : "RESPONSABLE");
-    const desc = (p.descripcion || "").replace(/(\r\n|\n|\r|")/gm, " ");
-    const proc = (p.proceso_relacionado || p.proceso_nombre || "").replace(/(\r\n|\n|\r|")/gm, " ");
-    csv += `"${p.id}";"${p.nombre.replace(/"/g, '""')}";"${p.unidad_organica || ''}";"${proc}";"${p.salud_proyecto || 'EN_PLAZO'}";"${desc}";"${rol}";${p.avance_global || 0}%;${p.total_actividades || 0};${p.ejecutadas || 0};${p.en_proceso || 0};${p.pendientes || 0};${p.vencidas_count || 0};${p.por_vencer_count || 0};"${p.fecha_creacion || ''}"\n`;
+    const av = parseInt(p.avance_global) || 0;
+    const estadoGen = av === 100 ? "Ejecutado" : (av > 0 ? "En proceso" : "No iniciado");
+
+    const mapaSalud = {
+      "CRITICO": "CON RETRASO",
+      "ATENCION": "POR VENCER (<=5d)",
+      "COMPLETADO": "COMPLETADO (100%)",
+      "EN_PLAZO": "EN PLAZO"
+    };
+    const saludTexto = mapaSalud[p.salud_proyecto] || "EN PLAZO";
+
+    let codProc = p.proceso_codigo || "";
+    let nomProc = p.proceso_nombre || p.proceso_relacionado || "Sin proceso asignado";
+    if (!codProc && nomProc.includes(" - ")) {
+      const partesP = nomProc.split(" - ");
+      codProc = partesP[0].trim();
+      nomProc = partesP.slice(1).join(" - ").trim();
+    }
+
+    const modTemp = (p.duration_mode === "hours" || p.unidad_tiempo === "HORAS") ? "Horas Netas" : "Días Hábiles";
+    const topAl = (p.alertas_responsables && p.alertas_responsables.length > 0) ? p.alertas_responsables[0] : null;
+    const hitoCritico = topAl ? `[${topAl.codigo}] ${topAl.descripcion}` : "Sin alertas de plazo";
+    const respCritico = topAl ? (topAl.responsable || "No asignado") : "-";
+    const fechaCritica = topAl ? (topAl.fecha_fin || "-") : "-";
+
+    const fila = [
+      p.id,
+      `"${limpiarCeldaCSV(p.nombre)}"`,
+      `"${limpiarCeldaCSV(p.unidad_organica || 'Sin UO')}"`,
+      `"${limpiarCeldaCSV(codProc || 'S/C')}"`,
+      `"${limpiarCeldaCSV(nomProc)}"`,
+      `"${limpiarCeldaCSV(p.visibilidad || 'PRIVADO')}"`,
+      `"${modTemp}"`,
+      `"${rol}"`,
+      `"${saludTexto}"`,
+      `"${estadoGen}"`,
+      av,
+      p.total_actividades || 0,
+      p.ejecutadas || 0,
+      p.en_proceso || 0,
+      p.pendientes || 0,
+      p.vencidas_count || 0,
+      p.por_vencer_count || 0,
+      `"${limpiarCeldaCSV(hitoCritico)}"`,
+      `"${limpiarCeldaCSV(respCritico)}"`,
+      `"${limpiarCeldaCSV(fechaCritica)}"`,
+      `"${limpiarCeldaCSV(p.descripcion || '')}"`,
+      `"${limpiarCeldaCSV(p.fecha_creacion || '')}"`
+    ];
+    csv += fila.join(";") + "\n";
   });
 
-  const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = `IMARPE_Consolidado_Proyectos_${new Date().toISOString().split("T")[0]}.csv`;
+  link.download = `SPRIN_IMARPE_Matriz_Portafolio_${new Date().toISOString().split("T")[0]}.csv`;
   link.click();
-  notificarToast("Resumen ejecutivo descargado en Excel.", "success");
+  notificarToast("Matriz analítica del portafolio descargada en Excel.", "success");
 }
 
 export function abrirModalNuevoProyecto() { 

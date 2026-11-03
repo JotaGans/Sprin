@@ -1014,15 +1014,20 @@
             </div>
             <div>
               <label class="text-[11px] font-bold text-gray-600 uppercase">Alcance / Privacidad del Proyecto:</label>
-              <select id="input-nuevo-proy-visibilidad" class="w-full mt-1 p-2.5 bg-white border border-gray-300 rounded-lg text-xs font-semibold outline-none focus:border-[#0f2a4a]">
-                <option value="PRIVADO" selected>Privado (Solo miembros asignados)</option>
-                <option value="PUBLICO">Institucional (Público)</option>
-              </select>
+              <div class="relative mt-1 flex items-center">
+                <svg class="w-4 h-4 text-slate-500 absolute left-2.5 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+                <select id="input-nuevo-proy-visibilidad" class="w-full pl-8 pr-2.5 py-2.5 bg-white border border-gray-300 rounded-lg text-xs font-semibold outline-none focus:border-[#0f2a4a] cursor-pointer">
+                  <option value="PRIVADO" selected>Privado (Solo miembros asignados)</option>
+                  <option value="PUBLICO">Institucional (Público)</option>
+                </select>
+              </div>
             </div>
           </div>
           <div class="flex justify-end space-x-2 pt-3 border-t border-gray-200">
-            <button type="button" onclick="cerrarModalNuevoProyecto()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold rounded-lg transition">Cancelar</button>
-            <button type="submit" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg shadow transition">Crear en Blanco →</button>
+            <button type="button" onclick="cerrarModalNuevoProyecto()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold rounded-lg transition cursor-pointer">Cancelar</button>
+            <button type="submit" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg shadow transition cursor-pointer">Crear en Blanco →</button>
           </div>
         </form>
       </div>
@@ -1067,7 +1072,7 @@
 
             <div>
               <label class="block font-bold text-gray-600 mb-1">Modalidad de estimación temporal:</label>
-              <select id="np-input-clon-duration-mode" class="w-full p-2 border border-gray-300 rounded-lg font-semibold outline-none focus:border-[#0f2a4a]">
+              <select id="np-input-clon-duration-mode" class="w-full p-2 border border-gray-300 rounded-lg font-semibold outline-none focus:border-[#0f2a4a] cursor-pointer">
                 <option value="business_days" selected>Días hábiles (L-V, excluye feriados)</option>
                 <option value="hours">Horas de dedicación neta</option>
               </select>
@@ -1075,16 +1080,26 @@
 
             <div>
               <label class="block font-bold text-gray-600 mb-1">Alcance o privacidad del proyecto:</label>
-              <select id="np-input-clon-visibilidad" class="w-full p-2 border border-gray-300 rounded-lg font-semibold outline-none focus:border-[#0f2a4a]">
-                <option value="PRIVADO" selected>🔒 Privado (solo miembros asignados)</option>
-                <option value="PUBLICO">🌐 Institucional</option>
-              </select>
+              <div class="relative flex items-center">
+                <svg class="w-4 h-4 text-slate-500 absolute left-2.5 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+                <select id="np-input-clon-visibilidad" class="w-full pl-8 pr-2 py-2 border border-gray-300 rounded-lg font-semibold outline-none focus:border-[#0f2a4a] cursor-pointer">
+                  <option value="PRIVADO" selected>Privado (Solo miembros asignados)</option>
+                  <option value="PUBLICO">Institucional (Público)</option>
+                </select>
+              </div>
             </div>
           </div>
 
           <div class="flex justify-end space-x-2 pt-2 border-t border-gray-100">
-            <button type="button" onclick="cerrarModalNuevoProyecto()" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold rounded-lg transition">Cancelar</button>
-            <button type="button" onclick="ejecutarCreacionDesdePlantilla()" class="px-5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-black rounded-lg shadow transition">✨ Generar proyecto completo</button>
+            <button type="button" onclick="cerrarModalNuevoProyecto()" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold rounded-lg transition cursor-pointer">Cancelar</button>
+            <button type="button" onclick="ejecutarCreacionDesdePlantilla()" class="px-5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg shadow transition inline-flex items-center space-x-1.5 cursor-pointer">
+              <svg class="w-3.5 h-3.5 text-white flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              <span>Generar proyecto completo</span>
+            </button>
           </div>
         </div>
       </div>
@@ -2736,6 +2751,6 @@
   </div>
 
     <!-- Carga del Módulo Orquestador Principal ES6 -->
-    <script type="module" src="/static/js/main.js?v=100049"></script>
+    <script type="module" src="/static/js/main.js?v=100050"></script>
 </body>
 </html>

@@ -714,16 +714,35 @@ export function mostrarTooltipGantt(e, codLimpio) {
   const preds = (act.predecesores || "").trim();
   const resp = (act.responsable && act.responsable !== "No asignado") ? act.responsable : "Sin responsable asignado";
 
+  // Información de Ruta Crítica y Holgura si la capa CPM está activa
+  let bloqueCpmHTML = "";
+  const detCpm = state.datosCpmGlobal?.detalles?.[codLimpio];
+  if (state.capaCpmActiva && detCpm) {
+    const esCrit = detCpm.es_critica;
+    const holg = detCpm.holgura || 0;
+    bloqueCpmHTML = esCrit
+      ? `<div class="mb-2 px-2.5 py-1 rounded-lg bg-rose-500/25 border border-rose-400/50 text-rose-200 text-[10px] font-black flex items-center justify-between">
+           <span>⚡ RUTA CRÍTICA (Sin margen)</span>
+           <span class="font-mono">Holgura: 0d</span>
+         </div>`
+      : `<div class="mb-2 px-2.5 py-1 rounded-lg bg-teal-500/15 border border-teal-400/30 text-teal-200 text-[10px] font-bold flex items-center justify-between">
+           <span>Margen de holgura disponible</span>
+           <span class="font-mono font-black">+${holg} ${state.proyectoModoDuracion === 'hours' ? 'h' : 'd'}</span>
+         </div>`;
+  }
+
   tip.innerHTML = `
     <div class="flex items-center justify-between gap-2 mb-1.5">
       <div class="flex items-center space-x-1.5">
         <span class="font-mono font-black text-[10px] bg-teal-400 text-[#0f2a4a] px-1.5 py-0.2 rounded">[${codLimpio}]</span>
-        <span class="text-[9.5px] font-bold uppercase tracking-wider text-teal-300">${esMadre ? '📁 Fase resumen' : 'Tarea operativa'}</span>
+        <span class="text-[9.5px] font-bold uppercase tracking-wider text-teal-300">${esMadre ? 'Fase resumen' : 'Tarea operativa'}</span>
       </div>
       <span class="text-[9.5px] font-extrabold px-2 py-0.2 rounded-full border ${badgeEstColor}">${act.estado}</span>
     </div>
 
-    <div class="text-xs font-extrabold text-white leading-snug mb-2.5 border-b border-white/10 pb-2">${act.descripcion}</div>
+    <div class="text-xs font-bold text-white leading-snug mb-2 border-b border-white/10 pb-2">${act.descripcion}</div>
+
+    ${bloqueCpmHTML}
 
     <div class="grid grid-cols-2 gap-2 text-[10.5px] mb-2">
       <div class="bg-white/5 rounded-lg p-1.5 border border-white/10">
@@ -737,8 +756,8 @@ export function mostrarTooltipGantt(e, codLimpio) {
     </div>
 
     <div class="text-[10px] text-slate-300 space-y-1">
-      <div class="truncate"><strong class="text-slate-400">👤 Resp:</strong> ${resp}</div>
-      ${preds ? `<div><strong class="text-slate-400">🔗 Predecesora(s):</strong> <span class="font-mono text-amber-300">[${preds}]</span></div>` : ''}
+      <div class="truncate"><strong class="text-slate-400">Resp:</strong> ${resp}</div>
+      ${preds ? `<div><strong class="text-slate-400">Predecesora(s):</strong> <span class="font-mono text-amber-300">[${preds}]</span></div>` : ''}
     </div>
   `;
 

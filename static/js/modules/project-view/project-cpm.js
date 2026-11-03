@@ -363,6 +363,7 @@ export async function recalcularSilenciosoCpm() {
     if (!res.ok) return;
     const cpm = await res.json();
     state.datosCpmGlobal.duracionTotal = cpm.duracion_proyecto_dias || 0;
+    state.datosCpmGlobal.detalles = cpm.detalles || {};
     state.datosCpmGlobal.actividadesCriticas = new Set();
     if (cpm.detalles) {
       Object.values(cpm.detalles).forEach(n => {
@@ -374,7 +375,6 @@ export async function recalcularSilenciosoCpm() {
   } catch (e) {}
 }
 
-// --- CÁLCULO Y ALTERNANCIA DE RUTA CRÍTICA ---
 export async function alternarCapaRutaCritica() {
   if (!state.proyectoActualId) return;
 
@@ -382,20 +382,12 @@ export async function alternarCapaRutaCritica() {
     state.capaCpmActiva = false;
     actualizarBotonCpmUI(false);
     renderizarTabla();
-    notificarToast("Capa de Ruta Crítica desactivada.", "info");
+    notificarToast("Capa de Ruta Crítica desactivada.", "info", 2200);
     return;
   }
 
-  const tienePredecesoras = state.actividadesGlobal.some(a => a.predecesores && String(a.predecesores).trim() !== "");
-  if (!tienePredecesoras) {
-    const deseaConfigurar = await confirmModal(
-      "ℹ️ Para calcular la Ruta Crítica (CPM), primero conecte al menos dos actividades arrastrando entre las barras del Gantt o desde el configurador de predecesoras.\n\n¿Desea abrir el configurador ahora?",
-      "Configurar Dependencias",
-      "question"
-    );
-    if (deseaConfigurar === true) abrirModalDependencias();
-    state.capaCpmActiva = false;
-    actualizarBotonCpmUI(false);
+  if (!state.actividadesGlobal || state.actividadesGlobal.length === 0) {
+    notificarToast("El proyecto aún no tiene actividades para calcular la Ruta Crítica.", "warning");
     return;
   }
 
@@ -407,6 +399,7 @@ export async function alternarCapaRutaCritica() {
     const cpm = await res.json();
 
     state.datosCpmGlobal.duracionTotal = cpm.duracion_proyecto_dias || 0;
+    state.datosCpmGlobal.detalles = cpm.detalles || {};
     state.datosCpmGlobal.actividadesCriticas = new Set();
 
     if (cpm.detalles) {
@@ -415,15 +408,23 @@ export async function alternarCapaRutaCritica() {
       });
     }
 
+    const totalCriticas = state.datosCpmGlobal.actividadesCriticas.size;
+    const tienePredecesoras = state.actividadesGlobal.some(a => a.predecesores && String(a.predecesores).trim() !== "");
+
     actualizarBotonCpmUI(true, state.datosCpmGlobal.duracionTotal);
     renderizarTabla();
+
     const sufijo = (state.proyectoModoDuracion === "hours") ? "horas" : "días hábiles";
-    notificarToast(`🔥 Ruta Crítica activa: ${state.datosCpmGlobal.duracionTotal} ${sufijo} de camino crítico.`, "success");
+    if (!tienePredecesoras) {
+      notificarToast(`Ruta Crítica activa (${totalCriticas} tareas críticas por fecha de término). Vincule predecesoras para encadenar holguras.`, "info", 4200);
+    } else {
+      notificarToast(`Ruta Crítica activa: ${totalCriticas} actividad(es) sin margen de demora (${state.datosCpmGlobal.duracionTotal} ${sufijo}).`, "success", 3500);
+    }
   } catch (err) {
     console.error("Error al calcular CPM:", err);
     state.capaCpmActiva = false;
     actualizarBotonCpmUI(false);
-    alert("No se pudo calcular la Ruta Crítica. Verifique las dependencias del proyecto.");
+    alert("No se pudo calcular la Ruta Crítica.");
   }
 }
 
@@ -434,11 +435,14 @@ function actualizarBotonCpmUI(activo, duracion = 0) {
 
   if (activo) {
     if (btn) {
-      btn.className = "h-[30px] px-2.5 bg-red-600 hover:bg-red-700 text-white border border-red-700 rounded-lg transition shadow-xs flex items-center gap-1 cursor-pointer text-xs font-black animate-pulse";
+      btn.className = "h-[30px] px-2.5 bg-rose-600 hover:bg-rose-700 text-white border border-rose-700 rounded-lg transition shadow-xs flex items-center gap-1.5 cursor-pointer text-xs font-bold";
       btn.title = `Ruta Crítica activa (${duracion}${sufijo})`;
-      btn.innerHTML = `<span>🔥</span><span>CPM (${duracion}${sufijo})</span>`;
+      btn.innerHTML = `
+        <svg class="w-3.5 h-3.5 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h7v8l10-12h-7z" /></svg>
+        <span>CPM (${duracion}${sufijo})</span>
+      `;
     }
-    if (txtToggle) txtToggle.textContent = `Desactivar Ruta Crítica (${duracion}${sufijo})`;
+    if (txtToggle) txtToggle.textContent = `Desactivar ruta crítica (${duracion}${sufijo})`;
   } else {
     if (btn) {
       btn.className = "h-[30px] px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 rounded-lg transition flex items-center gap-1 cursor-pointer text-xs font-bold";
@@ -447,10 +451,10 @@ function actualizarBotonCpmUI(activo, duracion = 0) {
         <svg class="w-3.5 h-3.5 text-rose-600 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
           <path d="M13 2L3 14h7v8l10-12h-7z" />
         </svg>
-        <span class="hidden xl:inline">CPM</span>
+        <span class="hidden sm:inline">CPM</span>
       `;
     }
-    if (txtToggle) txtToggle.textContent = "Activar Ruta Crítica";
+    if (txtToggle) txtToggle.textContent = "Activar ruta crítica";
   }
 }
 

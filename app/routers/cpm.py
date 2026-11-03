@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime, date
 from typing import Optional
 from fastapi import APIRouter, Depends
 from app.database.connection import get_db
@@ -9,6 +10,23 @@ router = APIRouter(tags=["Ruta Crítica CPM"])
 def clave_wbs_natural(cod: str):
     return [int(p) if p.isdigit() else p for p in str(cod).rstrip(".").split(".")]
 
+def parsear_fecha_cpm(f_str: str) -> Optional[date]:
+    if not f_str:
+        return None
+    s = str(f_str).strip().split("T")[0]
+    try:
+        if "/" in s:
+            p = s.split("/")
+            if len(p) == 3:
+                return date(int(p[2]), int(p[1]), int(p[0])) if len(p[0]) <= 2 else date(int(p[0]), int(p[1]), int(p[2]))
+        elif "-" in s:
+            p = s.split("-")
+            if len(p) == 3:
+                return date(int(p[0]), int(p[1]), int(p[2])) if len(p[0]) == 4 else date(int(p[2]), int(p[1]), int(p[0]))
+    except Exception:
+        return None
+    return None
+
 @router.get("/ruta-critica")
 def calcular_cpm(proyecto_id: Optional[int] = 1, user: dict = Depends(get_current_user), db: sqlite3.Connection = Depends(get_db)):
     p_id = int(proyecto_id or 1)
@@ -17,7 +35,7 @@ def calcular_cpm(proyecto_id: Optional[int] = 1, user: dict = Depends(get_curren
     modo_duracion = "hours" if (proy and (proy["duration_mode"] == "hours" or proy["unidad_tiempo"] == "HORAS")) else "business_days"
 
     rows = db.execute("""
-        SELECT codigo, descripcion, dias, predecesores, fecha_inicio, fecha_fin 
+        SELECT codigo, descripcion, dias, predecesores, fecha_inicio, fecha_fin, estado, avance 
         FROM actividades 
         WHERE proyecto_id = ?
     """, (p_id,)).fetchall()
@@ -32,6 +50,13 @@ def calcular_cpm(proyecto_id: Optional[int] = 1, user: dict = Depends(get_curren
     actividades_dict = {}
     hijos_de_madre = {cod: [] for cod in todos_codigos}
 
+    fechas_inicio_validas = []
+    for r in filas_ordenadas:
+        dt_i = parsear_fecha_cpm(r.get("fecha_inicio"))
+        if dt_i:
+            fechas_inicio_validas.append(dt_i)
+    fecha_base_proy = min(fechas_inicio_validas) if fechas_inicio_validas else datetime.now().date()
+
     for r in filas_ordenadas:
         cod = str(r["codigo"]).rstrip(".")
         hijos = [otro for otro in todos_codigos if otro.startswith(f"{cod}.") and otro != cod]
@@ -42,17 +67,20 @@ def calcular_cpm(proyecto_id: Optional[int] = 1, user: dict = Depends(get_curren
         preds_raw = [p.strip().rstrip(".") for p in (r["predecesores"] or "").split(",") if p.strip()]
         preds_validos = [p for p in preds_raw if p in set_codigos and p != cod and not cod.startswith(f"{p}.")]
 
+        dt_ini = parsear_fecha_cpm(r.get("fecha_inicio"))
+        offset_calendario = max(0, (dt_ini - fecha_base_proy).days) if dt_ini else 0
+
         actividades_dict[cod] = {
             "codigo": cod,
             "descripcion": r["descripcion"],
             "duracion": max(1, int(r["dias"] or 1)),
+            "offset_calendario": offset_calendario,
             "predecesores_originales": preds_validos,
             "predecesores": list(preds_validos),
             "es_madre": es_madre,
             "ES": 0, "EF": 0, "LS": 0, "LF": 0, "holgura": 0, "es_critica": False
         }
 
-    # Evaluar actividades operativas (hojas) expandiendo dependencias de fases madre
     hojas_cods = [c for c in todos_codigos if not actividades_dict[c]["es_madre"]]
     if not hojas_cods:
         hojas_cods = todos_codigos
@@ -67,7 +95,6 @@ def calcular_cpm(proyecto_id: Optional[int] = 1, user: dict = Depends(get_curren
         info = dict(actividades_dict[cod])
         preds_expandidos = set()
 
-        # 1. Heredar predecesoras declaradas en sus fases madre superiores
         partes = cod.split(".")
         for i in range(1, len(partes) + 1):
             ancestro = ".".join(partes[:i])
@@ -80,8 +107,6 @@ def calcular_cpm(proyecto_id: Optional[int] = 1, user: dict = Depends(get_curren
         info["predecesores"] = sorted(list(preds_expandidos), key=clave_wbs_natural)
         nodos[cod] = info
 
-    # 2. Eliminación segura de ciclos respetando orden topológico WBS
-    visitados = {}
     def tiene_ciclo_dfs(actual, destino, visitando):
         if actual == destino:
             return True
@@ -93,13 +118,17 @@ def calcular_cpm(proyecto_id: Optional[int] = 1, user: dict = Depends(get_curren
         return False
 
     for cod in hojas_cods:
-        preds_sin_ciclo = []
-        for p in nodos[cod]["predecesores"]:
-            if p in nodos and not tiene_ciclo_dfs(p, cod, set()):
-                preds_sin_ciclo.append(p)
-        nodos[cod]["predecesores"] = preds_sin_ciclo
+        nodos[cod]["predecesores"] = [
+            p for p in nodos[cod]["predecesores"]
+            if p in nodos and not tiene_ciclo_dfs(p, cod, set())
+        ]
 
-    # 3. Forward Pass (Ida: Cálculo de ES y EF)
+    # Forward Pass Híbrido (Respeta tanto el empuje de las predecesoras como la fecha de inicio programada)
+    for cod in hojas_cods:
+        n = nodos[cod]
+        n["ES"] = n["offset_calendario"] if not n["predecesores"] else 0
+        n["EF"] = n["ES"] + n["duracion"]
+
     cambio = True
     iteraciones = 0
     max_iter = len(nodos) + 2
@@ -108,8 +137,8 @@ def calcular_cpm(proyecto_id: Optional[int] = 1, user: dict = Depends(get_curren
         iteraciones += 1
         for cod in hojas_cods:
             n = nodos[cod]
-            max_ef_pred = max((nodos[p]["EF"] for p in n["predecesores"] if p in nodos), default=0)
-            nuevo_es = max_ef_pred
+            max_ef_pred = max((nodos[p]["EF"] for p in n["predecesores"] if p in nodos), default=n["offset_calendario"])
+            nuevo_es = max(max_ef_pred, n["offset_calendario"] if not n["predecesores"] else max_ef_pred)
             nuevo_ef = nuevo_es + n["duracion"]
             if nuevo_es != n["ES"] or nuevo_ef != n["EF"]:
                 n["ES"] = nuevo_es
@@ -118,7 +147,7 @@ def calcular_cpm(proyecto_id: Optional[int] = 1, user: dict = Depends(get_curren
 
     duracion_total = max((n["EF"] for n in nodos.values()), default=0)
 
-    # 4. Backward Pass (Vuelta: Cálculo de LS y LF)
+    # Backward Pass (Cálculo de LS y LF)
     for n in nodos.values():
         n["LF"] = duracion_total
         n["LS"] = max(0, duracion_total - n["duracion"])
@@ -140,7 +169,6 @@ def calcular_cpm(proyecto_id: Optional[int] = 1, user: dict = Depends(get_curren
                     n["LS"] = nuevo_ls
                     cambio = True
 
-    # 5. Cálculo de Holguras, Ruta Crítica y propagación a Fases Madre
     enlaces_efectivos = []
     for cod, n in nodos.items():
         n["holgura"] = max(0, n["LS"] - n["ES"])
@@ -153,11 +181,10 @@ def calcular_cpm(proyecto_id: Optional[int] = 1, user: dict = Depends(get_curren
                 "critico": es_enlace_critico
             })
 
-    # Incluir resumen en fases madre para visualización completa
     resultado_completo = dict(nodos)
     for cod, info_orig in actividades_dict.items():
         if info_orig["es_madre"]:
-            hojas_hijas = [ resultado_completo[h] for h in obtener_hojas_bajo_nodo(cod) if h in resultado_completo ]
+            hojas_hijas = [resultado_completo[h] for h in obtener_hojas_bajo_nodo(cod) if h in resultado_completo]
             if hojas_hijas:
                 es_min = min(h["ES"] for h in hojas_hijas)
                 ef_max = max(h["EF"] for h in hojas_hijas)

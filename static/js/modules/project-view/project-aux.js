@@ -553,31 +553,114 @@ export async function eliminarComentario(id) {
   }
 }
 
-// --- EXPORTACIÓN DE CRONOGRAMA ---
+// --- EXPORTACIÓN ANALÍTICA DE CRONOGRAMA WBS / CPM PARA EXCEL Y POWER BI ---
 export function exportarExcelCSV() {
   if (!state.actividadesGlobal || state.actividadesGlobal.length === 0) {
     alert("No hay actividades para exportar.");
     return;
   }
 
-  let csv = "Codigo;Descripcion;Responsable;Estado;Fecha Inicio;Fecha Fin;Dias;% Avance;Predecesores;Nro Comentarios;Historial de Comentarios\n";
+  const limpiarCSV = (val) => String(val ?? "").replace(/(\r\n|\n|\r)/gm, " ").replace(/;/g, ",").replace(/"/g, '""').trim();
+  const proyNombre = document.getElementById("txt-nombre-proyecto")?.value || `Proyecto_${state.proyectoActualId}`;
+  const unidadDur = (state.proyectoModoDuracion === "hours") ? "Horas" : "Dias_Habiles";
+  const hoyMs = new Date().setHours(0, 0, 0, 0);
+
+  const cabeceras = [
+    "ID_Proyecto",
+    "Nombre_Proyecto",
+    "Codigo_WBS",
+    "Nivel_WBS",
+    "Codigo_Padre",
+    "Tipo_Registro",
+    "Actividad_Entregable",
+    "Responsables_Asignados",
+    "Cantidad_Responsables",
+    "Estado_Operativo",
+    "Avance_Porcentaje_Num",
+    "Fecha_Inicio",
+    "Fecha_Vencimiento",
+    `Duracion_${unidadDur}`,
+    "Estado_Plazo",
+    "Dias_Diferencia_Hoy",
+    "Predecesoras_CPM",
+    "Es_Ruta_Critica",
+    "Holgura_CPM",
+    "Nro_Comentarios",
+    "Bitacora_Comentarios"
+  ];
+
+  let csv = "\uFEFF" + cabeceras.join(";") + "\n";
+
   state.actividadesGlobal.forEach(a => {
     const codLimpio = String(a.codigo).replace(/\.+$/, "");
+    const partes = codLimpio.split(".");
+    const nivel = partes.length;
+    const codPadre = nivel > 1 ? partes.slice(0, -1).join(".") : "RAIZ";
+
+    const tieneSubtareas = state.actividadesGlobal.some(sub => {
+      const sCod = String(sub.codigo).replace(/\.+$/, "");
+      return sCod.startsWith(codLimpio + ".") && sCod !== codLimpio;
+    });
+    const tipoReg = tieneSubtareas ? "FASE RESUMEN (MADRE)" : "ACTIVIDAD OPERATIVA (HOJA)";
+
+    const respStr = (a.responsable && a.responsable !== "No asignado") ? a.responsable : "No asignado";
+    const cantResp = respStr === "No asignado" ? 0 : respStr.split(";").map(s => s.trim()).filter(Boolean).length;
+
+    // Cálculo de estado de plazo respecto a hoy
+    let estadoPlazo = "EN PLAZO";
+    let diffDias = "";
+    const pFin = formatearFechaLatina(a.fecha_fin).split("/");
+    if (pFin.length === 3) {
+      const dtFin = new Date(parseInt(pFin[2]), parseInt(pFin[1]) - 1, parseInt(pFin[0])).getTime();
+      const dRest = Math.round((dtFin - hoyMs) / (1000 * 60 * 60 * 24));
+      diffDias = dRest;
+      if (a.estado === "Ejecutado") estadoPlazo = "CUMPLIDO";
+      else if (dRest < 0) estadoPlazo = "VENCIDO";
+      else if (dRest <= 5) estadoPlazo = "POR VENCER (<=5d)";
+    }
+
+    const detCpm = state.datosCpmGlobal?.detalles?.[codLimpio];
+    const esCriticaTxt = detCpm ? (detCpm.es_critica ? "SI" : "NO") : (state.datosCpmGlobal?.actividadesCriticas?.has(codLimpio) ? "SI" : "NO");
+    const holguraVal = detCpm && typeof detCpm.holgura === "number" ? detCpm.holgura : "";
+
     const coms = obtenerComentariosDeActividad(codLimpio);
     const cantComs = coms.length;
-    let historialTexto = "";
-    if (cantComs > 0) {
-      historialTexto = coms.map(c => `[${c.fecha_creacion} - ${c.autor_nombre}]: ${c.texto.replace(/"/g, '""').replace(/(\r\n|\n|\r)/gm, " ")}`).join(" | ");
-    }
-    csv += `"${a.codigo}";"${a.descripcion.replace(/"/g, '""')}";"${a.responsable || ''}";"${a.estado}";"${formatearFechaLatina(a.fecha_inicio)}";"${formatearFechaLatina(a.fecha_fin)}";${a.dias};${a.avance}%;"${a.predecesores || ''}";${cantComs};"${historialTexto}"\n`;
+    const historialTexto = cantComs > 0
+      ? coms.map(c => `[${c.fecha_creacion} - ${c.autor_nombre}]: ${limpiarCSV(c.texto)}`).join(" | ")
+      : "";
+
+    const fila = [
+      state.proyectoActualId,
+      `"${limpiarCSV(proyNombre)}"`,
+      `"${codLimpio}"`,
+      nivel,
+      `"${codPadre}"`,
+      `"${tipoReg}"`,
+      `"${limpiarCSV(a.descripcion)}"`,
+      `"${limpiarCSV(respStr)}"`,
+      cantResp,
+      `"${limpiarCSV(a.estado)}"`,
+      parseInt(a.avance) || 0,
+      `"${formatearFechaLatina(a.fecha_inicio)}"`,
+      `"${formatearFechaLatina(a.fecha_fin)}"`,
+      parseInt(a.dias) || 1,
+      `"${estadoPlazo}"`,
+      diffDias,
+      `"${limpiarCSV(a.predecesores || '')}"`,
+      `"${esCriticaTxt}"`,
+      holguraVal,
+      cantComs,
+      `"${historialTexto}"`
+    ];
+    csv += fila.join(";") + "\n";
   });
 
-  const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = `IMARPE_Proyecto_${state.proyectoActualId}_${new Date().toISOString().split("T")[0]}.csv`;
+  link.download = `SPRIN_IMARPE_Cronograma_WBS_Proy_${state.proyectoActualId}_${new Date().toISOString().split("T")[0]}.csv`;
   link.click();
-  notificarToast("Archivo Excel descargado con bitácora de comentarios.", "success");
+  notificarToast("Dataset analítico WBS descargado en Excel.", "success");
 }
 
 // =========================================================================

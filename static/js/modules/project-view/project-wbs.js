@@ -247,12 +247,7 @@ export function renderizarTabla() {
     tr.oncontextmenu = (e) => abrirMenuContextual(e, act.codigo);
 
     if (state.proyectoEsGestor) {
-      tr.draggable = true;
-      tr.ondragstart = (e) => iniciarArrastreFila(e, act.codigo);
-      tr.ondragover = (e) => sobrevolarFilaArrastre(e, tr);
-      tr.ondragleave = () => limpiarBordeArrastre(tr);
-      tr.ondrop = (e) => soltarFilaArrastre(e, act.codigo, tr);
-      tr.ondragend = () => finalizarArrastre();
+      tr.onmousedown = (e) => iniciarArrastrePunteroFilaWBS(e, tr, act.codigo);
     }
 
     let iconoColapso = "";
@@ -897,6 +892,67 @@ let modoInsercion = "below";
 let animacionAutoScrollId = null;
 let velocidadAutoScroll = 0;
 let ultimaFilaObjetivoArrastre = null;
+
+export function iniciarArrastrePunteroFilaWBS(e, trOrigen, cod) {
+  // No iniciar arrastre si el usuario hizo clic en un botón, input, checkbox o resizer
+  if (e.button !== 0 || e.target.closest("button, input, select, .gantt-bar-interactive, .gantt-connect-handle")) return;
+
+  const startX = e.clientX;
+  const startY = e.clientY;
+  let arrastrando = false;
+  let badgeFlotante = null;
+
+  const alMover = (ev) => {
+    if (!arrastrando) {
+      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < 6) return;
+      arrastrando = true;
+      if (typeof window.ocultarTooltipGantt === "function") window.ocultarTooltipGantt();
+      codigoActividadArrastrada = cod;
+      document.body.classList.add("is-dragging-row");
+      trOrigen.classList.add("row-dragging");
+
+      const actObj = state.actividadesGlobal.find(a => String(a.codigo).replace(/\.+$/, "") === String(cod).replace(/\.+$/, ""));
+      const descCorta = actObj ? actObj.descripcion.substring(0, 30) + (actObj.descripcion.length > 30 ? "…" : "") : cod;
+
+      badgeFlotante = document.createElement("div");
+      badgeFlotante.className = "fixed left-0 top-0 bg-[#0f2a4a] text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-2xl border border-teal-400 flex items-center space-x-2 z-[99999] pointer-events-none select-none";
+      badgeFlotante.innerHTML = `<span class="font-mono text-teal-300">[${cod}]</span><span class="font-semibold">${descCorta}</span>`;
+      document.body.appendChild(badgeFlotante);
+
+      iniciarBucleAutoScroll();
+    }
+
+    badgeFlotante.style.transform = `translate3d(${ev.clientX + 14}px, ${ev.clientY + 12}px, 0)`;
+
+    const elDebajo = document.elementFromPoint(ev.clientX, ev.clientY);
+    const trDestino = elDebajo ? elDebajo.closest("#lista-actividades tr[id^='fila-act-']") : null;
+    if (trDestino) {
+      sobrevolarFilaArrastre(
+        { preventDefault: () => {}, clientY: ev.clientY, dataTransfer: { dropEffect: "move" } },
+        trDestino
+      );
+    }
+  };
+
+  const alSoltar = async (ev) => {
+    window.removeEventListener("mousemove", alMover);
+    window.removeEventListener("mouseup", alSoltar);
+
+    if (!arrastrando) return;
+    if (badgeFlotante) badgeFlotante.remove();
+
+    const trTarget = ultimaFilaObjetivoArrastre;
+    if (trTarget && trTarget !== trOrigen) {
+      const codDestino = (trTarget.id || "").replace("fila-act-", "").replace(/_/g, ".");
+      await soltarFilaArrastre({ preventDefault: () => {} }, codDestino, trTarget);
+    } else {
+      finalizarArrastre();
+    }
+  };
+
+  window.addEventListener("mousemove", alMover);
+  window.addEventListener("mouseup", alSoltar);
+}
 
 export function iniciarArrastreFila(e, cod) {
   if (typeof window.ocultarTooltipGantt === "function") window.ocultarTooltipGantt();
@@ -2326,20 +2382,11 @@ export function renderizarTableroKanban() {
 
     const card = document.createElement("div");
     const animDrop = (codigoUltimoSoltadoKanban === codLimpio) ? "kanban-card-dropped" : "";
-    card.className = `kanban-card-item group ${animDrop}`;
-    card.draggable = puedeEditar;
+    card.className = `kanban-card-item group select-none ${animDrop}`;
+    card.dataset.cod = codLimpio;
 
     if (puedeEditar) {
-      card.ondragstart = (e) => {
-        codigoArrastradoKanban = codLimpio;
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", codLimpio);
-        requestAnimationFrame(() => card.classList.add("is-dragging"));
-      };
-      card.ondragend = () => {
-        card.classList.remove("is-dragging");
-        codigoArrastradoKanban = null;
-      };
+      card.onmousedown = (e) => iniciarArrastrePunteroKanban(e, card, codLimpio);
     }
 
     // Doble clic abre la Ficha Inspector Integral de Actividad (estilo Jira / Linear)
@@ -2400,6 +2447,96 @@ export function renderizarTableroKanban() {
   if (bPend) bPend.innerText = contPend;
   if (bProc) bProc.innerText = contProc;
   if (bEjec) bEjec.innerText = contEjec;
+}
+
+export function iniciarArrastrePunteroKanban(e, cardEl, codLimpio) {
+  if (e.button !== 0 || e.target.closest("button") || e.target.closest("[onclick]")) return;
+
+  const startX = e.clientX;
+  const startY = e.clientY;
+  let arrastrando = false;
+  let ghostEl = null;
+  let offsetX = 0;
+  let offsetY = 0;
+  let zonaSobrevoladaActual = null;
+
+  const zonasDrop = [
+    { el: document.getElementById("kanban-dropzone-pendiente"), estado: "No iniciado" },
+    { el: document.getElementById("kanban-dropzone-proceso"), estado: "En proceso" },
+    { el: document.getElementById("kanban-dropzone-ejecutado"), estado: "Ejecutado" }
+  ].filter(z => z.el);
+
+  const alMover = (ev) => {
+    const dx = ev.clientX - startX;
+    const dy = ev.clientY - startY;
+
+    if (!arrastrando) {
+      if (Math.hypot(dx, dy) < 5) return;
+      arrastrando = true;
+      codigoArrastradoKanban = codLimpio;
+
+      const rect = cardEl.getBoundingClientRect();
+      offsetX = startX - rect.left;
+      offsetY = startY - rect.top;
+
+      ghostEl = cardEl.cloneNode(true);
+      ghostEl.style.position = "fixed";
+      ghostEl.style.left = "0px";
+      ghostEl.style.top = "0px";
+      ghostEl.style.width = `${rect.width}px`;
+      ghostEl.style.zIndex = "99999";
+      ghostEl.style.pointerEvents = "none";
+      ghostEl.style.boxShadow = "0 20px 30px -8px rgba(15, 42, 74, 0.32)";
+      ghostEl.style.borderColor = "#0d9488";
+      ghostEl.style.transition = "none";
+      document.body.appendChild(ghostEl);
+
+      cardEl.classList.add("is-dragging");
+      document.body.classList.add("is-dragging-row");
+    }
+
+    // Mover tarjeta flotante a 60fps con GPU y mantener el cursor de manito cerrada
+    ghostEl.style.transform = `translate3d(${ev.clientX - offsetX}px, ${ev.clientY - offsetY}px, 0) rotate(1.5deg)`;
+
+    const elDebajo = document.elementFromPoint(ev.clientX, ev.clientY);
+    const nuevaZona = zonasDrop.find(z => z.el.contains(elDebajo) || z.el.parentElement?.contains(elDebajo));
+
+    if (zonaSobrevoladaActual && zonaSobrevoladaActual !== nuevaZona?.el) {
+      zonaSobrevoladaActual.classList.remove("drag-over");
+    }
+    if (nuevaZona) {
+      nuevaZona.el.classList.add("drag-over");
+      zonaSobrevoladaActual = nuevaZona.el;
+    } else {
+      zonaSobrevoladaActual = null;
+    }
+  };
+
+  const alSoltar = async (ev) => {
+    window.removeEventListener("mousemove", alMover);
+    window.removeEventListener("mouseup", alSoltar);
+
+    if (!arrastrando) return;
+
+    document.body.classList.remove("is-dragging-row");
+    cardEl.classList.remove("is-dragging");
+    if (ghostEl) ghostEl.remove();
+    zonasDrop.forEach(z => z.el.classList.remove("drag-over"));
+
+    const elDebajo = document.elementFromPoint(ev.clientX, ev.clientY);
+    const zonaDestino = zonasDrop.find(z => z.el.contains(elDebajo) || z.el.parentElement?.contains(elDebajo));
+
+    if (zonaDestino) {
+      await kanbanSoltarActividad(
+        { preventDefault: () => {}, currentTarget: zonaDestino.el, dataTransfer: { getData: () => codLimpio } },
+        zonaDestino.estado
+      );
+    }
+    codigoArrastradoKanban = null;
+  };
+
+  window.addEventListener("mousemove", alMover);
+  window.addEventListener("mouseup", alSoltar);
 }
 
 export function kanbanPermitirSoltar(e) {
