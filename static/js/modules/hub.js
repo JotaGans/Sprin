@@ -129,6 +129,7 @@ export function renderizarRadarPreventivoHub() {
   const listaContenedor = document.getElementById("hub-radar-lista-items");
   const badgeEquipo = document.getElementById("hub-radar-badge-equipo");
   const badgeMio = document.getElementById("hub-radar-badge-mio");
+  const badgeResumenHeader = document.getElementById("hub-radar-badge-resumen-header");
   const btnEquipo = document.getElementById("btn-radar-modo-equipo");
   const btnMio = document.getElementById("btn-radar-modo-mio");
   if (!listaContenedor) return;
@@ -177,6 +178,12 @@ export function renderizarRadarPreventivoHub() {
   if (btnMio) btnMio.className = (modoRadarHub === "mio") ? clsActivo : clsInactivo;
 
   const fuenteActiva = (modoRadarHub === "equipo") ? alertasEquipo : tareasMias;
+  if (badgeResumenHeader) {
+    badgeResumenHeader.innerText = modoRadarHub === "equipo"
+      ? `${alertasEquipo.length} alerta(s) de plazo`
+      : `${tareasMias.length} actividad(es) asignada(s)`;
+  }
+
   const itemsFiltrados = fuenteActiva.filter(item => {
     if (!qFiltro) return true;
     const texto = `${item.responsable || ''} ${item.descripcion || ''} ${item.proyecto_nombre || ''} ${item.unidad_organica || ''} ${item.codigo || ''}`.toLowerCase();
@@ -188,33 +195,33 @@ export function renderizarRadarPreventivoHub() {
       ? "✅ Excelente: Ningún proyecto bajo su supervisión presenta actividades vencidas ni próximas a vencer en los siguientes 5 días."
       : "🎉 No tienes actividades operativas pendientes o próximas a vencer asignadas a tu nombre en los proyectos.";
     listaContenedor.innerHTML = `
-      <div class="col-span-full py-3 px-4 text-center text-slate-500 font-semibold text-xs bg-slate-50 rounded-xl border border-slate-200/70">
+      <div class="col-span-full py-3.5 px-4 text-center text-slate-500 font-semibold text-xs bg-slate-50 rounded-xl border border-slate-200/70">
         ${msgVacio}
       </div>
     `;
-    listaContenedor.style.maxHeight = "74px";
+    listaContenedor.style.maxHeight = "82px";
     return;
   }
 
-  // Renderizar Mini-Tarjetas Compactas (con solo lo clave y botón 'i' con Tooltip Flotante Rico)
+  // Renderizar Mini-Tarjetas Compactas con Doble Clic para entrar al proyecto, nombre sutil del proyecto e icono (i)
   listaContenedor.innerHTML = itemsFiltrados.slice(0, 24).map(al => {
     const esVencida = al.tipo_alerta === "VENCIDA";
     const esPorVencer = al.tipo_alerta === "POR_VENCER";
 
     let dotColor = "bg-emerald-500";
     let txtPlazoColor = "text-emerald-700";
-    let cardBordeClase = "border-slate-200/90 bg-slate-50/50 hover:border-teal-400";
+    let cardBordeClase = "border-slate-200/90 bg-slate-50/50 hover:border-teal-500 hover:bg-white";
     let plazoCorto = al.fecha_fin || "En plazo";
 
     if (esVencida) {
       dotColor = "bg-rose-500";
       txtPlazoColor = "text-rose-700";
-      cardBordeClase = "border-rose-200/85 bg-rose-50/30 hover:border-rose-400";
+      cardBordeClase = "border-rose-200/85 bg-rose-50/30 hover:border-rose-400 hover:bg-rose-50/50";
       plazoCorto = `Hace ${Math.abs(al.dias_restantes)}d`;
     } else if (esPorVencer) {
       dotColor = "bg-amber-500";
       txtPlazoColor = "text-amber-800";
-      cardBordeClase = "border-amber-200/85 bg-amber-50/30 hover:border-amber-400";
+      cardBordeClase = "border-amber-200/85 bg-amber-50/30 hover:border-amber-400 hover:bg-amber-50/50";
       plazoCorto = al.dias_restantes === 0 ? "Vence HOY" : `En ${al.dias_restantes}d`;
     }
 
@@ -225,21 +232,26 @@ export function renderizarRadarPreventivoHub() {
       ? (primerResp.split(",")[0].trim()[0] + (primerResp.split(",")[1]?.trim()[0] || "")).toUpperCase()
       : (primerResp.split(" ")[0][0] + (primerResp.split(" ")[1]?.[0] || "")).toUpperCase();
 
+    const nomProyEscapado = (al.proyecto_nombre || "").replace(/'/g, "\\'");
+
     return `
-      <div class="h-[68px] px-2.5 py-2 rounded-xl border ${cardBordeClase} flex flex-col justify-between transition relative group/minicard">
-        <!-- Fila Superior de la Mini-Tarjeta: Semáforo + Plazo corto | Unidad + Botón info (i) + Ir -->
+      <div ondblclick="ingresarAlProyecto(${al.proyecto_id}, '${nomProyEscapado}', ${al.es_gestor})"
+           title="Doble clic para ingresar al proyecto"
+           class="h-[82px] px-2.5 py-2 rounded-xl border ${cardBordeClase} flex flex-col justify-between transition relative cursor-pointer select-none shadow-2xs">
+        
+        <!-- Fila 1: Semáforo + Plazo | Unidad + Botón (i) + Botón (→) -->
         <div class="flex items-center justify-between gap-1">
           <div class="flex items-center space-x-1.5 min-w-0">
             <span class="w-2 h-2 rounded-full ${dotColor} flex-shrink-0"></span>
             <span class="text-[10.5px] font-black ${txtPlazoColor} truncate">${plazoCorto}</span>
-            <span class="text-[9.5px] font-bold text-slate-400 hidden xl:inline">(${al.fecha_fin})</span>
+            <span class="text-[9.5px] font-semibold text-slate-400 hidden xl:inline">(${al.fecha_fin})</span>
           </div>
 
           <div class="flex items-center space-x-1 flex-shrink-0">
             <span class="text-[9px] font-black text-[#0f2a4a] bg-white px-1.5 py-0.2 rounded border border-slate-200">${al.unidad_organica}</span>
             
-            <!-- Icono (i) con Tooltip Ejecutivo rico -->
             <button type="button"
+                    onclick="event.stopPropagation()"
                     onmouseenter="mostrarTooltipMiniCardRadar(event, this)"
                     onmouseleave="ocultarTooltipMiniCardRadar()"
                     data-proy="${(al.proyecto_nombre || '').replace(/"/g, '&quot;')}"
@@ -250,21 +262,28 @@ export function renderizarRadarPreventivoHub() {
                     data-fin="${al.fecha_fin || ''}"
                     data-avance="${al.avance || 0}"
                     data-plazo="${plazoCorto}"
+                    data-vencida="${esVencida ? '1' : '0'}"
                     class="w-4 h-4 rounded-full bg-white hover:bg-[#0f2a4a] text-slate-500 hover:text-white border border-slate-200/90 flex items-center justify-center text-[9.5px] font-serif italic font-black transition cursor-help">
               i
             </button>
 
-            <button type="button" onclick="ingresarAlProyecto(${al.proyecto_id}, '${al.proyecto_nombre.replace(/'/g, "\\'")}', ${al.es_gestor})" class="w-4 h-4 rounded bg-[#0f2a4a] hover:bg-teal-600 text-white font-black text-[10px] flex items-center justify-center transition cursor-pointer" title="Abrir proyecto: ${al.proyecto_nombre.replace(/"/g, '&quot;')}">
+            <button type="button" onclick="event.stopPropagation(); ingresarAlProyecto(${al.proyecto_id}, '${nomProyEscapado}', ${al.es_gestor})" class="w-4 h-4 rounded bg-[#0f2a4a] hover:bg-teal-600 text-white font-black text-[10px] flex items-center justify-center transition cursor-pointer" title="Abrir proyecto">
               →
             </button>
           </div>
         </div>
 
-        <!-- Fila Inferior de la Mini-Tarjeta: Avatar + Apellido | Código y Actividad truncada -->
-        <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/50 text-[11px]">
+        <!-- Fila 2: Nombre sutil del proyecto al que pertenece -->
+        <div class="text-[10px] font-semibold text-slate-400 truncate flex items-center space-x-1 leading-none">
+          <span class="opacity-75 text-[9px]">📁</span>
+          <span class="truncate">${al.proyecto_nombre}</span>
+        </div>
+
+        <!-- Fila 3: Avatar + Responsable | Código y Nombre de la Actividad -->
+        <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/50 text-[11px] leading-none">
           <div class="flex items-center space-x-1 flex-shrink-0">
             <span class="w-4 h-4 rounded-full bg-[#0f2a4a] text-white text-[8px] font-black flex items-center justify-center flex-shrink-0">${ini || '?'}</span>
-            <span class="font-bold text-slate-700 text-[10.5px] truncate max-w-[78px]">${apellidoCorto}</span>
+            <span class="font-bold text-slate-700 text-[10.5px] truncate max-w-[80px]">${apellidoCorto}</span>
           </div>
           <p class="text-[10.5px] font-semibold text-slate-600 truncate flex-1 text-right">
             <strong class="font-mono text-[#0f2a4a]">[${al.codigo}]</strong> ${al.descripcion}
@@ -274,7 +293,6 @@ export function renderizarRadarPreventivoHub() {
     `;
   }).join("");
 
-  // Ajustar altura inteligente para no dejar espacio en blanco si hay pocas tarjetas
   requestAnimationFrame(() => ajustarAlturaRadarSegunContenido());
 }
 
@@ -295,13 +313,15 @@ export function mostrarTooltipMiniCardRadar(e, btnEl) {
   const fin = btnEl.getAttribute("data-fin") || "";
   const av = btnEl.getAttribute("data-avance") || "0";
   const plazo = btnEl.getAttribute("data-plazo") || "";
+  const esVencida = btnEl.getAttribute("data-vencida") === "1";
+  const verboFecha = esVencida ? "Venció:" : "Vence:";
 
   tip.innerHTML = `
     <div class="flex items-center justify-between gap-2 mb-1.5 border-b border-white/10 pb-1.5">
       <span class="font-mono font-black text-[10px] bg-teal-400 text-[#0f2a4a] px-1.5 py-0.2 rounded">[${cod}]</span>
-      <span class="text-[10px] font-bold text-amber-300">${plazo} · Vence: ${fin}</span>
+      <span class="text-[10px] font-bold ${esVencida ? 'text-rose-300' : 'text-amber-300'}">${plazo} · ${verboFecha} ${fin}</span>
     </div>
-    <p class="font-extrabold text-white text-xs leading-snug mb-2">${desc}</p>
+    <p class="font-bold text-white text-xs leading-snug mb-2">${desc}</p>
     <div class="space-y-1 text-[10.5px] text-slate-200 bg-white/5 p-2 rounded-lg border border-white/10">
       <div><strong class="text-teal-300">📁 Proyecto:</strong> [${uo}] ${proy}</div>
       <div><strong class="text-teal-300">👤 Responsable(s):</strong> ${resp}</div>
@@ -313,7 +333,7 @@ export function mostrarTooltipMiniCardRadar(e, btnEl) {
   let left = rect.left - 240;
   let top = rect.bottom + 8;
   if (left < 10) left = 10;
-  if (top + 160 > window.innerHeight) top = rect.top - 155;
+  if (top + 165 > window.innerHeight) top = rect.top - 160;
 
   tip.style.left = `${left}px`;
   tip.style.top = `${top}px`;
@@ -329,19 +349,17 @@ export function ocultarTooltipMiniCardRadar() {
   }
 }
 
-// Ajusta el contenedor del Radar para que nunca sea más alto que el total de mini-tarjetas reales
 function ajustarAlturaRadarSegunContenido() {
   const lista = document.getElementById("hub-radar-lista-items");
   if (!lista) return;
-  const ALTURA_MIN_UNA_FILA = 70;
+  const ALTURA_MIN_UNA_FILA = 82;
   const alturaContenidoReal = Math.max(ALTURA_MIN_UNA_FILA, lista.scrollHeight);
-  const alturaActual = parseInt(lista.style.maxHeight || "152", 10);
+  const alturaActual = parseInt(lista.style.maxHeight || "174", 10);
   if (alturaActual > alturaContenidoReal) {
     lista.style.maxHeight = `${alturaContenidoReal}px`;
   }
 }
 
-// Redimensionador Vertical Inteligente (Drag-to-Resize en el borde inferior del Radar)
 export function iniciarRedimensionVerticalRadar(e) {
   e.preventDefault();
   const lista = document.getElementById("hub-radar-lista-items");
@@ -349,8 +367,8 @@ export function iniciarRedimensionVerticalRadar(e) {
 
   const startY = e.clientY;
   const startHeight = lista.offsetHeight;
-  const ALTURA_MIN_UNA_TARJETA = 70; // Límite mínimo: 1 fila de mini-tarjetas
-  const ALTURA_MAX_CONTENIDO = Math.max(ALTURA_MIN_UNA_TARJETA, lista.scrollHeight); // Límite máximo: hasta la última tarjeta sin hueco blanco
+  const ALTURA_MIN_UNA_TARJETA = 82;
+  const ALTURA_MAX_CONTENIDO = Math.max(ALTURA_MIN_UNA_TARJETA, lista.scrollHeight);
 
   document.body.style.cursor = "ns-resize";
   document.body.style.userSelect = "none";
@@ -374,22 +392,34 @@ export function iniciarRedimensionVerticalRadar(e) {
 
 export function alternarColapsoRadar() {
   const cuerpo = document.getElementById("hub-radar-cuerpo");
+  const headerBar = document.getElementById("hub-radar-header-bar");
   const ico = document.getElementById("ico-colapso-radar");
   const txt = document.getElementById("txt-colapso-radar");
   if (!cuerpo) return;
 
   const oculto = cuerpo.classList.toggle("hidden");
+  if (headerBar) {
+    headerBar.className = oculto
+      ? "bg-white rounded-2xl px-4 py-2.5 border border-slate-200/95 flex items-center justify-between shadow-2xs"
+      : "bg-white rounded-t-2xl px-4 py-2.5 border border-b-0 border-slate-200/95 flex items-center justify-between shadow-2xs";
+  }
   if (ico) ico.innerText = oculto ? "▼" : "▲";
   if (txt) txt.innerText = oculto ? "Expandir" : "Contraer";
 }
 
 export function alternarColapsoPortafolioHub() {
   const cuerpo = document.getElementById("hub-portafolio-cuerpo");
+  const headerBar = document.getElementById("hub-portafolio-header-bar");
   const ico = document.getElementById("ico-colapso-portafolio");
   const txt = document.getElementById("txt-colapso-portafolio");
   if (!cuerpo) return;
 
   const oculto = cuerpo.classList.toggle("hidden");
+  if (headerBar) {
+    headerBar.className = oculto
+      ? "bg-white rounded-2xl px-4 py-2.5 border border-slate-200/95 flex items-center justify-between shadow-2xs"
+      : "bg-white rounded-t-2xl px-4 py-2.5 border border-b-0 border-slate-200/95 flex items-center justify-between shadow-2xs";
+  }
   if (ico) ico.innerText = oculto ? "▼" : "▲";
   if (txt) txt.innerText = oculto ? "Expandir" : "Contraer";
 }
@@ -417,6 +447,11 @@ export function restablecerBloquesHub() {
   document.getElementById("hub-radar-cuerpo")?.classList.remove("hidden");
   document.getElementById("hub-contenedor-portafolio-bloque")?.classList.remove("hidden");
   document.getElementById("hub-portafolio-cuerpo")?.classList.remove("hidden");
+
+  const headerR = document.getElementById("hub-radar-header-bar");
+  if (headerR) headerR.className = "bg-white rounded-t-2xl px-4 py-2.5 border border-b-0 border-slate-200/95 flex items-center justify-between shadow-2xs";
+  const headerP = document.getElementById("hub-portafolio-header-bar");
+  if (headerP) headerP.className = "bg-white rounded-t-2xl px-4 py-2.5 border border-b-0 border-slate-200/95 flex items-center justify-between shadow-2xs";
 
   const icoR = document.getElementById("ico-colapso-radar");
   const txtR = document.getElementById("txt-colapso-radar");
@@ -712,7 +747,6 @@ export function renderizarTarjetasHub(lista) {
     }
 
     const card = document.createElement("div");
-    // Tarjeta estirada verticalmente (h-[365px]) con distribución proporcionada y elegante
     card.className = "bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs hover:shadow-md transition-all flex flex-col justify-between hover:border-teal-500/50 relative h-[365px]";
     card.innerHTML = `
       <div>
@@ -741,9 +775,9 @@ export function renderizarTarjetasHub(lista) {
           </div>
         </div>
         
-        <!-- Fila 2: Título con altura simétrica reservada (h-[44px]) + Popover de Descripción en icono ⓘ -->
+        <!-- Fila 2: Título con grosor refinado (font-bold en lugar de font-extrabold) + Popover de Descripción en icono ⓘ -->
         <div class="flex items-start justify-between gap-2 h-[44px]">
-          <h3 class="font-extrabold text-[15px] text-[#0f2a4a] leading-snug line-clamp-2 break-words flex-1" title="${p.nombre.replace(/"/g, '&quot;')}">${p.nombre}</h3>
+          <h3 class="font-bold text-[15px] text-[#0f2a4a] tracking-tight leading-snug line-clamp-2 break-words flex-1" title="${p.nombre.replace(/"/g, '&quot;')}">${p.nombre}</h3>
           
           <div class="relative group/info flex-shrink-0 mt-0.5">
             <button type="button" onclick="event.stopPropagation(); ${esGestor ? `editarDescripcionProyecto(${p.id}, '${descEscapada}')` : ''}" class="w-5 h-5 rounded-full bg-slate-100 hover:bg-[#0f2a4a] text-slate-500 hover:text-white flex items-center justify-center text-[11px] font-serif italic font-black transition cursor-pointer" title="${esGestor ? 'Clic para editar la descripción del proyecto' : 'Descripción del proyecto'}">
@@ -757,7 +791,7 @@ export function renderizarTarjetasHub(lista) {
           </div>
         </div>
         
-        <!-- Fila 3: Unidad Orgánica y Proceso (con opacidad sutil en el proceso para menor protagonismo) -->
+        <!-- Fila 3: Unidad Orgánica y Proceso (con opacidad sutil en el proceso) -->
         <div class="flex items-center gap-x-2 mt-2 text-[11px] truncate">
           <span ${tooltipUo} 
                 ondblclick="${esGestor ? `editarUnidadOrganicaProyecto(${p.id}, '${siglaUnidad}')` : ''}"
@@ -778,7 +812,7 @@ export function renderizarTarjetasHub(lista) {
         ${slotAlertaSimetricoHTML}
       </div>
 
-      <!-- Zona Inferior Anclada: Barra + 3 KPIs con su Esencia de Color Restaurada + Botón Ingresar -->
+      <!-- Zona Inferior Anclada: Barra + 3 KPIs con su Esencia de Color + Botón Ingresar -->
       <div class="pt-3">
         <div class="w-full bg-slate-100 rounded-full h-2 mb-3.5 overflow-hidden shadow-inner">
           <div class="${barraColorClase} h-2 rounded-full transition-all duration-500" style="width: ${avanceVal}%"></div>
@@ -833,6 +867,8 @@ export function renderizarTablaHub(lista) {
   setTimeout(sincronizarContadorHeaderPendientes, 120);
 
   const listaFinal = lista.filter(p => state.mostrandoOcultosHub ? state.idsProyectosOcultos.has(p.id) : !state.idsProyectosOcultos.has(p.id));
+  const badgePortafolio = document.getElementById("hub-portafolio-badge-visibles");
+  if (badgePortafolio) badgePortafolio.innerText = `${listaFinal.length} proyecto(s)`;
 
   if (listaFinal.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-400 font-semibold italic">No se encontraron proyectos con los filtros seleccionados.</td></tr>`;
@@ -894,7 +930,7 @@ export function renderizarTablaHub(lista) {
             ${iconoAlcanceHTML}
             <button type="button" onclick="event.stopPropagation(); ${esGestor ? `editarDescripcionProyecto(${p.id}, '${descEscapada}')` : ''}" class="w-4 h-4 rounded-full bg-slate-100 hover:bg-[#0f2a4a] text-slate-500 hover:text-white text-[10px] font-serif italic font-black flex items-center justify-center flex-shrink-0 cursor-pointer" title="Descripción: ${textoDesc.replace(/"/g, '&quot;')}">i</button>
           </div>
-          <div class="text-[10.5px] text-[#0f2a4a] font-bold mt-0.5 flex items-center gap-1 truncate">
+          <div class="text-[10.5px] text-[#0f2a4a] font-semibold opacity-60 hover:opacity-100 mt-0.5 flex items-center gap-1 truncate transition">
             <span>⚙️</span>
             <span class="truncate ${esGestor ? 'cursor-pointer hover:underline' : ''}" 
                   title="${nombreLimpioProceso}" 
@@ -921,19 +957,22 @@ export function renderizarTablaHub(lista) {
             <span class="text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200" title="No iniciadas">${p.pendientes || 0}</span>
           </div>
         </td>
-        <td class="p-2.5 text-right pr-3 whitespace-nowrap">
-          <div class="inline-flex items-center justify-end space-x-1">
-            <button onclick="alternarOcultarProyecto(${p.id}, event)" class="p-1 rounded hover:bg-gray-200 transition cursor-pointer" title="${estaOculto ? 'Restaurar al panel' : 'Ocultar vista'}">
-              ${estaOculto ? SVG_OJO_ABIERTO : SVG_OJO_CERRADO}
-            </button>
-            ${puedeEliminar ? `
-              <button onclick="solicitarEliminarProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', event)" class="p-1 rounded text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer" title="Eliminar proyecto vacío">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
+        <!-- Columna Acción con ranuras de ancho fijo para que el botón Ingresar nunca se desplace si aparece el tachito -->
+        <td class="p-2.5 pr-4 whitespace-nowrap">
+          <div class="flex items-center justify-end space-x-1.5">
+            <div class="inline-flex items-center justify-end space-x-0.5 w-[44px] flex-shrink-0">
+              <button onclick="alternarOcultarProyecto(${p.id}, event)" class="p-1 rounded hover:bg-gray-200 transition cursor-pointer" title="${estaOculto ? 'Restaurar al panel' : 'Ocultar vista'}">
+                ${estaOculto ? SVG_OJO_ABIERTO : SVG_OJO_CERRADO}
               </button>
-            ` : ''}
-            <button onclick="ingresarAlProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', ${esGestor})" class="bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white text-[11px] font-bold px-2.5 py-1 rounded-lg transition shadow-2xs cursor-pointer">
+              ${puedeEliminar ? `
+                <button onclick="solicitarEliminarProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', event)" class="p-1 rounded text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer" title="Eliminar proyecto vacío">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              ` : ''}
+            </div>
+            <button onclick="ingresarAlProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', ${esGestor})" class="w-[78px] text-center bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white text-[11px] font-bold py-1 rounded-lg transition shadow-2xs cursor-pointer flex-shrink-0">
               Ingresar →
             </button>
           </div>

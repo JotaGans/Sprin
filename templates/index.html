@@ -232,43 +232,57 @@
         </div>
       </div>
 
-      <!-- 2. BLOQUE 1: RADAR PREVENTIVO DE PLAZOS CON MINI-TARJETAS Y REDIMENSIONADOR VERTICAL INTELIGENTE -->
-      <div id="hub-contenedor-radar-alertas" class="mb-4 bg-white border border-slate-200/95 rounded-2xl shadow-xs overflow-hidden transition-all">
-        <div class="px-4 py-2.5 bg-slate-50/90 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
+      <!-- 2. BLOQUE 1: SEGUIMIENTO DE VENCIMIENTOS Y ACTIVIDADES ASIGNADAS (CON ENCABEZADO COLAPSABLE HOMOLOGADO) -->
+      <div id="hub-contenedor-radar-alertas" class="mb-4 flex flex-col">
+        
+        <!-- Barra de Título Superior (Siempre visible al contraer, igual que en Portafolio) -->
+        <div id="hub-radar-header-bar" class="bg-white rounded-t-2xl px-4 py-2.5 border border-b-0 border-slate-200/95 flex items-center justify-between shadow-2xs">
           <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+            <h3 class="text-xs font-black uppercase tracking-wider text-[#0f2a4a]">Seguimiento de Vencimientos y Actividades Asignadas</h3>
+            <span id="hub-radar-badge-resumen-header" class="text-[10px] font-bold bg-amber-50 text-amber-900 px-2 py-0.2 rounded-full border border-amber-200">0 alertas</span>
+          </div>
+          <button type="button" onclick="alternarColapsoRadar()" id="btn-colapso-radar" class="h-7 px-2.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[11px] font-bold text-slate-600 flex items-center space-x-1 cursor-pointer transition" title="Contraer o expandir el bloque de seguimiento de actividades">
+            <span id="txt-colapso-radar" class="hidden md:inline">Contraer</span>
+            <span id="ico-colapso-radar">▲</span>
+          </button>
+        </div>
+
+        <!-- Cuerpo Colapsable (Oculta también los botones conmutadores y el buscador al contraerse) -->
+        <div id="hub-radar-cuerpo" class="bg-white rounded-b-2xl border border-slate-200/95 shadow-xs overflow-hidden">
+          <!-- Sub-barra de pestañas y buscador rápido -->
+          <div class="px-4 py-2 bg-slate-50/80 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
             <div class="inline-flex items-center bg-slate-200/75 p-0.5 rounded-lg border border-slate-300/60">
               <button type="button" id="btn-radar-modo-equipo" onclick="cambiarModoRadarHub('equipo')" class="px-2.5 py-1 rounded-md text-[11px] font-black bg-[#0f2a4a] text-white shadow-2xs transition cursor-pointer flex items-center space-x-1.5">
                 <svg class="w-3.5 h-3.5 text-amber-300 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                 </svg>
-                <span>Radar de Plazos y Responsables</span>
+                <span>Actividades vencidas o por vencer</span>
                 <span id="hub-radar-badge-equipo" class="px-1.5 py-0.2 rounded-full text-[9.5px] bg-amber-400 text-[#0f2a4a] font-black">0</span>
               </button>
               <button type="button" id="btn-radar-modo-mio" onclick="cambiarModoRadarHub('mio')" class="px-2.5 py-1 rounded-md text-[11px] font-bold text-slate-600 hover:text-[#0f2a4a] transition cursor-pointer flex items-center space-x-1.5">
                 <svg class="w-3.5 h-3.5 text-teal-700 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                 </svg>
-                <span>Mis Actividades en Proyectos</span>
+                <span>Mis actividades asignadas</span>
                 <span id="hub-radar-badge-mio" class="px-1.5 py-0.2 rounded-full text-[9.5px] bg-teal-100 text-teal-900 font-black">0</span>
               </button>
             </div>
+
+            <div class="relative flex items-center w-full sm:w-64">
+              <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+              </svg>
+              <input type="text" id="hub-radar-input-filtro" oninput="renderizarRadarPreventivoHub()" placeholder="Filtrar responsable, tarea o proyecto..." class="w-full text-[11px] bg-white border border-slate-300 rounded-lg pl-7 pr-2.5 py-1 outline-none focus:border-[#0f2a4a] font-semibold text-slate-700">
+            </div>
           </div>
 
-          <div class="flex items-center space-x-2">
-            <input type="text" id="hub-radar-input-filtro" oninput="renderizarRadarPreventivoHub()" placeholder="Filtrar responsable, tarea o UUOO..." class="hidden sm:block w-52 text-[11px] bg-white border border-slate-300 rounded-lg px-2.5 py-1 outline-none focus:border-[#0f2a4a] font-semibold text-slate-700">
-            <button type="button" onclick="alternarColapsoRadar()" id="btn-colapso-radar" class="h-7 px-2.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-[11px] font-bold text-slate-600 flex items-center space-x-1 cursor-pointer transition" title="Contraer o expandir el radar preventivo">
-              <span id="txt-colapso-radar" class="hidden md:inline">Contraer</span>
-              <span id="ico-colapso-radar">▲</span>
-            </button>
-          </div>
-        </div>
-
-        <div id="hub-radar-cuerpo" class="bg-white">
           <div class="p-3">
-            <div id="hub-radar-lista-items" style="max-height: 152px;" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 overflow-y-auto pr-1"></div>
+            <div id="hub-radar-lista-items" style="max-height: 174px;" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 overflow-y-auto pr-1"></div>
           </div>
-          <!-- Barra Inferior Interactiva para Estirar o Encoger Verticalmente el Radar (Con topes inteligentes) -->
-          <div id="hub-radar-resizer" onmousedown="iniciarRedimensionVerticalRadar(event)" class="h-3 bg-slate-50 hover:bg-teal-50/80 border-t border-slate-200/80 cursor-ns-resize flex items-center justify-center group select-none transition" title="Arrastra hacia arriba o abajo para ajustar la altura del Radar (entre 1 fila y el total de elementos)">
+
+          <!-- Barra Inferior Interactiva para Estirar o Encoger Verticalmente (Con topes inteligentes) -->
+          <div id="hub-radar-resizer" onmousedown="iniciarRedimensionVerticalRadar(event)" class="h-3 bg-slate-50 hover:bg-teal-50/80 border-t border-slate-200/80 cursor-ns-resize flex items-center justify-center group select-none transition" title="Arrastra hacia arriba o abajo para ajustar la altura (entre 1 fila y el total de elementos)">
             <div class="w-10 h-1 rounded-full bg-slate-300 group-hover:bg-teal-600 transition"></div>
           </div>
         </div>
@@ -277,8 +291,8 @@
       <!-- 3. BLOQUE 2: PORTAFOLIO DE PROYECTOS (CON BARRA DE COLAPSO/EXPANSIÓN RÁPIDA, FILTROS Y VISTAS) -->
       <div id="hub-contenedor-portafolio-bloque" class="flex flex-col">
         
-        <!-- Barra de Encabezado Colapsable del Portafolio (Permite contraer/recuperar filtros y proyectos con 1 clic) -->
-        <div class="bg-white rounded-t-2xl px-4 py-2.5 border border-b-0 border-slate-200/95 flex items-center justify-between shadow-2xs">
+        <!-- Barra de Encabezado Colapsable del Portafolio -->
+        <div id="hub-portafolio-header-bar" class="bg-white rounded-t-2xl px-4 py-2.5 border border-b-0 border-slate-200/95 flex items-center justify-between shadow-2xs">
           <div class="flex items-center space-x-2">
             <span class="w-2 h-2 rounded-full bg-[#0f2a4a]"></span>
             <h3 class="text-xs font-black uppercase tracking-wider text-[#0f2a4a]">Portafolio de Proyectos y Programas</h3>
@@ -290,7 +304,7 @@
           </button>
         </div>
 
-        <!-- Cuerpo Colapsable del Portafolio (Contiene Filtros + Tarjetas + Tabla) -->
+        <!-- Cuerpo Colapsable del Portafolio -->
         <div id="hub-portafolio-cuerpo">
           <div class="bg-white rounded-b-xl p-2.5 mb-4 border border-slate-200 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 relative z-50">
             <div class="grid grid-cols-1 sm:grid-cols-3 md:flex md:flex-nowrap items-center gap-2 w-full md:w-auto">
@@ -385,25 +399,25 @@
             </button>
           </div>
 
-          <!-- 4. VISTA TARJETAS DEL HUB (PROPORCIÓN VERTICAL ESTILIZADA) -->
+          <!-- 4. VISTA TARJETAS DEL HUB -->
           <div id="hub-vista-cards-wrapper" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10 items-stretch">
             <div id="grid-proyectos-hub" class="contents"></div>
           </div>
 
-          <!-- 5. VISTA TABLA DEL HUB -->
+          <!-- 5. VISTA TABLA DEL HUB (CON COLUMNA "ALERTAS DE COORDINACIÓN" Y BOTÓN INGRESAR ALINEADO) -->
           <div id="hub-proyectos-tabla-contenedor" class="hidden mt-1 relative z-10">
             <div class="border border-gray-200 rounded-2xl overflow-hidden shadow-sm bg-white">
               <table class="w-full text-xs text-left table-fixed">
                 <thead class="bg-[#0f2a4a] text-white">
                   <tr>
                     <th class="p-2.5 font-bold text-white border-b border-blue-900 w-9 text-center">#</th>
-                    <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[28%]">Proyecto / Proceso institucional</th>
+                    <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[27%]">Proyecto / Proceso institucional</th>
                     <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[11%] text-center">Salud</th>
                     <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[10%] text-center">Rol</th>
                     <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[10%] text-center">% Avance</th>
-                    <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[19%]">Próximo hito / Coordinación</th>
+                    <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[19%]">Alertas de coordinación</th>
                     <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[11%] text-center">Tareas (E/P/N)</th>
-                    <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[11%] text-right pr-3">Acción</th>
+                    <th class="p-2.5 font-bold text-white border-b border-blue-900 w-[12%] text-right pr-4">Acción</th>
                   </tr>
                 </thead>
                 <tbody id="hub-proyectos-tabla-body" class="divide-y divide-gray-100 font-medium"></tbody>
