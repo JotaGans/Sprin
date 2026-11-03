@@ -894,15 +894,43 @@ let velocidadAutoScroll = 0;
 let ultimaFilaObjetivoArrastre = null;
 
 export function iniciarArrastrePunteroFilaWBS(e, trOrigen, cod) {
-  // No iniciar arrastre si el usuario hizo clic en un botón, input, checkbox o resizer
-  if (e.button !== 0 || e.target.closest("button, input, select, .gantt-bar-interactive, .gantt-connect-handle")) return;
+  // No iniciar arrastre si el clic fue en un botón, input, select, barra Gantt interactiva o resizer
+  if (e.button !== 0 || e.target.closest("button, input, select, textarea, .gantt-bar-interactive, .gantt-connect-handle, .col-resizer")) return;
 
   const startX = e.clientX;
   const startY = e.clientY;
   let arrastrando = false;
+  let canceladoPorEscape = false;
   let badgeFlotante = null;
 
+  const limpiarListeners = () => {
+    window.removeEventListener("mousemove", alMover);
+    window.removeEventListener("mouseup", alSoltar);
+    window.removeEventListener("keydown", alPresionarTecla, true);
+  };
+
+  const abortarArrastre = () => {
+    canceladoPorEscape = true;
+    limpiarListeners();
+    if (badgeFlotante) {
+      badgeFlotante.remove();
+      badgeFlotante = null;
+    }
+    finalizarArrastre();
+  };
+
+  const alPresionarTecla = (ev) => {
+    if (ev.key === "Escape" && arrastrando) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      abortarArrastre();
+      notificarToast("Reubicación cancelada.", "info", 1800);
+    }
+  };
+
   const alMover = (ev) => {
+    if (canceladoPorEscape) return;
+
     if (!arrastrando) {
       if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < 6) return;
       arrastrando = true;
@@ -916,7 +944,7 @@ export function iniciarArrastrePunteroFilaWBS(e, trOrigen, cod) {
 
       badgeFlotante = document.createElement("div");
       badgeFlotante.className = "fixed left-0 top-0 bg-[#0f2a4a] text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-2xl border border-teal-400 flex items-center space-x-2 z-[99999] pointer-events-none select-none";
-      badgeFlotante.innerHTML = `<span class="font-mono text-teal-300">[${cod}]</span><span class="font-semibold">${descCorta}</span>`;
+      badgeFlotante.innerHTML = `<span class="font-mono text-teal-300">[${cod}]</span><span class="font-semibold">${descCorta}</span><span class="text-[9.5px] text-slate-300 font-normal ml-1.5 border-l border-white/20 pl-1.5">Esc para cancelar</span>`;
       document.body.appendChild(badgeFlotante);
 
       iniciarBucleAutoScroll();
@@ -926,20 +954,30 @@ export function iniciarArrastrePunteroFilaWBS(e, trOrigen, cod) {
 
     const elDebajo = document.elementFromPoint(ev.clientX, ev.clientY);
     const trDestino = elDebajo ? elDebajo.closest("#lista-actividades tr[id^='fila-act-']") : null;
-    if (trDestino) {
-      sobrevolarFilaArrastre(
-        { preventDefault: () => {}, clientY: ev.clientY, dataTransfer: { dropEffect: "move" } },
-        trDestino
-      );
+
+    // Si vuelve a pasar sobre la misma fila que está arrastrando, limpiar cualquier borde activo
+    if (!trDestino || trDestino === trOrigen) {
+      if (ultimaFilaObjetivoArrastre) {
+        ultimaFilaObjetivoArrastre.classList.remove("drop-target-above", "drop-target-below", "drop-target-inside", "drop-target-invalid");
+        ultimaFilaObjetivoArrastre = null;
+      }
+      return;
     }
+
+    sobrevolarFilaArrastre(
+      { preventDefault: () => {}, clientY: ev.clientY, dataTransfer: { dropEffect: "move" } },
+      trDestino
+    );
   };
 
-  const alSoltar = async (ev) => {
-    window.removeEventListener("mousemove", alMover);
-    window.removeEventListener("mouseup", alSoltar);
+  const alSoltar = async () => {
+    limpiarListeners();
+    if (!arrastrando || canceladoPorEscape) return;
 
-    if (!arrastrando) return;
-    if (badgeFlotante) badgeFlotante.remove();
+    if (badgeFlotante) {
+      badgeFlotante.remove();
+      badgeFlotante = null;
+    }
 
     const trTarget = ultimaFilaObjetivoArrastre;
     if (trTarget && trTarget !== trOrigen) {
@@ -952,6 +990,7 @@ export function iniciarArrastrePunteroFilaWBS(e, trOrigen, cod) {
 
   window.addEventListener("mousemove", alMover);
   window.addEventListener("mouseup", alSoltar);
+  window.addEventListener("keydown", alPresionarTecla, true);
 }
 
 export function iniciarArrastreFila(e, cod) {
@@ -2450,23 +2489,65 @@ export function renderizarTableroKanban() {
 }
 
 export function iniciarArrastrePunteroKanban(e, cardEl, codLimpio) {
-  if (e.button !== 0 || e.target.closest("button") || e.target.closest("[onclick]")) return;
+  // Permitir arrastrar desde cualquier parte de la tarjeta excepto si se hizo clic directamente en un botón (✏️ o 💬)
+  if (e.button !== 0 || e.target.closest("button")) return;
 
   const startX = e.clientX;
   const startY = e.clientY;
   let arrastrando = false;
+  let canceladoPorEscape = false;
   let ghostEl = null;
   let offsetX = 0;
   let offsetY = 0;
   let zonaSobrevoladaActual = null;
 
   const zonasDrop = [
-    { el: document.getElementById("kanban-dropzone-pendiente"), estado: "No iniciado" },
-    { el: document.getElementById("kanban-dropzone-proceso"), estado: "En proceso" },
-    { el: document.getElementById("kanban-dropzone-ejecutado"), estado: "Ejecutado" }
+    { el: document.getElementById("kanban-dropzone-pendiente"), col: document.getElementById("kanban-dropzone-pendiente")?.closest(".kanban-col"), estado: "No iniciado" },
+    { el: document.getElementById("kanban-dropzone-proceso"), col: document.getElementById("kanban-dropzone-proceso")?.closest(".kanban-col"), estado: "En proceso" },
+    { el: document.getElementById("kanban-dropzone-ejecutado"), col: document.getElementById("kanban-dropzone-ejecutado")?.closest(".kanban-col"), estado: "Ejecutado" }
   ].filter(z => z.el);
 
+  const limpiarListeners = () => {
+    window.removeEventListener("mousemove", alMover);
+    window.removeEventListener("mouseup", alSoltar);
+    window.removeEventListener("keydown", alPresionarEscape, true);
+  };
+
+  const restaurarVisualKanban = () => {
+    document.body.classList.remove("is-dragging-row");
+    cardEl.classList.remove("is-dragging");
+    if (ghostEl) {
+      ghostEl.remove();
+      ghostEl = null;
+    }
+    zonasDrop.forEach(z => z.el.classList.remove("drag-over"));
+    codigoArrastradoKanban = null;
+  };
+
+  const alPresionarEscape = (ev) => {
+    if (ev.key === "Escape" && arrastrando) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      canceladoPorEscape = true;
+      limpiarListeners();
+      restaurarVisualKanban();
+      notificarToast("Movimiento de tarjeta cancelado.", "info", 1800);
+    }
+  };
+
+  const encontrarZonaEnCoordenada = (x, y) => {
+    for (const z of zonasDrop) {
+      const contenedor = z.col || z.el;
+      const r = contenedor.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+        return z;
+      }
+    }
+    return null;
+  };
+
   const alMover = (ev) => {
+    if (canceladoPorEscape) return;
     const dx = ev.clientX - startX;
     const dy = ev.clientY - startY;
 
@@ -2474,6 +2555,7 @@ export function iniciarArrastrePunteroKanban(e, cardEl, codLimpio) {
       if (Math.hypot(dx, dy) < 5) return;
       arrastrando = true;
       codigoArrastradoKanban = codLimpio;
+      window.getSelection?.()?.removeAllRanges?.();
 
       const rect = cardEl.getBoundingClientRect();
       offsetX = startX - rect.left;
@@ -2495,11 +2577,10 @@ export function iniciarArrastrePunteroKanban(e, cardEl, codLimpio) {
       document.body.classList.add("is-dragging-row");
     }
 
-    // Mover tarjeta flotante a 60fps con GPU y mantener el cursor de manito cerrada
+    ev.preventDefault();
     ghostEl.style.transform = `translate3d(${ev.clientX - offsetX}px, ${ev.clientY - offsetY}px, 0) rotate(1.5deg)`;
 
-    const elDebajo = document.elementFromPoint(ev.clientX, ev.clientY);
-    const nuevaZona = zonasDrop.find(z => z.el.contains(elDebajo) || z.el.parentElement?.contains(elDebajo));
+    const nuevaZona = encontrarZonaEnCoordenada(ev.clientX, ev.clientY);
 
     if (zonaSobrevoladaActual && zonaSobrevoladaActual !== nuevaZona?.el) {
       zonaSobrevoladaActual.classList.remove("drag-over");
@@ -2513,18 +2594,11 @@ export function iniciarArrastrePunteroKanban(e, cardEl, codLimpio) {
   };
 
   const alSoltar = async (ev) => {
-    window.removeEventListener("mousemove", alMover);
-    window.removeEventListener("mouseup", alSoltar);
+    limpiarListeners();
+    if (!arrastrando || canceladoPorEscape) return;
 
-    if (!arrastrando) return;
-
-    document.body.classList.remove("is-dragging-row");
-    cardEl.classList.remove("is-dragging");
-    if (ghostEl) ghostEl.remove();
-    zonasDrop.forEach(z => z.el.classList.remove("drag-over"));
-
-    const elDebajo = document.elementFromPoint(ev.clientX, ev.clientY);
-    const zonaDestino = zonasDrop.find(z => z.el.contains(elDebajo) || z.el.parentElement?.contains(elDebajo));
+    const zonaDestino = encontrarZonaEnCoordenada(ev.clientX, ev.clientY);
+    restaurarVisualKanban();
 
     if (zonaDestino) {
       await kanbanSoltarActividad(
@@ -2532,11 +2606,11 @@ export function iniciarArrastrePunteroKanban(e, cardEl, codLimpio) {
         zonaDestino.estado
       );
     }
-    codigoArrastradoKanban = null;
   };
 
   window.addEventListener("mousemove", alMover);
   window.addEventListener("mouseup", alSoltar);
+  window.addEventListener("keydown", alPresionarEscape, true);
 }
 
 export function kanbanPermitirSoltar(e) {
