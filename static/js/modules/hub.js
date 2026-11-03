@@ -125,6 +125,16 @@ export function cambiarModoRadarHub(nuevoModo) {
   renderizarRadarPreventivoHub();
 }
 
+const SVG_CARPETA_PROY = `<svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" /></svg>`;
+
+const SVG_EDIFICIO_UO = `<svg class="w-3.5 h-3.5 text-teal-700 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>`;
+
+const SVG_ENGRANAJE_PROC = `<svg class="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>`;
+
+const SVG_ROL_GESTOR = `<svg class="w-3 h-3 text-amber-700 mr-1 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>`;
+
+const SVG_ROL_AUTORIDAD = `<svg class="w-3 h-3 text-purple-700 mr-1 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" /></svg>`;
+
 export function renderizarRadarPreventivoHub() {
   const listaContenedor = document.getElementById("hub-radar-lista-items");
   const badgeEquipo = document.getElementById("hub-radar-badge-equipo");
@@ -132,11 +142,11 @@ export function renderizarRadarPreventivoHub() {
   const badgeResumenHeader = document.getElementById("hub-radar-badge-resumen-header");
   const btnEquipo = document.getElementById("btn-radar-modo-equipo");
   const btnMio = document.getElementById("btn-radar-modo-mio");
+  const icoEquipo = document.getElementById("ico-radar-modo-equipo");
   if (!listaContenedor) return;
 
   const qFiltro = (document.getElementById("hub-radar-input-filtro")?.value || "").toLowerCase().trim();
 
-  // 1. Consolidar proyectos con actividades vencidas o por vencer (1 tarjeta resumen por proyecto para no repetir proyectos)
   const proyectosConAlertas = [];
   let totalActividadesEnAlertaGlobal = 0;
   const tareasMias = [];
@@ -191,6 +201,13 @@ export function renderizarRadarPreventivoHub() {
   if (btnEquipo) btnEquipo.className = (modoRadarHub === "equipo") ? clsActivo : clsInactivo;
   if (btnMio) btnMio.className = (modoRadarHub === "mio") ? clsActivo : clsInactivo;
 
+  // Asegurar alto contraste del icono de alerta tanto en modo activo como en modo inactivo
+  if (icoEquipo) {
+    icoEquipo.className = (modoRadarHub === "equipo")
+      ? "w-3.5 h-3.5 text-amber-300 flex-shrink-0 transition-colors"
+      : "w-3.5 h-3.5 text-amber-600 flex-shrink-0 transition-colors";
+  }
+
   if (modoRadarHub === "equipo") {
     const filtradosProy = proyectosConAlertas.filter(item => {
       if (!qFiltro) return true;
@@ -209,20 +226,18 @@ export function renderizarRadarPreventivoHub() {
     if (filtradosProy.length === 0) {
       listaContenedor.innerHTML = `
         <div class="col-span-full py-3.5 px-4 text-center text-slate-500 font-semibold text-xs bg-slate-50 rounded-xl border border-slate-200/70">
-          ✅ Excelente: Ningún proyecto bajo su supervisión presenta actividades vencidas ni próximas a vencer en los siguientes 5 días.
+          Ningún proyecto bajo su supervisión presenta actividades vencidas ni próximas a vencer en los siguientes 5 días.
         </div>
       `;
       listaContenedor.style.maxHeight = "82px";
       return;
     }
 
-    // Renderizar TODAS las mini-tarjetas consolidadas por proyecto (sin recortar con slice)
     listaContenedor.innerHTML = filtradosProy.map(item => {
       const al = item.top_alerta;
       const tieneVencidas = item.vencidas_count > 0;
       const tienePorVencer = item.por_vencer_count > 0;
 
-      // Indicador claro que separa vencidas vs por vencer sin confundir al Directivo
       const partesEstado = [];
       if (tieneVencidas) {
         partesEstado.push(`<span class="text-rose-600 font-black">${item.vencidas_count} ${item.vencidas_count === 1 ? 'vencida' : 'vencidas'}</span>`);
@@ -232,6 +247,11 @@ export function renderizarRadarPreventivoHub() {
       }
       const resumenEstadoHTML = partesEstado.join('<span class="text-slate-300 mx-1">·</span>');
       const dotColor = tieneVencidas ? "bg-rose-500" : "bg-amber-500";
+
+      // Fondo sutil diferenciado: rojo muy tenue si tiene vencidas; amarillo/ámbar muy tenue si solo tiene por vencer
+      const estiloFondoMiniCard = tieneVencidas
+        ? "bg-rose-50/40 border-rose-200/75 hover:bg-rose-50/65 hover:border-rose-300"
+        : "bg-amber-50/40 border-amber-200/75 hover:bg-amber-50/65 hover:border-amber-300";
 
       const respLista = (al.responsable || "No asignado").split(";").map(s => s.trim()).filter(Boolean);
       const primerResp = respLista[0] || "No asignado";
@@ -247,9 +267,8 @@ export function renderizarRadarPreventivoHub() {
       return `
         <div ondblclick="ingresarAlProyecto(${item.proyecto_id}, '${nomProyEscapado}', ${item.es_gestor})"
              title="Doble clic para ingresar al proyecto"
-             class="h-[82px] px-3 py-2 rounded-xl border border-slate-200/90 bg-slate-50/60 hover:bg-white hover:border-teal-500 flex flex-col justify-between transition relative cursor-pointer select-none shadow-2xs">
+             class="h-[82px] px-3 py-2 rounded-xl border ${estiloFondoMiniCard} flex flex-col justify-between transition relative cursor-pointer select-none shadow-2xs">
           
-          <!-- Fila 1: Punto + Conteo exacto (Vencidas / Por vencer) | Unidad + Icono (i) + Abrir -->
           <div class="flex items-center justify-between gap-1">
             <div class="flex items-center space-x-1.5 min-w-0 text-[10.5px] truncate">
               <span class="w-2 h-2 rounded-full ${dotColor} flex-shrink-0"></span>
@@ -257,7 +276,7 @@ export function renderizarRadarPreventivoHub() {
             </div>
 
             <div class="flex items-center space-x-1 flex-shrink-0">
-              <span class="text-[9px] font-black text-[#0f2a4a] bg-white px-1.5 py-0.2 rounded border border-slate-200">${item.unidad_organica}</span>
+              <span class="text-[9px] font-black text-[#0f2a4a] bg-white px-1.5 py-0.2 rounded border border-slate-200/90">${item.unidad_organica}</span>
               
               <button type="button"
                       onclick="event.stopPropagation()"
@@ -276,13 +295,11 @@ export function renderizarRadarPreventivoHub() {
             </div>
           </div>
 
-          <!-- Fila 2: Nombre sutil del proyecto -->
-          <div class="text-[10.5px] font-bold text-[#0f2a4a]/80 truncate flex items-center space-x-1 leading-none">
-            <span class="opacity-70 text-[9.5px]">📁</span>
+          <div class="text-[10.5px] font-bold text-[#0f2a4a]/85 truncate flex items-center space-x-1.5 leading-none">
+            ${SVG_CARPETA_PROY}
             <span class="truncate">${item.proyecto_nombre}</span>
           </div>
 
-          <!-- Fila 3: Responsable más crítico + Actividad urgente + Indicador (+N más) -->
           <div class="flex items-center justify-between gap-1.5 pt-1 border-t border-slate-200/60 text-[10.5px] leading-none">
             <div class="flex items-center space-x-1 flex-shrink-0">
               <span class="w-4 h-4 rounded-full bg-[#0f2a4a] text-white text-[8px] font-black flex items-center justify-center flex-shrink-0">${ini || '?'}</span>
@@ -290,7 +307,7 @@ export function renderizarRadarPreventivoHub() {
             </div>
             <div class="flex items-center space-x-1 min-w-0 flex-1 justify-end">
               <span class="text-slate-600 font-medium truncate"><strong class="font-mono text-[#0f2a4a]">[${al.codigo}]</strong> ${al.descripcion}</span>
-              ${extrasCount > 0 ? `<span class="px-1 py-0.2 rounded bg-slate-200/80 text-[#0f2a4a] font-black text-[9px] flex-shrink-0">+${extrasCount}</span>` : ''}
+              ${extrasCount > 0 ? `<span class="px-1 py-0.2 rounded bg-white/90 border border-slate-200 text-[#0f2a4a] font-black text-[9px] flex-shrink-0">+${extrasCount}</span>` : ''}
             </div>
           </div>
         </div>
@@ -301,7 +318,7 @@ export function renderizarRadarPreventivoHub() {
     return;
   }
 
-  // MODO 2: MIS ACTIVIDADES ASIGNADAS (Todas las tareas del usuario sin recortes)
+  // MODO 2: MIS ACTIVIDADES ASIGNADAS
   const misFiltradas = tareasMias.filter(item => {
     if (!qFiltro) return true;
     const texto = `${item.descripcion || ''} ${item.proyecto_nombre || ''} ${item.unidad_organica || ''} ${item.codigo || ''}`.toLowerCase();
@@ -316,7 +333,7 @@ export function renderizarRadarPreventivoHub() {
   if (misFiltradas.length === 0) {
     listaContenedor.innerHTML = `
       <div class="col-span-full py-3.5 px-4 text-center text-slate-500 font-semibold text-xs bg-slate-50 rounded-xl border border-slate-200/70">
-        🎉 No tienes actividades operativas pendientes asignadas a tu nombre en los proyectos.
+        No tienes actividades operativas pendientes asignadas a tu nombre en los proyectos.
       </div>
     `;
     listaContenedor.style.maxHeight = "82px";
@@ -329,15 +346,18 @@ export function renderizarRadarPreventivoHub() {
 
     let dotColor = "bg-emerald-500";
     let txtPlazoColor = "text-emerald-700";
+    let estiloFondoMio = "bg-slate-50/60 border-slate-200/90 hover:bg-white hover:border-teal-500";
     let plazoCorto = al.fecha_fin ? `Vence: ${al.fecha_fin}` : "En plazo";
 
     if (esVencida) {
       dotColor = "bg-rose-500";
       txtPlazoColor = "text-rose-600";
+      estiloFondoMio = "bg-rose-50/40 border-rose-200/75 hover:bg-rose-50/65 hover:border-rose-300";
       plazoCorto = `Venció hace ${Math.abs(al.dias_restantes)}d (${al.fecha_fin})`;
     } else if (esPorVencer) {
       dotColor = "bg-amber-500";
       txtPlazoColor = "text-amber-700";
+      estiloFondoMio = "bg-amber-50/40 border-amber-200/75 hover:bg-amber-50/65 hover:border-amber-300";
       plazoCorto = al.dias_restantes === 0 ? `Vence HOY (${al.fecha_fin})` : `Vence en ${al.dias_restantes}d (${al.fecha_fin})`;
     }
 
@@ -347,7 +367,7 @@ export function renderizarRadarPreventivoHub() {
     return `
       <div ondblclick="ingresarAlProyecto(${al.proyecto_id}, '${nomProyEscapado}', ${al.es_gestor})"
            title="Doble clic para ingresar al proyecto"
-           class="h-[82px] px-3 py-2 rounded-xl border border-slate-200/90 bg-slate-50/60 hover:bg-white hover:border-teal-500 flex flex-col justify-between transition relative cursor-pointer select-none shadow-2xs">
+           class="h-[82px] px-3 py-2 rounded-xl border ${estiloFondoMio} flex flex-col justify-between transition relative cursor-pointer select-none shadow-2xs">
         <div class="flex items-center justify-between gap-1">
           <div class="flex items-center space-x-1.5 min-w-0">
             <span class="w-2 h-2 rounded-full ${dotColor} flex-shrink-0"></span>
@@ -371,14 +391,14 @@ export function renderizarRadarPreventivoHub() {
           </div>
         </div>
 
-        <div class="text-[10.5px] font-bold text-[#0f2a4a]/80 truncate flex items-center space-x-1 leading-none">
-          <span class="opacity-70 text-[9.5px]">📁</span>
+        <div class="text-[10.5px] font-bold text-[#0f2a4a]/85 truncate flex items-center space-x-1.5 leading-none">
+          ${SVG_CARPETA_PROY}
           <span class="truncate">${al.proyecto_nombre}</span>
         </div>
 
         <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60 text-[10.5px] leading-none">
           <span class="font-semibold text-slate-700 truncate"><strong class="font-mono text-[#0f2a4a]">[${al.codigo}]</strong> ${al.descripcion}</span>
-          <span class="text-[9.5px] font-black text-teal-800 bg-teal-50 px-1.5 py-0.2 rounded border border-teal-200 flex-shrink-0">${al.avance || 0}%</span>
+          <span class="text-[9.5px] font-black text-teal-800 bg-white px-1.5 py-0.2 rounded border border-teal-200 flex-shrink-0">${al.avance || 0}%</span>
         </div>
       </div>
     `;
@@ -387,15 +407,76 @@ export function renderizarRadarPreventivoHub() {
   requestAnimationFrame(() => ajustarAlturaRadarSegunContenido());
 }
 
-// Popover Ejecutivo Desglosado (Separa con total claridad las Actividades Vencidas vs Por Vencer y sus responsables)
+// Motor Inteligente de Posicionamiento Anti-Recorte (Voltea hacia arriba si no cabe abajo en la pantalla)
+function posicionarTooltipInteligenteEnPantalla(tip, triggerEl) {
+  const rect = triggerEl.getBoundingClientRect();
+  const tipWidth = tip.offsetWidth || 310;
+  const tipHeight = tip.offsetHeight || 220;
+  const margenVentana = 12;
+
+  // Cálculo horizontal: alinear respecto al elemento disparador sin salirse por izquierda ni derecha
+  let left = rect.left + (rect.width / 2) - (tipWidth / 2);
+  if (left + tipWidth > window.innerWidth - margenVentana) {
+    left = window.innerWidth - tipWidth - margenVentana;
+  }
+  if (left < margenVentana) {
+    left = margenVentana;
+  }
+
+  // Cálculo vertical inteligente: si abajo se corta, abrir hacia arriba del elemento
+  const espacioAbajo = window.innerHeight - rect.bottom;
+  const espacioArriba = rect.top;
+  let top = rect.bottom + 8;
+
+  if (espacioAbajo < tipHeight + 16 && espacioArriba > espacioAbajo) {
+    top = Math.max(margenVentana, rect.top - tipHeight - 8);
+  } else if (top + tipHeight > window.innerHeight - margenVentana) {
+    top = Math.max(margenVentana, window.innerHeight - tipHeight - margenVentana);
+  }
+
+  tip.style.left = `${Math.round(left)}px`;
+  tip.style.top = `${Math.round(top)}px`;
+}
+
+// Tooltip Ejecutivo para Descripción del Proyecto (en Tarjetas y en Tabla) con posicionamiento inteligente
+export function mostrarTooltipDescripcionHub(e, btnEl) {
+  let tip = document.getElementById("hub-radar-custom-tooltip");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.id = "hub-radar-custom-tooltip";
+    document.body.appendChild(tip);
+  }
+  tip.className = "fixed z-[9999] pointer-events-none w-72 bg-[#0f2a4a] text-white border border-teal-400/40 rounded-xl p-3.5 shadow-2xl text-xs transition-opacity duration-100 opacity-0";
+
+  const proy = btnEl.getAttribute("data-proy") || "Proyecto";
+  const uo = btnEl.getAttribute("data-uo") || "S/U";
+  const desc = btnEl.getAttribute("data-desc") || "Sin descripción adicional registrada.";
+  const esGestor = btnEl.getAttribute("data-gestor") === "1";
+
+  tip.innerHTML = `
+    <div class="flex items-center justify-between gap-2 border-b border-white/15 pb-1.5 mb-2">
+      <span class="text-[9.5px] font-black uppercase tracking-wider text-teal-300">Descripción / Alcance</span>
+      <span class="text-[9.5px] font-black bg-white/10 text-white px-1.5 py-0.2 rounded">${uo}</span>
+    </div>
+    <p class="font-bold text-white text-xs leading-snug mb-1.5">${proy}</p>
+    <p class="font-medium text-slate-200 text-[11px] leading-relaxed bg-white/5 p-2 rounded-lg border border-white/10">${desc}</p>
+    ${esGestor ? '<span class="block text-[9.5px] text-teal-300/90 mt-2 italic">Haz clic en el botón (i) para editar la descripción</span>' : ''}
+  `;
+
+  posicionarTooltipInteligenteEnPantalla(tip, btnEl);
+  tip.classList.remove("opacity-0");
+  tip.classList.add("opacity-100");
+}
+
+// Tooltip Ejecutivo para Alertas Desglosadas con posicionamiento inteligente anti-recorte
 export function mostrarTooltipProyectoAlertasHub(e, btnEl) {
   let tip = document.getElementById("hub-radar-custom-tooltip");
   if (!tip) {
     tip = document.createElement("div");
     tip.id = "hub-radar-custom-tooltip";
-    tip.className = "fixed z-[9999] pointer-events-none w-80 bg-[#0f2a4a] text-white border border-teal-400/40 rounded-xl p-3.5 shadow-2xl text-xs transition-opacity duration-100 opacity-0";
     document.body.appendChild(tip);
   }
+  tip.className = "fixed z-[9999] pointer-events-none w-80 bg-[#0f2a4a] text-white border border-teal-400/40 rounded-xl p-3.5 shadow-2xl text-xs transition-opacity duration-100 opacity-0";
 
   const proy = btnEl.getAttribute("data-proy") || "";
   const uo = btnEl.getAttribute("data-uo") || "S/U";
@@ -410,13 +491,16 @@ export function mostrarTooltipProyectoAlertasHub(e, btnEl) {
   const porVencer = listaAlertas.filter(a => a.tipo_alerta === "POR_VENCER");
   const otras = listaAlertas.filter(a => a.tipo_alerta !== "VENCIDA" && a.tipo_alerta !== "POR_VENCER");
 
-  const renderBloque = (items, titulo, colorTitulo, verboFecha) => {
+  const renderBloque = (items, titulo, dotClass, colorTitulo, verboFecha) => {
     if (items.length === 0) return "";
     const mostrar = items.slice(0, 4);
     const restantes = items.length - mostrar.length;
     return `
       <div class="mt-2">
-        <div class="text-[9.5px] font-black uppercase tracking-wider ${colorTitulo} mb-1">${titulo} (${items.length})</div>
+        <div class="flex items-center space-x-1.5 text-[9.5px] font-black uppercase tracking-wider ${colorTitulo} mb-1">
+          <span class="w-2 h-2 rounded-full ${dotClass}"></span>
+          <span>${titulo} (${items.length})</span>
+        </div>
         <div class="space-y-1.5">
           ${mostrar.map(a => `
             <div class="bg-white/5 p-1.5 rounded-lg border border-white/10 text-[10.5px]">
@@ -424,10 +508,10 @@ export function mostrarTooltipProyectoAlertasHub(e, btnEl) {
                 <span class="truncate"><span class="font-mono text-teal-300">[${a.codigo}]</span> ${a.descripcion}</span>
                 <span class="text-[9.5px] font-mono ${verboFecha === 'Venció:' ? 'text-rose-300' : 'text-amber-300'} flex-shrink-0">${verboFecha} ${a.fecha_fin}</span>
               </div>
-              <div class="text-[10px] text-slate-300 truncate mt-0.5">👤 ${a.responsable || 'No asignado'} · Avance: ${a.avance || 0}%</div>
+              <div class="text-[10px] text-slate-300 truncate mt-0.5">Responsable: ${a.responsable || 'No asignado'} · Avance: ${a.avance || 0}%</div>
             </div>
           `).join("")}
-          ${restantes > 0 ? `<div class="text-[10px] text-teal-200 italic text-right">+ ${restantes} actividad(es) adicional(es) en este estado...</div>` : ''}
+          ${restantes > 0 ? `<div class="text-[10px] text-teal-200 italic text-right">+ ${restantes} ${restantes === 1 ? 'actividad adicional' : 'actividades adicionales'}...</div>` : ''}
         </div>
       </div>
     `;
@@ -437,24 +521,16 @@ export function mostrarTooltipProyectoAlertasHub(e, btnEl) {
     <div class="border-b border-white/15 pb-2 mb-1">
       <div class="flex items-center justify-between gap-2">
         <span class="text-[9.5px] font-black uppercase tracking-wider bg-teal-500/20 text-teal-300 px-1.5 py-0.2 rounded border border-teal-400/30">${uo}</span>
-        <span class="text-[10px] text-slate-300 font-semibold">${listaAlertas.length} ${listaAlertas.length === 1 ? 'actividad' : 'actividades'}</span>
+        <span class="text-[10px] text-slate-300 font-semibold">${listaAlertas.length} ${listaAlertas.length === 1 ? 'actividad en seguimiento' : 'actividades en seguimiento'}</span>
       </div>
       <p class="font-bold text-white text-xs leading-snug mt-1">${proy}</p>
     </div>
-    ${renderBloque(vencidas, "🔴 Con plazo vencido", "text-rose-300", "Venció:")}
-    ${renderBloque(porVencer, "🟡 Próximas a vencer (≤ 5 días)", "text-amber-300", "Vence:")}
-    ${renderBloque(otras, "🟢 En plazo programado", "text-emerald-300", "Vence:")}
+    ${renderBloque(vencidas, "Con plazo vencido", "bg-rose-500", "text-rose-300", "Venció:")}
+    ${renderBloque(porVencer, "Próximas a vencer (≤ 5 días)", "bg-amber-400", "text-amber-300", "Vence:")}
+    ${renderBloque(otras, "En plazo programado", "bg-emerald-400", "text-emerald-300", "Vence:")}
   `;
 
-  const rect = btnEl.getBoundingClientRect();
-  let left = rect.left - 260;
-  let top = rect.bottom + 8;
-  if (left < 10) left = 10;
-  if (left + 325 > window.innerWidth) left = window.innerWidth - 335;
-  if (top + 240 > window.innerHeight) top = Math.max(10, rect.top - 230);
-
-  tip.style.left = `${left}px`;
-  tip.style.top = `${top}px`;
+  posicionarTooltipInteligenteEnPantalla(tip, btnEl);
   tip.classList.remove("opacity-0");
   tip.classList.add("opacity-100");
 }
@@ -799,17 +875,17 @@ export function renderizarTarjetasHub(lista) {
     const esPublico = (p.visibilidad === "PUBLICO");
 
     let badgeRolClases = "bg-blue-50 text-blue-800 border-blue-200/80";
-    let badgeRolTexto = "Responsable";
+    let badgeRolHTML = `<span>Responsable</span>`;
 
     if (rolEfectivo === "GESTOR" || esGestor) {
       badgeRolClases = "bg-amber-50 text-amber-900 border-amber-200/90";
-      badgeRolTexto = "👑 Gestor";
+      badgeRolHTML = `${SVG_ROL_GESTOR}<span>Gestor</span>`;
     } else if (rolEfectivo === "AUTORIDAD") {
       badgeRolClases = "bg-purple-50 text-purple-800 border-purple-200/80";
-      badgeRolTexto = "🏛️ Autoridad";
+      badgeRolHTML = `${SVG_ROL_AUTORIDAD}<span>Autoridad</span>`;
     } else if (rolEfectivo === "VISUALIZADOR") {
       badgeRolClases = "bg-slate-100 text-slate-700 border-slate-300";
-      badgeRolTexto = "Visualizador";
+      badgeRolHTML = `<span>Visualizador</span>`;
     }
 
     const indicadorSaludHTML = construirIndicadorSaludMinimal(p);
@@ -844,8 +920,6 @@ export function renderizarTarjetasHub(lista) {
     const tooltipProceso = `title="${nombreLimpioProceso}${esGestor ? ' (Doble clic para cambiar)' : ''}"`;
     const estiloCursorProceso = esGestor ? 'cursor-pointer hover:opacity-100 transition' : '';
 
-    // Slot de estado de plazo con el MISMO fondo gris sobrio (border-slate-100 bg-slate-50/70) en todas las tarjetas.
-    // Cuando hay retraso, únicamente "Retraso:" y la fecha van en rojo, e incluye Popover para múltiples actividades/responsables.
     let slotAlertaSimetricoHTML = `
       <div class="mt-4 h-[48px] px-3.5 rounded-xl border border-slate-100 bg-slate-50/70 flex items-center justify-between text-[11px] text-slate-400">
         <span class="inline-flex items-center space-x-1.5 font-semibold">
@@ -891,11 +965,10 @@ export function renderizarTarjetasHub(lista) {
     card.className = "bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs hover:shadow-md transition-all flex flex-col justify-between hover:border-teal-500/50 relative h-[365px]";
     card.innerHTML = `
       <div>
-        <!-- Fila 1: Rol + Candado/Mundo + Indicador limpio de salud | Ocultar/Eliminar + % -->
         <div class="flex items-center justify-between mb-3.5 gap-1">
           <div class="flex items-center space-x-2">
-            <span class="text-[10px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider whitespace-nowrap border ${badgeRolClases}">
-              ${badgeRolTexto}
+            <span class="inline-flex items-center text-[10px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider whitespace-nowrap border ${badgeRolClases}">
+              ${badgeRolHTML}
             </span>
             ${iconoAlcanceHTML}
             <span class="text-slate-200">|</span>
@@ -916,44 +989,41 @@ export function renderizarTarjetasHub(lista) {
           </div>
         </div>
         
-        <!-- Fila 2: Título + Popover de Descripción en icono ⓘ -->
         <div class="flex items-start justify-between gap-2 h-[44px]">
           <h3 class="font-bold text-[15px] text-[#0f2a4a] tracking-tight leading-snug line-clamp-2 break-words flex-1" title="${p.nombre.replace(/"/g, '&quot;')}">${p.nombre}</h3>
           
-          <div class="relative group/info flex-shrink-0 mt-0.5">
-            <button type="button" onclick="event.stopPropagation(); ${esGestor ? `editarDescripcionProyecto(${p.id}, '${descEscapada}')` : ''}" class="w-5 h-5 rounded-full bg-slate-100 hover:bg-[#0f2a4a] text-slate-500 hover:text-white flex items-center justify-center text-[11px] font-serif italic font-black transition cursor-pointer" title="${esGestor ? 'Clic para editar la descripción del proyecto' : 'Descripción del proyecto'}">
-              i
-            </button>
-            <div class="hidden group-hover/info:block absolute right-0 top-full mt-1.5 w-64 p-3 bg-[#0f2a4a] text-white text-[11px] rounded-xl shadow-2xl z-50 pointer-events-none leading-relaxed border border-teal-400/30">
-              <span class="block text-[9.5px] font-black uppercase tracking-wider text-teal-300 mb-1">Descripción / Alcance</span>
-              <p class="font-medium text-slate-100">${textoDesc}</p>
-              ${esGestor ? '<span class="block text-[9px] text-teal-200/80 mt-1.5 italic">💡 Haz clic en el icono (i) para editar</span>' : ''}
-            </div>
-          </div>
+          <button type="button"
+                  onclick="event.stopPropagation(); ${esGestor ? `editarDescripcionProyecto(${p.id}, '${descEscapada}')` : ''}"
+                  onmouseenter="mostrarTooltipDescripcionHub(event, this)"
+                  onmouseleave="ocultarTooltipMiniCardRadar()"
+                  data-proy="${p.nombre.replace(/"/g, '&quot;')}"
+                  data-uo="${siglaUnidad || 'Sin UO'}"
+                  data-desc="${textoDesc.replace(/"/g, '&quot;')}"
+                  data-gestor="${esGestor ? '1' : '0'}"
+                  class="w-5 h-5 rounded-full bg-slate-100 hover:bg-[#0f2a4a] text-slate-500 hover:text-white flex items-center justify-center text-[11px] font-serif italic font-black transition cursor-pointer flex-shrink-0 mt-0.5">
+            i
+          </button>
         </div>
         
-        <!-- Fila 3: Unidad Orgánica y Proceso (con opacidad sutil en el proceso) -->
         <div class="flex items-center gap-x-2 mt-2 text-[11px] truncate">
           <span ${tooltipUo} 
                 ondblclick="${esGestor ? `editarUnidadOrganicaProyecto(${p.id}, '${siglaUnidad}')` : ''}"
                 class="font-bold text-teal-800 inline-flex items-center space-x-1 flex-shrink-0 ${estiloCursorUo}">
-            <span>🏢</span>
+            ${SVG_EDIFICIO_UO}
             <span>${siglaUnidad || 'Sin UO'}</span>
           </span>
           <span class="text-slate-300">•</span>
           <span ${tooltipProceso} 
                 ondblclick="${esGestor ? `editarProcesoProyectoModal(${p.id})` : ''}"
                 class="font-semibold text-[#0f2a4a] opacity-60 hover:opacity-100 inline-flex items-center space-x-1 truncate ${estiloCursorProceso}">
-            <span>⚙️</span>
+            ${SVG_ENGRANAJE_PROC}
             <span class="truncate">${nombreLimpioProceso}</span>
           </span>
         </div>
 
-        <!-- Fila 4: Slot de Alerta de altura fija (48px) en gris neutro con Popover desglosado -->
         ${slotAlertaSimetricoHTML}
       </div>
 
-      <!-- Zona Inferior Anclada: Barra + 3 KPIs + Botón Ingresar -->
       <div class="pt-3">
         <div class="w-full bg-slate-100 rounded-full h-2 mb-3.5 overflow-hidden shadow-inner">
           <div class="${barraColorClase} h-2 rounded-full transition-all duration-500" style="width: ${avanceVal}%"></div>
@@ -1009,7 +1079,9 @@ export function renderizarTablaHub(lista) {
 
   const listaFinal = lista.filter(p => state.mostrandoOcultosHub ? state.idsProyectosOcultos.has(p.id) : !state.idsProyectosOcultos.has(p.id));
   const badgePortafolio = document.getElementById("hub-portafolio-badge-visibles");
-  if (badgePortafolio) badgePortafolio.innerText = `${listaFinal.length} proyecto(s)`;
+  if (badgePortafolio) {
+    badgePortafolio.innerText = listaFinal.length === 1 ? "1 proyecto" : `${listaFinal.length} proyectos`;
+  }
 
   if (listaFinal.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-400 font-semibold italic">No se encontraron proyectos con los filtros seleccionados.</td></tr>`;
@@ -1026,9 +1098,9 @@ export function renderizarTablaHub(lista) {
 
     let badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-blue-50 text-blue-900 border border-blue-200">Responsable</span>`;
     if (rolEfectivo === "GESTOR" || esGestor) {
-      badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-50 text-amber-900 border border-amber-200">👑 Gestor</span>`;
+      badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-50 text-amber-900 border border-amber-200">${SVG_ROL_GESTOR}<span>Gestor</span></span>`;
     } else if (rolEfectivo === "AUTORIDAD") {
-      badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-purple-50 text-purple-900 border border-purple-200">🏛️ Autoridad</span>`;
+      badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-purple-50 text-purple-900 border border-purple-200">${SVG_ROL_AUTORIDAD}<span>Autoridad</span></span>`;
     } else if (rolEfectivo === "VISUALIZADOR") {
       badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-slate-100 text-slate-700 border border-slate-300">Visualizador</span>`;
     }
@@ -1049,13 +1121,23 @@ export function renderizarTablaHub(lista) {
     if (p.alertas_responsables && p.alertas_responsables.length > 0) {
       const al = p.alertas_responsables[0];
       const esV = al.tipo_alerta === "VENCIDA";
+      const extras = p.alertas_responsables.length - 1;
+      const jsonAlertasTabla = encodeURIComponent(JSON.stringify(p.alertas_responsables));
+      const prefijoTxt = esV ? `<span class="text-rose-600 font-bold">Retraso:</span>` : `<span class="text-amber-700 font-bold">Por vencer:</span>`;
+
       hitoCoordHTML = `
-        <div class="text-[11px] leading-tight truncate">
-          <div class="font-bold ${esV ? 'text-rose-600' : 'text-amber-800'} truncate" title="[${al.codigo}] ${al.descripcion}">
-            [${al.codigo}] ${al.descripcion}
+        <div onmouseenter="mostrarTooltipProyectoAlertasHub(event, this)"
+             onmouseleave="ocultarTooltipMiniCardRadar()"
+             data-proy="${p.nombre.replace(/"/g, '&quot;')}"
+             data-uo="${p.unidad_organica || 'S/U'}"
+             data-alertas="${jsonAlertasTabla}"
+             class="text-[11px] leading-tight truncate cursor-help">
+          <div class="font-semibold text-slate-700 truncate">
+            ${prefijoTxt} [${al.codigo}] ${al.descripcion}
           </div>
-          <div class="text-[10px] text-slate-500 mt-0.5 truncate">
-            <strong>${(al.responsable || '').split(';')[0]}</strong> · ${al.fecha_fin}
+          <div class="text-[10px] text-slate-500 mt-0.5 flex items-center justify-between gap-1">
+            <span class="truncate"><strong>${(al.responsable || '').split(';')[0]}</strong> · <span class="${esV ? 'text-rose-600 font-bold' : 'text-amber-700 font-bold'}">${al.fecha_fin}</span></span>
+            ${extras > 0 ? `<span class="text-[9px] font-bold text-[#0f2a4a] bg-slate-200/75 px-1 rounded flex-shrink-0">+${extras} ⓘ</span>` : ''}
           </div>
         </div>
       `;
@@ -1069,10 +1151,20 @@ export function renderizarTablaHub(lista) {
             <span class="bg-teal-50 text-teal-900 border border-teal-200 px-1.5 py-0.2 rounded text-[10px] font-black flex-shrink-0">${p.unidad_organica || 'S/U'}</span>
             <span class="font-bold text-[#0f2a4a] text-xs truncate" title="${p.nombre.replace(/"/g, '&quot;')}">${p.nombre}</span>
             ${iconoAlcanceHTML}
-            <button type="button" onclick="event.stopPropagation(); ${esGestor ? `editarDescripcionProyecto(${p.id}, '${descEscapada}')` : ''}" class="w-4 h-4 rounded-full bg-slate-100 hover:bg-[#0f2a4a] text-slate-500 hover:text-white text-[10px] font-serif italic font-black flex items-center justify-center flex-shrink-0 cursor-pointer" title="Descripción: ${textoDesc.replace(/"/g, '&quot;')}">i</button>
+            <button type="button"
+                    onclick="event.stopPropagation(); ${esGestor ? `editarDescripcionProyecto(${p.id}, '${descEscapada}')` : ''}"
+                    onmouseenter="mostrarTooltipDescripcionHub(event, this)"
+                    onmouseleave="ocultarTooltipMiniCardRadar()"
+                    data-proy="${p.nombre.replace(/"/g, '&quot;')}"
+                    data-uo="${p.unidad_organica || 'S/U'}"
+                    data-desc="${textoDesc.replace(/"/g, '&quot;')}"
+                    data-gestor="${esGestor ? '1' : '0'}"
+                    class="w-4 h-4 rounded-full bg-slate-100 hover:bg-[#0f2a4a] text-slate-500 hover:text-white text-[10px] font-serif italic font-black flex items-center justify-center flex-shrink-0 cursor-pointer">
+              i
+            </button>
           </div>
           <div class="text-[10.5px] text-[#0f2a4a] font-semibold opacity-60 hover:opacity-100 mt-0.5 flex items-center gap-1 truncate transition">
-            <span>⚙️</span>
+            ${SVG_ENGRANAJE_PROC}
             <span class="truncate ${esGestor ? 'cursor-pointer hover:underline' : ''}" 
                   title="${nombreLimpioProceso}" 
                   ondblclick="${esGestor ? `editarProcesoProyectoModal(${p.id})` : ''}">
@@ -1098,7 +1190,6 @@ export function renderizarTablaHub(lista) {
             <span class="text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200" title="No iniciadas">${p.pendientes || 0}</span>
           </div>
         </td>
-        <!-- Columna Acción con ranuras de ancho fijo para que el botón Ingresar nunca se desplace si aparece el tachito -->
         <td class="p-2.5 pr-4 whitespace-nowrap">
           <div class="flex items-center justify-end space-x-1.5">
             <div class="inline-flex items-center justify-end space-x-0.5 w-[44px] flex-shrink-0">
@@ -2354,3 +2445,4 @@ window.alternarMenuConfigVistasHub = alternarMenuConfigVistasHub;
 window.conmutarVisibilidadBloqueHub = conmutarVisibilidadBloqueHub;
 window.restablecerBloquesHub = restablecerBloquesHub;
 window.mostrarTooltipProyectoAlertasHub = mostrarTooltipProyectoAlertasHub;
+window.mostrarTooltipDescripcionHub = mostrarTooltipDescripcionHub;

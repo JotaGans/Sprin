@@ -91,7 +91,10 @@ export function renderizarDirectorioTrabajadores(lista) {
     const usuarioLogin = (t.correo || "").split("@")[0];
     const cargoTexto = t.cargo || "Sin cargo / nivel";
     const badgeCargo = t.es_directivo === 1
-      ? `<span class="bg-purple-50 text-purple-800 border border-purple-200 px-1.5 py-0.5 rounded text-[10px] font-bold">🏛️ ${cargoTexto}</span>`
+      ? `<span class="inline-flex items-center space-x-1 bg-purple-50 text-purple-800 border border-purple-200 px-1.5 py-0.5 rounded text-[10px] font-bold">
+           <svg class="w-3 h-3 text-purple-700 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" /></svg>
+           <span>${cargoTexto}</span>
+         </span>`
       : `<span class="text-gray-600 font-semibold text-[11px]">${cargoTexto}</span>`;
 
     tbody.innerHTML += `
@@ -102,7 +105,9 @@ export function renderizarDirectorioTrabajadores(lista) {
         <td class="p-2.5 font-mono text-gray-600 text-xs">@${usuarioLogin}</td>
         <td class="p-2.5 text-center whitespace-nowrap"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800">ACTIVO</span></td>
         <td class="p-2.5 text-center whitespace-nowrap space-x-1.5">
-          <button onclick="abrirModalEditarTrabajador(${t.id})" class="p-1 rounded text-blue-600 hover:text-blue-800 hover:bg-blue-50 font-bold cursor-pointer" title="Editar">✏️</button>
+          <button onclick="abrirModalEditarTrabajador(${t.id})" class="p-1.5 rounded text-slate-600 hover:text-[#0f2a4a] hover:bg-slate-100 font-bold cursor-pointer inline-flex items-center justify-center transition" title="Editar trabajador">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" /></svg>
+          </button>
           <button onclick="solicitarDarDeBajaTrabajador(${t.id}, '${t.nombre_completo.replace(/'/g, "\\'")}')" class="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 cursor-pointer">DAR DE BAJA</button>
         </td>
       </tr>
