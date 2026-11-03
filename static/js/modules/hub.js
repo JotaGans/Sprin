@@ -203,9 +203,12 @@ export function renderizarRadarPreventivoHub() {
 
   // Asegurar alto contraste del icono de alerta tanto en modo activo como en modo inactivo
   if (icoEquipo) {
-    icoEquipo.className = (modoRadarHub === "equipo")
-      ? "w-3.5 h-3.5 text-amber-300 flex-shrink-0 transition-colors"
-      : "w-3.5 h-3.5 text-amber-600 flex-shrink-0 transition-colors";
+    icoEquipo.setAttribute(
+      "class",
+      modoRadarHub === "equipo"
+        ? "w-3.5 h-3.5 text-amber-300 flex-shrink-0 transition-colors"
+        : "w-3.5 h-3.5 text-amber-600 flex-shrink-0 transition-colors"
+    );
   }
 
   if (modoRadarHub === "equipo") {
