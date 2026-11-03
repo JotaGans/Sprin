@@ -394,12 +394,67 @@ export async function solicitarEliminarProyecto(id, nombre, event) {
   }
 }
 
+const SVG_CANDADO_MINIMAL = `<svg class="w-3.5 h-3.5 text-slate-400 hover:text-[#0f2a4a] transition flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>`;
+
+const SVG_MUNDO_MINIMAL = `<svg class="w-3.5 h-3.5 text-teal-600 hover:text-teal-800 transition flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>`;
+
+function construirIndicadorSaludMinimal(p) {
+  const cantVenc = parseInt(p.vencidas_count) || 0;
+  const cantPorVenc = parseInt(p.por_vencer_count) || 0;
+
+  if (p.salud_proyecto === "CRITICO" && cantVenc > 0) {
+    const palabra = cantVenc === 1 ? "vencida" : "vencidas";
+    return `
+      <span class="inline-flex items-center space-x-1.5 text-[11px] font-bold text-rose-600 whitespace-nowrap" title="Proyecto con ${cantVenc} ${palabra}">
+        <span class="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0"></span>
+        <span>${cantVenc} ${palabra}</span>
+      </span>
+    `;
+  }
+  if (p.salud_proyecto === "ATENCION" && cantPorVenc > 0) {
+    return `
+      <span class="inline-flex items-center space-x-1.5 text-[11px] font-bold text-amber-600 whitespace-nowrap" title="Proyecto con ${cantPorVenc} actividad(es) por vencer en 5 días o menos">
+        <span class="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></span>
+        <span>${cantPorVenc} por vencer</span>
+      </span>
+    `;
+  }
+  return `
+    <span class="inline-flex items-center space-x-1.5 text-[11px] font-bold text-emerald-600 whitespace-nowrap" title="Cronograma al día">
+      <span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>
+      <span>En plazo</span>
+    </span>
+  `;
+}
+
+export function abrirModalMisPendientesHub() {
+  const modal = document.getElementById("modal-mis-pendientes-hub");
+  if (modal) modal.classList.remove("hidden");
+  sincronizarContadorHeaderPendientes();
+}
+
+export function cerrarModalMisPendientesHub() {
+  const modal = document.getElementById("modal-mis-pendientes-hub");
+  if (modal) modal.classList.add("hidden");
+  sincronizarContadorHeaderPendientes();
+}
+
+export function sincronizarContadorHeaderPendientes() {
+  const badgeModal = document.getElementById("hub-tarjeta-pendientes-badge");
+  const badgeHeader = document.getElementById("hub-header-pendientes-count");
+  if (badgeModal && badgeHeader) {
+    const numMatch = (badgeModal.innerText || "0").match(/\d+/);
+    badgeHeader.innerText = numMatch ? numMatch[0] : "0";
+  }
+}
+
 export function renderizarTarjetasHub(lista) {
   const grid = document.getElementById("grid-proyectos-hub");
   if (!grid) return;
   grid.innerHTML = "";
 
   actualizarBotonOcultosHubUI();
+  setTimeout(sincronizarContadorHeaderPendientes, 120);
 
   const listaFinal = lista.filter(p => state.mostrandoOcultosHub ? state.idsProyectosOcultos.has(p.id) : !state.idsProyectosOcultos.has(p.id));
 
@@ -412,48 +467,30 @@ export function renderizarTarjetasHub(lista) {
     const esPublico = (p.visibilidad === "PUBLICO");
 
     let badgeRolClases = "bg-blue-50 text-blue-800 border-blue-200/80";
-    let badgeRolTexto = "👤 Responsable";
+    let badgeRolTexto = "Responsable";
 
     if (rolEfectivo === "GESTOR" || esGestor) {
-      badgeRolClases = "bg-amber-50 text-amber-800 border-amber-200/80";
+      badgeRolClases = "bg-amber-50 text-amber-900 border-amber-200/90";
       badgeRolTexto = "👑 Gestor";
     } else if (rolEfectivo === "AUTORIDAD") {
       badgeRolClases = "bg-purple-50 text-purple-800 border-purple-200/80";
       badgeRolTexto = "🏛️ Autoridad";
     } else if (rolEfectivo === "VISUALIZADOR") {
       badgeRolClases = "bg-slate-100 text-slate-700 border-slate-300";
-      badgeRolTexto = "👁️ Visualizador";
+      badgeRolTexto = "Visualizador";
     }
 
-    // Semáforo de salud ejecutiva del proyecto
-    let badgeSaludHTML = `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200" title="Todas las actividades dentro del plazo programado">🟢 En plazo</span>`;
-    if (p.salud_proyecto === "CRITICO") {
-      badgeSaludHTML = `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200" title="Actividades con fecha de vencimiento superada">🔴 ${p.vencidas_count} vencida(s)</span>`;
-    } else if (p.salud_proyecto === "ATENCION") {
-      badgeSaludHTML = `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-50 text-amber-900 border border-amber-200" title="Actividades que vencen en los próximos 5 días">🟡 ${p.por_vencer_count} por vencer</span>`;
-    }
+    const indicadorSaludHTML = construirIndicadorSaludMinimal(p);
+    const iconoAlcanceHTML = esPublico
+      ? `<span class="inline-flex items-center justify-center cursor-help" title="Proyecto público institucional">${SVG_MUNDO_MINIMAL}</span>`
+      : `<span class="inline-flex items-center justify-center cursor-help" title="Proyecto privado (solo miembros asignados)">${SVG_CANDADO_MINIMAL}</span>`;
 
-    const badgeAlcanceHTML = esPublico
-      ? `<span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-teal-50 text-teal-700 border border-teal-200 text-xs shadow-2xs cursor-help" title="Proyecto visible a nivel institucional">🌐</span>`
-      : `<span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-slate-100 text-slate-600 border border-slate-200 text-xs shadow-2xs cursor-help" title="Proyecto privado">🔒</span>`;
-
-    const tooltipEdit = esGestor ? 'title="Doble clic para editar descripción"' : '';
-    const estiloCursor = esGestor ? 'cursor-pointer hover:text-teal-700 hover:bg-teal-50/70 p-1 -m-1 rounded transition' : '';
     const textoDesc = (p.descripcion && p.descripcion.trim() !== "") ? p.descripcion.trim() : "Sin descripción adicional registrada.";
     const descEscapada = (p.descripcion || "").replace(/'/g, "\\'").replace(/"/g, '&quot;');
     const avanceVal = parseInt(p.avance_global) || 0;
     const estaOculto = state.idsProyectosOcultos.has(p.id);
 
-    let badgeAvanceClases = "bg-slate-100 text-slate-800 border border-slate-200";
-    let barraColorClase = "bg-teal-600";
-
-    if (avanceVal === 100) {
-      badgeAvanceClases = "bg-emerald-50 text-emerald-800 border border-emerald-200";
-      barraColorClase = "bg-emerald-500";
-    } else if (avanceVal > 0) {
-      badgeAvanceClases = "bg-teal-50 text-teal-900 border border-teal-200";
-      barraColorClase = "bg-teal-600";
-    }
+    const barraColorClase = avanceVal === 100 ? "bg-emerald-500" : "bg-teal-600";
 
     let siglaUnidad = "";
     let nombreCompletoUnidad = "";
@@ -467,46 +504,56 @@ export function renderizarTarjetasHub(lista) {
       nombreCompletoUnidad = uObj ? uObj.nombre : p.unidad_organica.trim();
     }
 
-    const tooltipUo = nombreCompletoUnidad ? `title="${nombreCompletoUnidad} (Doble clic para cambiar)"` : '';
-    const estiloCursorUo = esGestor ? 'cursor-pointer hover:text-teal-900 transition' : '';
+    const tooltipUo = nombreCompletoUnidad ? `title="${nombreCompletoUnidad}${esGestor ? ' (Doble clic para cambiar)' : ''}"` : '';
+    const estiloCursorUo = esGestor ? 'cursor-pointer hover:text-teal-700 transition' : '';
 
     const procesoValor = (p.proceso_relacionado || p.proceso_nombre || p.proceso_codigo || "").trim();
-    const tieneProceso = Boolean(procesoValor);
-    const nombreLimpioProceso = tieneProceso ? procesoValor : "Sin proceso asignado";
-    const tooltipProceso = `title="${nombreLimpioProceso} (Doble clic para cambiar)"`;
-    const estiloCursorProceso = esGestor ? 'cursor-pointer hover:text-teal-900 transition' : '';
+    const nombreLimpioProceso = procesoValor ? procesoValor : "Sin proceso asignado";
+    const tooltipProceso = `title="${nombreLimpioProceso}${esGestor ? ' (Doble clic para cambiar)' : ''}"`;
+    const estiloCursorProceso = esGestor ? 'cursor-pointer hover:text-teal-700 transition' : '';
 
-    // Franja interna de coordinación preventiva (si hay entregables vencidos o por vencer)
-    let franjaCoordinacionHTML = "";
+    // Slot de altura simétrica fija (h-[44px]) para que todas las tarjetas mantengan sus KPIs y barra exactamente al mismo nivel
+    let slotAlertaSimetricoHTML = `
+      <div class="mt-3 h-[44px] px-3 rounded-xl border border-slate-100 bg-slate-50/60 flex items-center justify-between text-[11px] text-slate-400">
+        <span class="inline-flex items-center space-x-1.5 font-semibold">
+          <svg class="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+          <span>Cronograma sin alertas de retraso</span>
+        </span>
+        <span class="text-[10px] font-bold text-slate-400">${totalActs} act.</span>
+      </div>
+    `;
+
     if (p.alertas_responsables && p.alertas_responsables.length > 0) {
       const topAl = p.alertas_responsables[0];
       const esVenc = topAl.tipo_alerta === "VENCIDA";
       const respCorto = (topAl.responsable || "No asignado").split(";")[0].trim();
-      franjaCoordinacionHTML = `
-        <div class="mt-2.5 px-2.5 py-1.5 rounded-xl border ${esVenc ? 'bg-rose-50/60 border-rose-200 text-rose-900' : 'bg-amber-50/60 border-amber-200 text-amber-950'} text-[10.5px]">
-          <div class="flex items-center justify-between gap-1 font-bold">
-            <span class="truncate" title="[${topAl.codigo}] ${topAl.descripcion}">${esVenc ? '⚠️ Retraso:' : '⏱️ Por vencer:'} [${topAl.codigo}] ${topAl.descripcion}</span>
-            <span class="font-mono text-[10px] font-black flex-shrink-0">${topAl.fecha_fin}</span>
+      slotAlertaSimetricoHTML = `
+        <div class="mt-3 h-[44px] px-3 py-1 rounded-xl border ${esVenc ? 'bg-rose-50/45 border-rose-200/80 text-rose-900' : 'bg-amber-50/45 border-amber-200/80 text-amber-950'} flex flex-col justify-center text-[10.5px]">
+          <div class="flex items-center justify-between gap-1.5 font-bold leading-tight">
+            <span class="truncate" title="[${topAl.codigo}] ${topAl.descripcion}">${esVenc ? 'Retraso:' : 'Próximo:'} [${topAl.codigo}] ${topAl.descripcion}</span>
+            <span class="font-mono text-[10px] font-bold opacity-80 flex-shrink-0">${topAl.fecha_fin}</span>
           </div>
-          <div class="text-[10px] text-slate-600 truncate mt-0.5">👤 En manos de: <strong class="text-slate-800">${respCorto}</strong></div>
+          <div class="text-[10px] text-slate-500 truncate leading-tight mt-0.5">Responsable: <strong class="text-slate-700">${respCorto}</strong></div>
         </div>
       `;
     }
 
     const card = document.createElement("div");
-    card.className = "bg-white rounded-2xl p-5 border border-gray-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between hover:border-teal-500/50 relative min-h-[355px]";
+    card.className = "bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs hover:shadow-md transition-all flex flex-col justify-between hover:border-teal-500/50 relative h-[320px]";
     card.innerHTML = `
       <div>
-        <div class="flex items-center justify-between mb-3 gap-1">
-          <div class="flex items-center space-x-1.5 flex-wrap">
+        <!-- Fila 1: Rol + Candado/Mundo + Indicador limpio de salud | Ocultar/Eliminar + % -->
+        <div class="flex items-center justify-between mb-2.5 gap-1">
+          <div class="flex items-center space-x-2">
             <span class="text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider whitespace-nowrap border ${badgeRolClases}">
               ${badgeRolTexto}
             </span>
-            ${badgeAlcanceHTML}
-            ${badgeSaludHTML}
+            ${iconoAlcanceHTML}
+            <span class="text-slate-200">|</span>
+            ${indicadorSaludHTML}
           </div>
           <div class="flex items-center space-x-1">
-            <button onclick="alternarOcultarProyecto(${p.id}, event)" class="p-1 rounded hover:bg-gray-100 transition cursor-pointer" title="${estaOculto ? 'Restaurar al panel principal' : 'Ocultar proyecto de la vista'}">
+            <button onclick="alternarOcultarProyecto(${p.id}, event)" class="p-1 rounded hover:bg-slate-100 transition cursor-pointer" title="${estaOculto ? 'Restaurar al panel principal' : 'Ocultar proyecto de la vista'}">
               ${estaOculto ? SVG_OJO_ABIERTO : SVG_OJO_CERRADO}
             </button>
             ${puedeEliminar ? `
@@ -516,60 +563,74 @@ export function renderizarTarjetasHub(lista) {
                 </svg>
               </button>
             ` : ''}
-            <span class="text-xs font-black px-2 py-0.5 rounded whitespace-nowrap ${badgeAvanceClases}">${avanceVal}%</span>
+            <span class="text-xs font-black px-2 py-0.5 rounded bg-slate-100 text-[#0f2a4a]">${avanceVal}%</span>
           </div>
         </div>
         
-        <h3 class="font-extrabold text-sm sm:text-base text-[#0f2a4a] leading-snug line-clamp-2 break-words" title="${p.nombre.replace(/"/g, '&quot;')}">${p.nombre}</h3>
+        <!-- Fila 2: Título con altura simétrica reservada (h-[42px]) + Popover de Descripción en icono ⓘ -->
+        <div class="flex items-start justify-between gap-2 h-[42px]">
+          <h3 class="font-extrabold text-sm sm:text-[15px] text-[#0f2a4a] leading-snug line-clamp-2 break-words flex-1" title="${p.nombre.replace(/"/g, '&quot;')}">${p.nombre}</h3>
+          
+          <!-- Botón de información con Popover flotante para ver/editar la descripción sin saturar la tarjeta -->
+          <div class="relative group/info flex-shrink-0 mt-0.5">
+            <button type="button" onclick="event.stopPropagation(); ${esGestor ? `editarDescripcionProyecto(${p.id}, '${descEscapada}')` : ''}" class="w-5 h-5 rounded-full bg-slate-100 hover:bg-[#0f2a4a] text-slate-500 hover:text-white flex items-center justify-center text-[11px] font-serif italic font-black transition cursor-pointer" title="${esGestor ? 'Clic para editar la descripción del proyecto' : 'Descripción del proyecto'}">
+              i
+            </button>
+            <div class="hidden group-hover/info:block absolute right-0 top-full mt-1.5 w-64 p-3 bg-[#0f2a4a] text-white text-[11px] rounded-xl shadow-2xl z-50 pointer-events-none leading-relaxed border border-teal-400/30">
+              <span class="block text-[9.5px] font-black uppercase tracking-wider text-teal-300 mb-1">Descripción / Alcance</span>
+              <p class="font-medium text-slate-100">${textoDesc}</p>
+              ${esGestor ? '<span class="block text-[9px] text-teal-200/80 mt-1.5 italic">💡 Haz clic en el icono (i) para editar</span>' : ''}
+            </div>
+          </div>
+        </div>
         
-        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
-          <p ${tooltipUo} 
-             ondblclick="${esGestor ? `editarUnidadOrganicaProyecto(${p.id}, '${siglaUnidad}')` : ''}"
-             class="text-[11px] font-bold text-teal-800 inline-flex items-center space-x-1 ${estiloCursorUo}">
+        <!-- Fila 3: Unidad Orgánica y Proceso (con el mismo color limpio institucional) -->
+        <div class="flex items-center gap-x-2 mt-1.5 text-[11px] truncate">
+          <span ${tooltipUo} 
+                ondblclick="${esGestor ? `editarUnidadOrganicaProyecto(${p.id}, '${siglaUnidad}')` : ''}"
+                class="font-bold text-teal-800 inline-flex items-center space-x-1 flex-shrink-0 ${estiloCursorUo}">
             <span>🏢</span>
             <span>${siglaUnidad || 'Sin UO'}</span>
-          </p>
-          <span class="text-gray-300 text-xs">•</span>
-          <p ${tooltipProceso} 
-             ondblclick="${esGestor ? `editarProcesoProyectoModal(${p.id})` : ''}"
-             class="text-[11px] font-semibold text-slate-600 inline-flex items-center space-x-1 max-w-[210px] truncate ${estiloCursorProceso}">
+          </span>
+          <span class="text-slate-300">•</span>
+          <span ${tooltipProceso} 
+                ondblclick="${esGestor ? `editarProcesoProyectoModal(${p.id})` : ''}"
+                class="font-bold text-[#0f2a4a] inline-flex items-center space-x-1 truncate ${estiloCursorProceso}">
             <span>⚙️</span>
-            <span class="truncate ${tieneProceso ? 'text-[#0f2a4a] font-bold' : 'italic text-amber-600 font-bold'}">${nombreLimpioProceso}</span>
-          </p>
+            <span class="truncate">${nombreLimpioProceso}</span>
+          </span>
         </div>
 
-        <p ${tooltipEdit} 
-           ondblclick="${esGestor ? `editarDescripcionProyecto(${p.id}, '${descEscapada}')` : ''}" 
-           class="text-xs text-gray-500 mt-1.5 line-clamp-2 min-h-[30px] leading-relaxed ${estiloCursor}">
-          ${textoDesc}
-        </p>
-
-        ${franjaCoordinacionHTML}
-        
-        <div class="w-full bg-gray-100 rounded-full h-2 mt-3 overflow-hidden shadow-inner">
-          <div class="${barraColorClase} h-2 rounded-full transition-all duration-500" style="width: ${avanceVal}%"></div>
-        </div>
-
-        <div class="grid grid-cols-3 gap-2 mt-3 text-center">
-          <div class="bg-emerald-50/80 p-1.5 rounded-xl border border-emerald-100">
-            <span class="block text-[8.5px] font-black text-emerald-700 uppercase">Ejecutado</span>
-            <span class="text-xs font-black text-emerald-900">${p.ejecutadas || 0}</span>
-          </div>
-          <div class="bg-amber-50/80 p-1.5 rounded-xl border border-amber-100">
-            <span class="block text-[8.5px] font-black text-amber-700 uppercase">En proceso</span>
-            <span class="text-xs font-black text-amber-900">${p.en_proceso || 0}</span>
-          </div>
-          <div class="bg-rose-50/80 p-1.5 rounded-xl border border-rose-100">
-            <span class="block text-[8.5px] font-black text-rose-700 uppercase">No iniciado</span>
-            <span class="text-xs font-black text-rose-900">${p.pendientes || 0}</span>
-          </div>
-        </div>
+        <!-- Fila 4: Slot de Alerta de altura fija (44px) -->
+        ${slotAlertaSimetricoHTML}
       </div>
 
-      <button onclick="ingresarAlProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', ${esGestor})" class="w-full mt-4 py-2.5 bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center space-x-2 cursor-pointer">
-        <span>Ingresar al proyecto</span>
-        <span class="text-sm">→</span>
-      </button>
+      <!-- Zona Inferior Anclada: Barra + 3 KPIs + Botón Ingresar siempre en la misma coordenada Y -->
+      <div class="pt-2">
+        <div class="w-full bg-slate-100 rounded-full h-1.5 mb-2.5 overflow-hidden">
+          <div class="${barraColorClase} h-1.5 rounded-full transition-all duration-500" style="width: ${avanceVal}%"></div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 mb-3 text-center">
+          <div class="bg-slate-50 py-1.5 px-2 rounded-xl border border-slate-200/80">
+            <span class="block text-[8.5px] font-extrabold text-slate-400 uppercase">Ejecutado</span>
+            <span class="text-xs font-black text-emerald-700">${p.ejecutadas || 0}</span>
+          </div>
+          <div class="bg-slate-50 py-1.5 px-2 rounded-xl border border-slate-200/80">
+            <span class="block text-[8.5px] font-extrabold text-slate-400 uppercase">En proceso</span>
+            <span class="text-xs font-black text-amber-700">${p.en_proceso || 0}</span>
+          </div>
+          <div class="bg-slate-50 py-1.5 px-2 rounded-xl border border-slate-200/80">
+            <span class="block text-[8.5px] font-extrabold text-slate-400 uppercase">No iniciado</span>
+            <span class="text-xs font-black text-rose-700">${p.pendientes || 0}</span>
+          </div>
+        </div>
+
+        <button onclick="ingresarAlProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', ${esGestor})" class="w-full py-2 bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white font-bold text-xs rounded-xl shadow-2xs transition flex items-center justify-center space-x-1.5 cursor-pointer">
+          <span>Ingresar al proyecto</span>
+          <span class="text-sm leading-none">→</span>
+        </button>
+      </div>
     `;
     grid.appendChild(card);
   });
@@ -577,9 +638,9 @@ export function renderizarTarjetasHub(lista) {
   if (!state.mostrandoOcultosHub) {
     const cardNuevo = document.createElement("div");
     cardNuevo.onclick = abrirModalNuevoProyecto;
-    cardNuevo.className = "bg-slate-50/60 hover:bg-white rounded-2xl p-6 border-2 border-dashed border-slate-300 hover:border-teal-500 transition-all cursor-pointer flex flex-col items-center justify-center text-center group min-h-[355px] shadow-xs hover:shadow-md";
+    cardNuevo.className = "bg-slate-50/60 hover:bg-white rounded-2xl p-6 border-2 border-dashed border-slate-300 hover:border-teal-500 transition-all cursor-pointer flex flex-col items-center justify-center text-center group h-[320px] shadow-2xs hover:shadow-md";
     cardNuevo.innerHTML = `
-      <div class="w-12 h-12 rounded-full bg-teal-50 group-hover:bg-teal-600 text-teal-600 group-hover:text-white flex items-center justify-center text-xl font-black mb-3 transition shadow-xs">
+      <div class="w-12 h-12 rounded-full bg-teal-50 group-hover:bg-teal-600 text-teal-600 group-hover:text-white flex items-center justify-center text-xl font-black mb-3 transition shadow-2xs">
         +
       </div>
       <h4 class="text-sm font-black text-gray-700 group-hover:text-[#0f2a4a] transition">Nuevo proyecto o programa</h4>
@@ -596,6 +657,7 @@ export function renderizarTablaHub(lista) {
   tbody.innerHTML = "";
 
   actualizarBotonOcultosHubUI();
+  setTimeout(sincronizarContadorHeaderPendientes, 120);
 
   const listaFinal = lista.filter(p => state.mostrandoOcultosHub ? state.idsProyectosOcultos.has(p.id) : !state.idsProyectosOcultos.has(p.id));
 
@@ -612,103 +674,93 @@ export function renderizarTablaHub(lista) {
     const puedeEliminar = esGestor && esProyectoVacio;
     const esPublico = (p.visibilidad === "PUBLICO");
 
-    let badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase whitespace-nowrap bg-blue-100 text-blue-900 border border-blue-300">👤 RESPONSABLE</span>`;
+    let badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-blue-50 text-blue-900 border border-blue-200">Responsable</span>`;
     if (rolEfectivo === "GESTOR" || esGestor) {
-      badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase whitespace-nowrap bg-amber-100 text-amber-900 border border-amber-300">👑 GESTOR</span>`;
+      badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-50 text-amber-900 border border-amber-200">👑 Gestor</span>`;
     } else if (rolEfectivo === "AUTORIDAD") {
-      badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase whitespace-nowrap bg-purple-100 text-purple-900 border border-purple-300">🏛️ AUTORIDAD</span>`;
+      badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-purple-50 text-purple-900 border border-purple-200">🏛️ Autoridad</span>`;
     } else if (rolEfectivo === "VISUALIZADOR") {
-      badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase whitespace-nowrap bg-slate-100 text-slate-700 border border-slate-300">👁️ VISUALIZADOR</span>`;
+      badgeRolHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-slate-100 text-slate-700 border border-slate-300">Visualizador</span>`;
     }
 
-    let badgeSaludHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200">🟢 En plazo</span>`;
-    if (p.salud_proyecto === "CRITICO") {
-      badgeSaludHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">🔴 ${p.vencidas_count} vencida(s)</span>`;
-    } else if (p.salud_proyecto === "ATENCION") {
-      badgeSaludHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-50 text-amber-900 border border-amber-200">🟡 ${p.por_vencer_count} por vencer</span>`;
-    }
-
-    const badgeAlcanceHTML = esPublico
-      ? `<span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-teal-50 text-teal-700 border border-teal-200 text-xs shadow-2xs cursor-help flex-shrink-0" title="Proyecto visible a nivel institucional">🌐</span>`
-      : `<span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-slate-100 text-slate-600 border border-slate-200 text-xs shadow-2xs cursor-help flex-shrink-0" title="Proyecto privado">🔒</span>`;
+    const indicadorSaludHTML = construirIndicadorSaludMinimal(p);
+    const iconoAlcanceHTML = esPublico
+      ? `<span class="inline-flex items-center justify-center cursor-help flex-shrink-0" title="Proyecto público institucional">${SVG_MUNDO_MINIMAL}</span>`
+      : `<span class="inline-flex items-center justify-center cursor-help flex-shrink-0" title="Proyecto privado">${SVG_CANDADO_MINIMAL}</span>`;
 
     const pct = p.avance_global || 0;
     const estaOculto = state.idsProyectosOcultos.has(p.id);
-
+    const textoDesc = (p.descripcion && p.descripcion.trim() !== "") ? p.descripcion.trim() : "Sin descripción adicional registrada.";
     const descEscapada = (p.descripcion || "").replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    const tooltipDesc = esGestor ? 'title="Doble clic para editar descripción"' : '';
-    const cursorDesc = esGestor ? 'cursor-pointer hover:text-teal-700 transition' : '';
     const procesoValor = (p.proceso_relacionado || p.proceso_nombre || p.proceso_codigo || "").trim();
+    const nombreLimpioProceso = procesoValor ? procesoValor : "Sin proceso asignado";
 
     let hitoCoordHTML = `<span class="text-[11px] text-slate-400 italic">Al día sin alertas</span>`;
     if (p.alertas_responsables && p.alertas_responsables.length > 0) {
       const al = p.alertas_responsables[0];
       const esV = al.tipo_alerta === "VENCIDA";
       hitoCoordHTML = `
-        <div class="text-[11px] leading-tight">
-          <div class="font-bold ${esV ? 'text-rose-700' : 'text-amber-900'} truncate max-w-[210px]" title="[${al.codigo}] ${al.descripcion}">
-            ${esV ? '⚠️' : '⏱️'} [${al.codigo}] ${al.descripcion}
+        <div class="text-[11px] leading-tight truncate">
+          <div class="font-bold ${esV ? 'text-rose-600' : 'text-amber-800'} truncate" title="[${al.codigo}] ${al.descripcion}">
+            [${al.codigo}] ${al.descripcion}
           </div>
-          <div class="text-[10px] text-slate-500 mt-0.5 truncate max-w-[210px]">
-            👤 <strong>${(al.responsable || '').split(';')[0]}</strong> · 📅 ${al.fecha_fin}
+          <div class="text-[10px] text-slate-500 mt-0.5 truncate">
+            <strong>${(al.responsable || '').split(';')[0]}</strong> · ${al.fecha_fin}
           </div>
         </div>
       `;
     }
 
     tbody.innerHTML += `
-      <tr class="hover:bg-gray-50 transition border-b border-gray-100">
-        <td class="p-3 text-center text-gray-400 font-mono text-xs">${idx + 1}</td>
-        <td class="p-3">
-          <div class="flex items-center gap-1.5">
-            <span class="bg-teal-50 text-teal-900 border border-teal-200 px-1.5 py-0.2 rounded text-[10px] font-black">${p.unidad_organica || 'S/U'}</span>
-            <span class="font-bold text-gray-800 text-xs">${p.nombre}</span>${badgeAlcanceHTML}
+      <tr class="hover:bg-slate-50/80 transition border-b border-gray-100">
+        <td class="p-2.5 text-center text-gray-400 font-mono text-xs">${idx + 1}</td>
+        <td class="p-2.5 truncate">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span class="bg-teal-50 text-teal-900 border border-teal-200 px-1.5 py-0.2 rounded text-[10px] font-black flex-shrink-0">${p.unidad_organica || 'S/U'}</span>
+            <span class="font-bold text-[#0f2a4a] text-xs truncate" title="${p.nombre.replace(/"/g, '&quot;')}">${p.nombre}</span>
+            ${iconoAlcanceHTML}
+            <button type="button" onclick="event.stopPropagation(); ${esGestor ? `editarDescripcionProyecto(${p.id}, '${descEscapada}')` : ''}" class="w-4 h-4 rounded-full bg-slate-100 hover:bg-[#0f2a4a] text-slate-500 hover:text-white text-[10px] font-serif italic font-black flex items-center justify-center flex-shrink-0 cursor-pointer" title="Descripción: ${textoDesc.replace(/"/g, '&quot;')}">i</button>
           </div>
-          <div ${tooltipDesc} 
-               ondblclick="${esGestor ? `editarDescripcionProyecto(${p.id}, '${descEscapada}')` : ''}" 
-               class="text-[11px] text-gray-500 line-clamp-1 mt-0.5 ${cursorDesc}">
-            ${p.descripcion && p.descripcion.trim() !== '' ? p.descripcion : '<span class="italic text-gray-400">Sin descripción</span>'}
-          </div>
-          <div class="text-[10px] text-teal-800 font-semibold mt-0.5 flex items-center gap-1">
+          <div class="text-[10.5px] text-[#0f2a4a] font-bold mt-0.5 flex items-center gap-1 truncate">
             <span>⚙️</span>
-            <span class="${esGestor ? 'cursor-pointer hover:underline' : ''}" 
-                  title="${procesoValor ? procesoValor : 'Sin proceso asignado'}" 
+            <span class="truncate ${esGestor ? 'cursor-pointer hover:underline' : ''}" 
+                  title="${nombreLimpioProceso}" 
                   ondblclick="${esGestor ? `editarProcesoProyectoModal(${p.id})` : ''}">
-              ${procesoValor ? procesoValor : '<span class="text-amber-600 italic font-bold">Sin proceso asignado</span>'}
+              ${nombreLimpioProceso}
             </span>
           </div>
         </td>
-        <td class="p-3 text-center whitespace-nowrap">${badgeSaludHTML}</td>
-        <td class="p-3 text-center whitespace-nowrap">${badgeRolHTML}</td>
-        <td class="p-3 text-center">
-          <div class="flex items-center space-x-2 justify-center">
-            <div class="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+        <td class="p-2.5 text-center whitespace-nowrap">${indicadorSaludHTML}</td>
+        <td class="p-2.5 text-center whitespace-nowrap">${badgeRolHTML}</td>
+        <td class="p-2.5 text-center">
+          <div class="flex items-center space-x-1.5 justify-center">
+            <div class="w-12 bg-gray-200 rounded-full h-1.5 overflow-hidden hidden sm:block">
               <div class="bg-teal-600 h-1.5 rounded-full" style="width: ${pct}%;"></div>
             </div>
             <span class="font-black text-gray-800 text-xs">${pct}%</span>
           </div>
         </td>
-        <td class="p-3">${hitoCoordHTML}</td>
-        <td class="p-3 text-center">
-          <div class="inline-flex items-center space-x-1 text-[10px] font-bold whitespace-nowrap">
-            <span class="bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded" title="Ejecutadas">${p.ejecutadas || 0} Ejec.</span>
-            <span class="bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded" title="En proceso">${p.en_proceso || 0} Proc.</span>
-            <span class="bg-rose-50 text-rose-800 border border-rose-200 px-1.5 py-0.5 rounded" title="No iniciadas">${p.pendientes || 0} Pend.</span>
+        <td class="p-2.5 truncate">${hitoCoordHTML}</td>
+        <td class="p-2.5 text-center whitespace-nowrap">
+          <div class="inline-flex items-center space-x-1 text-[10.5px] font-black">
+            <span class="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200" title="Ejecutadas">${p.ejecutadas || 0}</span>
+            <span class="text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200" title="En proceso">${p.en_proceso || 0}</span>
+            <span class="text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200" title="No iniciadas">${p.pendientes || 0}</span>
           </div>
         </td>
-        <td class="p-3 text-right whitespace-nowrap">
-          <div class="inline-flex items-center justify-end space-x-1.5 w-full">
+        <td class="p-2.5 text-right pr-3 whitespace-nowrap">
+          <div class="inline-flex items-center justify-end space-x-1">
             <button onclick="alternarOcultarProyecto(${p.id}, event)" class="p-1 rounded hover:bg-gray-200 transition cursor-pointer" title="${estaOculto ? 'Restaurar al panel' : 'Ocultar vista'}">
               ${estaOculto ? SVG_OJO_ABIERTO : SVG_OJO_CERRADO}
             </button>
             ${puedeEliminar ? `
               <button onclick="solicitarEliminarProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', event)" class="p-1 rounded text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer" title="Eliminar proyecto vacío">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
             ` : ''}
-            <button onclick="ingresarAlProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', ${esGestor})" class="bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition shadow-xs cursor-pointer whitespace-nowrap">
+            <button onclick="ingresarAlProyecto(${p.id}, '${p.nombre.replace(/'/g, "\\'")}', ${esGestor})" class="bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white text-[11px] font-bold px-2.5 py-1 rounded-lg transition shadow-2xs cursor-pointer">
               Ingresar →
             </button>
           </div>
@@ -1938,3 +1990,6 @@ window.autocompletarSlicerProceso = autocompletarSlicerProceso;
 window.limpiarSlicerProceso = limpiarSlicerProceso;
 window.resetearSlicersEstadisticas = resetearSlicersEstadisticas;
 window.autocompletarProcesoNuevoProy = autocompletarProcesoNuevoProy;
+window.abrirModalMisPendientesHub = abrirModalMisPendientesHub;
+window.cerrarModalMisPendientesHub = cerrarModalMisPendientesHub;
+window.sincronizarContadorHeaderPendientes = sincronizarContadorHeaderPendientes;
