@@ -128,6 +128,10 @@ export async function ingresarAlProyecto(id, nombre, esGestor) {
     if (typeof window.cambiarVistaProyecto === "function") {
       window.cambiarVistaProyecto(vistaGuardada);
     }
+    if (txtNombre && typeof window.ajustarAlturaTituloProyecto === "function") {
+      requestAnimationFrame(() => window.ajustarAlturaTituloProyecto(txtNombre));
+    }
+
     inicializarRedimensionDescripcion();
     await sincronizarDatosProyecto(id);
 

@@ -509,15 +509,15 @@
           <img src="/static/IMARPE%20IMAGOTIPO.png" alt="IMARPE" class="h-8 sm:h-9 w-auto object-contain drop-shadow-2xs">
         </div>
 
-        <!-- Columna 2 (Centro Exacto): Título del Proyecto con Indicador de Caracteres (xy/80) al Editar -->
-        <div class="relative flex items-center justify-center min-w-0 px-1 sm:px-4 group">
+        <!-- Columna 2 (Centro Exacto): Título del Proyecto Auto-Adaptable (1 o 2 líneas completas sin cortes ni espacios vacíos) -->
+        <div class="relative flex items-center justify-center min-w-0 px-1 sm:px-3 group">
           <textarea id="txt-nombre-proyecto" rows="1" maxlength="80"
                     onfocus="mostrarContadorTituloProyecto(this)"
                     onblur="ocultarContadorTituloProyecto()"
                     oninput="ajustarAlturaTituloProyecto(this)"
                     onchange="guardarNombreProyectoInline()"
                     onkeydown="if(event.key === 'Enter') { event.preventDefault(); this.blur(); }"
-                    class="bg-transparent text-white font-black text-sm sm:text-base md:text-lg lg:text-[20px] tracking-tight px-2.5 py-0.5 rounded-lg border border-transparent hover:border-blue-700/80 focus:border-teal-400 focus:bg-[#0a1c33] outline-none transition w-full sm:w-[360px] md:w-[480px] lg:w-[560px] text-center resize-none overflow-hidden leading-tight block my-auto"
+                    class="bg-transparent text-white font-black text-sm sm:text-base md:text-lg lg:text-[19px] tracking-tight px-3 py-0.5 rounded-lg border border-transparent hover:border-blue-700/80 focus:border-teal-400 focus:bg-[#0a1c33] outline-none transition-colors w-full sm:w-[380px] md:w-[520px] lg:w-[650px] xl:w-[740px] text-center resize-none overflow-hidden leading-snug block my-auto"
                     title="Clic para editar el nombre del proyecto (máximo 80 caracteres)"></textarea>
           <span id="contador-titulo-proy" class="hidden absolute -bottom-4 right-4 bg-[#0a1c33] text-teal-300 border border-teal-500/40 text-[9.5px] font-mono font-bold px-1.5 py-0.2 rounded shadow-sm pointer-events-none z-30">0/80</span>
         </div>

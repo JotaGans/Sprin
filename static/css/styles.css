@@ -327,11 +327,24 @@ button#btn-toggle-cpm span {
   transition: none !important;
 }
 
-/* Sellar cabeceras de tabla principal Gantt */
+/* Sellar cabeceras de tabla principal Gantt contra filtraciones subpíxel al hacer scroll vertical */
+#tabla-gantt-main thead tr {
+  background-color: #0f2a4a !important;
+}
+
 #tabla-gantt-main thead th {
   background-color: #0f2a4a !important;
-  box-shadow: inset 0 -1px 0 #1c335a !important;
+  /* Sello lateral de 1px en azul institucional #0f2a4a para impedir que se vea una línea blanca entre Responsables y el Gantt */
+  box-shadow: 1px 0 0 0 #0f2a4a, -1px 0 0 0 #0f2a4a, inset 0 -1px 0 #1c335a !important;
   border: none !important;
+  outline: none !important;
+  background-clip: padding-box !important;
+}
+
+#th-gantt #gantt-header-meses,
+#th-gantt #gantt-header-semanas {
+  background-color: #0f2a4a !important;
+  border-left: 1px solid #1c335a !important;
 }
 
 /* Eliminar sombreado retenido por foco al retirar el cursor */

@@ -242,13 +242,31 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   window.ajustarAlturaTituloProyecto = (el) => {
     if (!el) return;
-    el.style.height = "auto";
-    const nuevaAlt = Math.min(44, Math.max(24, el.scrollHeight));
-    el.style.height = `${nuevaAlt}px`;
-    if (badgeContadorTit) {
-      badgeContadorTit.innerText = `${el.value.length}/80`;
+    // Resetear a 1 línea compacta para medir si realmente necesita 2 líneas
+    el.style.height = "28px";
+    const altoRequerido = el.scrollHeight;
+
+    if (altoRequerido > 34) {
+      // Requiere 2 líneas: expandir exactamente a la altura de las 2 líneas (hasta 62px) sin cortar las letras inferiores
+      el.style.lineHeight = "1.22";
+      el.style.height = "auto";
+      el.style.height = `${Math.min(62, Math.max(46, el.scrollHeight + 2))}px`;
+    } else {
+      // Cabe en 1 sola línea: altura compacta exacta sin dejar espacio vacío debajo
+      el.style.lineHeight = "1.3";
+      el.style.height = "28px";
+    }
+
+    const contProy = document.getElementById("contador-titulo-proy") || badgeContadorTit;
+    if (contProy) {
+      contProy.innerText = `${(el.value || "").length}/80`;
     }
   };
+
+  window.addEventListener("resize", () => {
+    const elTit = document.getElementById("txt-nombre-proyecto");
+    if (elTit) window.ajustarAlturaTituloProyecto(elTit);
+  });
 
   if (inputNombreProy) {
     let nombreOriginalAlEnfocar = "";
