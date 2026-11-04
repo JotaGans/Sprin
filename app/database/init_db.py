@@ -24,27 +24,23 @@ def calcular_jueves_viernes_santo(year: int):
     return domingo - timedelta(days=3), domingo - timedelta(days=2)
 
 def init_db():
-    # Asegurar copia desde el repositorio hacia /data si en /data no existe o está vacía
-    origen_repo = "imarpe_sgp.db" if os.path.exists("imarpe_sgp.db") else ("imarpe_gantt.db" if os.path.exists("imarpe_gantt.db") else None)
-    
-    debe_copiar = False
-    if not os.path.exists(DB_PATH):
-        debe_copiar = True
-    elif origen_repo and os.path.exists(origen_repo):
-        # Si la base en /data pesa menos de 50 KB (está recién inicializada) y el repo tiene datos
-        if os.path.getsize(DB_PATH) < 50000 and os.path.getsize(origen_repo) > os.path.getsize(DB_PATH):
-            debe_copiar = True
+    # BLINDAJE DE PRODUCCIÓN: Respetar siempre la base de datos existente en /data
+    # 1. Si en /data existe imarpe_gantt.db pero aún no imarpe_sgp.db, migrar sus datos reales sin perder nada
+    if not os.path.exists(DB_PATH) and os.path.exists(LEGACY_DB_PATH) and os.path.getsize(LEGACY_DB_PATH) > 0:
+        try:
+            shutil.copy2(LEGACY_DB_PATH, DB_PATH)
+            print("Datos de produccion migrados desde LEGACY_DB_PATH hacia DB_PATH.")
+        except Exception as e:
+            print(f"Error copiando legacy db: {e}")
 
-    if debe_copiar and origen_repo:
-        try:
-            shutil.copy(origen_repo, DB_PATH)
-        except Exception:
-            pass
-    elif not os.path.exists(DB_PATH) and os.path.exists(LEGACY_DB_PATH):
-        try:
-            shutil.copy(LEGACY_DB_PATH, DB_PATH)
-        except Exception:
-            pass
+    # 2. Solo copiar desde el repositorio si en /data NO existe absolutamente ninguna base de datos (0 bytes)
+    if not os.path.exists(DB_PATH) or os.path.getsize(DB_PATH) == 0:
+        origen_repo = "imarpe_sgp.db" if os.path.exists("imarpe_sgp.db") else ("imarpe_gantt.db" if os.path.exists("imarpe_gantt.db") else None)
+        if origen_repo and os.path.exists(origen_repo):
+            try:
+                shutil.copy2(origen_repo, DB_PATH)
+            except Exception:
+                pass
 
     conn = sqlite3.connect(DB_PATH, timeout=30.0, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL;")
