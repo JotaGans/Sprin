@@ -186,25 +186,43 @@ export function renderizarTabla() {
   if (!state.actividadesGlobal || state.actividadesGlobal.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="10" class="p-6 text-center space-y-3 bg-slate-50/50">
-          <p class="text-gray-500 font-bold text-xs">Este proyecto aún no tiene actividades registradas.</p>
-          ${state.proyectoEsGestor ? `
-            <div class="flex flex-wrap items-center justify-center gap-2 max-w-xl mx-auto">
-              <input type="text" id="input-quick-add-wbs" 
-                     onkeydown="if(event.key==='Enter'){event.preventDefault(); crearActividadRapidaInline();}"
-                     placeholder="⚡ Escribe la primera actividad aquí y presiona Enter..." 
-                     class="flex-1 min-w-[240px] text-xs font-semibold text-gray-800 bg-white border-2 border-teal-400 focus:border-[#0f2a4a] rounded-xl px-3.5 py-2 outline-none shadow-sm">
-              <button type="button" onclick="crearActividadRapidaInline()" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-black rounded-xl shadow transition cursor-pointer">
-                + Crear Rápido
-              </button>
-              <button type="button" onclick="abrirModalPegarListaTareas()" class="px-4 py-2 bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white text-xs font-bold rounded-xl shadow transition cursor-pointer">
-                📋 Pegar Lista de Word/Excel
-              </button>
-              <button type="button" onclick="abrirModalImportarPlantillaProyecto()" class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-bold rounded-xl transition cursor-pointer">
-                📂 Usar Plantilla IMARPE
-              </button>
-            </div>
-          ` : ''}
+        <td colspan="10" class="p-8 text-center bg-slate-50/50">
+          <div class="max-w-2xl mx-auto space-y-3.5">
+            <p class="text-slate-500 font-bold text-xs">Este proyecto aún no tiene actividades registradas.</p>
+            ${state.proyectoEsGestor ? `
+              <!-- Fila 1: Input amplio de creación rápida (muestra el placeholder 100% completo) -->
+              <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 max-w-xl mx-auto">
+                <div class="relative flex-1 min-w-0 sm:min-w-[390px]">
+                  <svg class="w-4 h-4 text-teal-600 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                  </svg>
+                  <input type="text" id="input-quick-add-wbs" 
+                         onkeydown="if(event.key==='Enter'){event.preventDefault(); crearActividadRapidaInline();}"
+                         placeholder="Escribe la primera actividad aquí y presiona Enter..." 
+                         class="w-full pl-9 pr-3.5 py-2.5 text-xs font-semibold text-gray-800 bg-white border-2 border-teal-400 focus:border-[#0f2a4a] rounded-xl outline-none shadow-xs transition">
+                </div>
+                <button type="button" onclick="crearActividadRapidaInline()" class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap">
+                  + Crear rápido
+                </button>
+              </div>
+
+              <!-- Fila 2: Aceleradores de carga masiva y plantillas -->
+              <div class="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+                <button type="button" onclick="abrirModalPegarListaTareas()" class="px-3.5 py-2 bg-[#0f2a4a] hover:bg-[#1b4f8a] text-white text-xs font-bold rounded-xl shadow-xs transition inline-flex items-center space-x-1.5 cursor-pointer">
+                  <svg class="w-3.5 h-3.5 text-teal-300 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
+                  </svg>
+                  <span>Pegar lista de Word / Excel</span>
+                </button>
+                <button type="button" onclick="abrirModalImportarPlantillaProyecto()" class="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-bold rounded-xl transition inline-flex items-center space-x-1.5 cursor-pointer">
+                  <svg class="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                  </svg>
+                  <span>Usar plantilla</span>
+                </button>
+              </div>
+            ` : ''}
+          </div>
         </td>
       </tr>
     `;
@@ -2479,6 +2497,49 @@ export function renderizarTableroKanban() {
   });
 
   codigoUltimoSoltadoKanban = null;
+
+  // Estados vacíos amigables (Empty States) para cada columna del Tablero Kanban
+  if (contPend === 0) {
+    zonaPend.innerHTML = `
+      <div class="flex-1 flex flex-col items-center justify-center text-center p-6 my-auto border-2 border-dashed border-slate-200/80 rounded-xl bg-white/40 select-none pointer-events-none">
+        <div class="w-9 h-9 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+        </div>
+        <p class="text-xs font-bold text-slate-500">Sin actividades por hacer</p>
+        <p class="text-[11px] text-slate-400 mt-0.5 max-w-[200px]">No hay tareas pendientes de inicio en esta columna.</p>
+      </div>
+    `;
+  }
+
+  if (contProc === 0) {
+    zonaProc.innerHTML = `
+      <div class="flex-1 flex flex-col items-center justify-center text-center p-6 my-auto border-2 border-dashed border-blue-200/60 rounded-xl bg-white/40 select-none pointer-events-none">
+        <div class="w-9 h-9 rounded-full bg-blue-50 text-blue-400 flex items-center justify-center mb-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <p class="text-xs font-bold text-slate-500">Sin actividades en proceso</p>
+        <p class="text-[11px] text-slate-400 mt-0.5 max-w-[210px]">Arrastra una actividad aquí cuando inicies su ejecución.</p>
+      </div>
+    `;
+  }
+
+  if (contEjec === 0) {
+    zonaEjec.innerHTML = `
+      <div class="flex-1 flex flex-col items-center justify-center text-center p-6 my-auto border-2 border-dashed border-emerald-200/60 rounded-xl bg-white/40 select-none pointer-events-none">
+        <div class="w-9 h-9 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mb-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <p class="text-xs font-bold text-slate-500">Sin actividades ejecutadas</p>
+        <p class="text-[11px] text-slate-400 mt-0.5 max-w-[210px]">Arrastra una tarjeta aquí al completar el entregable al 100%.</p>
+      </div>
+    `;
+  }
 
   const bPend = document.getElementById("kanban-count-pendiente");
   const bProc = document.getElementById("kanban-count-proceso");

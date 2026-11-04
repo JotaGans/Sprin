@@ -715,53 +715,126 @@ export async function guardarProyectoComoPlantilla(e) {
   }
 }
 
+let cachePlantillasImportarModal = [];
+
+function normalizarTextoBusquedaPlantilla(str) {
+  return String(str || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 export async function abrirModalImportarPlantillaProyecto() {
   state.plantillaParaImportarId = null;
   document.getElementById("bloque-fechaini-importar")?.classList.add("hidden");
   document.getElementById("btn-confirmar-importar-plantilla")?.classList.add("hidden");
+
+  const inpBusq = document.getElementById("input-busq-importar-plantilla");
+  if (inpBusq) inpBusq.value = "";
+  const selTipo = document.getElementById("select-tipo-importar-plantilla");
+  if (selTipo) selTipo.value = "TODAS";
+  document.getElementById("btn-limpiar-busq-importar-plantilla")?.classList.add("hidden");
+
   document.getElementById("modal-importar-plantilla-proyecto")?.classList.remove("hidden");
 
   const cont = document.getElementById("lista-plantillas-importar-contenedor");
   if (!cont) return;
-  cont.innerHTML = `<div class="col-span-2 p-4 text-center text-gray-400 font-bold animate-pulse">Cargando plantillas...</div>`;
+  cont.innerHTML = `<div class="col-span-2 p-6 text-center text-slate-400 font-bold animate-pulse">Cargando biblioteca de plantillas...</div>`;
 
   try {
     const res = await apiFetch("/plantillas");
-    const plantillas = await res.json();
-    cont.innerHTML = "";
-
-    if (!plantillas || plantillas.length === 0) {
-      cont.innerHTML = `<div class="col-span-2 p-4 text-center text-gray-400 font-semibold italic">No hay plantillas registradas en la biblioteca.</div>`;
-      return;
-    }
-
-    plantillas.forEach(p => {
-      const item = document.createElement("div");
-      item.className = "bg-white p-3 rounded-xl border border-gray-200 hover:border-teal-600 hover:shadow cursor-pointer transition flex flex-col justify-between";
-      item.onclick = () => {
-        state.plantillaParaImportarId = p.id;
-        document.querySelectorAll("#lista-plantillas-importar-contenedor > div").forEach(d => d.classList.remove("border-teal-600", "bg-teal-50/50"));
-        item.classList.add("border-teal-600", "bg-teal-50/50");
-
-        const hoyISO = new Date().toISOString().split("T")[0];
-        const inpFecha = document.getElementById("input-importar-fechaini");
-        if (inpFecha) inpFecha.value = hoyISO;
-        document.getElementById("bloque-fechaini-importar")?.classList.remove("hidden");
-        document.getElementById("btn-confirmar-importar-plantilla")?.classList.remove("hidden");
-      };
-      item.innerHTML = `
-        <div>
-          <span class="text-[9px] font-black uppercase text-teal-800 bg-teal-50 px-1.5 py-0.2 rounded border border-teal-200">${p.categoria || 'General'}</span>
-          <h5 class="font-bold text-xs text-[#0f2a4a] mt-1">${p.nombre}</h5>
-          <p class="text-[10px] text-gray-500 line-clamp-2 mt-0.5">${p.descripcion || ''}</p>
-        </div>
-        <span class="text-[10px] font-bold text-teal-700 mt-2 block">Seleccionar →</span>
-      `;
-      cont.appendChild(item);
-    });
+    cachePlantillasImportarModal = res.ok ? await res.json() : [];
+    filtrarPlantillasModalImportar();
+    setTimeout(() => inpBusq?.focus(), 80);
   } catch (e) {
-    cont.innerHTML = `<div class="col-span-2 p-4 text-center text-red-500 font-semibold">Error al cargar plantillas.</div>`;
+    cont.innerHTML = `<div class="col-span-2 p-6 text-center text-rose-500 font-semibold">Error al cargar plantillas.</div>`;
   }
+}
+
+export function limpiarBusquedaModalImportarPlantilla() {
+  const inp = document.getElementById("input-busq-importar-plantilla");
+  if (inp) {
+    inp.value = "";
+    inp.focus();
+  }
+  filtrarPlantillasModalImportar();
+}
+
+export function filtrarPlantillasModalImportar() {
+  const cont = document.getElementById("lista-plantillas-importar-contenedor");
+  const badgeConteo = document.getElementById("badge-conteo-importar-plantillas");
+  const btnLimpiar = document.getElementById("btn-limpiar-busq-importar-plantilla");
+  if (!cont) return;
+
+  const qRaw = document.getElementById("input-busq-importar-plantilla")?.value || "";
+  const q = normalizarTextoBusquedaPlantilla(qRaw);
+  const tipo = document.getElementById("select-tipo-importar-plantilla")?.value || "TODAS";
+
+  if (btnLimpiar) btnLimpiar.classList.toggle("hidden", qRaw.trim().length === 0);
+
+  const filtradas = (cachePlantillasImportarModal || []).filter(p => {
+    if (tipo === "OFICIALES" && p.es_oficial !== 1) return false;
+    if (tipo === "PERSONALES" && p.es_oficial === 1) return false;
+    if (!q) return true;
+
+    const textoCompleto = normalizarTextoBusquedaPlantilla(`${p.nombre || ""} ${p.categoria || ""} ${p.descripcion || ""}`);
+    const palabras = q.split(/\s+/).filter(Boolean);
+    return palabras.every(pal => textoCompleto.includes(pal));
+  });
+
+  if (badgeConteo) {
+    badgeConteo.innerText = filtradas.length === 1 ? "1 disponible" : `${filtradas.length} disponibles`;
+  }
+
+  cont.innerHTML = "";
+  if (filtradas.length === 0) {
+    cont.innerHTML = `
+      <div class="col-span-2 p-8 text-center bg-white rounded-xl border border-dashed border-slate-200 space-y-1.5">
+        <p class="text-xs font-bold text-slate-600">No se encontraron plantillas con ese criterio</p>
+        <p class="text-[11px] text-slate-400">Intente buscar con otra palabra clave, sigla o código de proceso (ej: S2.2, PEI, IOARR).</p>
+      </div>
+    `;
+    return;
+  }
+
+  filtradas.forEach(p => {
+    const estaSeleccionada = (state.plantillaParaImportarId === p.id);
+    const numTareas = p.total_actividades || (p.actividades ? p.actividades.length : 0);
+    const item = document.createElement("div");
+    item.className = `bg-white p-3.5 rounded-xl border transition flex flex-col justify-between cursor-pointer ${
+      estaSeleccionada
+        ? "border-teal-600 bg-teal-50/40 ring-2 ring-teal-500/20 shadow-xs"
+        : "border-slate-200/90 hover:border-teal-500 hover:shadow-xs"
+    }`;
+
+    item.onclick = () => {
+      state.plantillaParaImportarId = p.id;
+      filtrarPlantillasModalImportar();
+
+      const hoyISO = new Date().toISOString().split("T")[0];
+      const inpFecha = document.getElementById("input-importar-fechaini");
+      if (inpFecha && !inpFecha.value) inpFecha.value = hoyISO;
+      document.getElementById("bloque-fechaini-importar")?.classList.remove("hidden");
+      document.getElementById("btn-confirmar-importar-plantilla")?.classList.remove("hidden");
+    };
+
+    item.innerHTML = `
+      <div>
+        <div class="flex items-center justify-between gap-1.5 mb-1.5">
+          <span class="text-[9.5px] font-black uppercase text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 truncate" title="${(p.categoria || 'General').replace(/"/g, '&quot;')}">${p.categoria || 'General'}</span>
+          <span class="text-[9.5px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 flex-shrink-0">${numTareas} tareas</span>
+        </div>
+        <h5 class="font-bold text-xs text-[#0f2a4a] leading-snug">${p.nombre}</h5>
+        <p class="text-[10.5px] text-slate-500 line-clamp-2 mt-1 leading-relaxed" title="${(p.descripcion || '').replace(/"/g, '&quot;')}">${p.descripcion || 'Sin descripción adicional.'}</p>
+      </div>
+      <div class="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
+        <span class="text-[9.5px] font-semibold text-slate-400">${p.es_oficial === 1 ? 'Plantilla oficial' : 'Plantilla personal'}</span>
+        <span class="text-[10.5px] font-bold ${estaSeleccionada ? 'text-teal-800' : 'text-teal-600'}">${estaSeleccionada ? '✓ Seleccionada' : 'Seleccionar →'}</span>
+      </div>
+    `;
+    cont.appendChild(item);
+  });
 }
 
 export function cerrarModalImportarPlantillaProyecto() {
@@ -935,3 +1008,5 @@ window.filtrarCategoriaHistorial = filtrarCategoriaHistorial;
 window.renderizarVistaHistorialAuditoria = renderizarVistaHistorialAuditoria;
 window.exportarHistorialAuditoriaCSV = exportarHistorialAuditoriaCSV;
 window.cambiarRolMiembroInline = cambiarRolMiembroInline;
+window.filtrarPlantillasModalImportar = filtrarPlantillasModalImportar;
+window.limpiarBusquedaModalImportarPlantilla = limpiarBusquedaModalImportarPlantilla;
