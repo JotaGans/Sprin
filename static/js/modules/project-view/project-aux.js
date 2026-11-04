@@ -1,0 +1,1012 @@
+import { state } from "../../core/state.js";
+import { apiFetch } from "../../core/api.js";
+import { notificarToast, confirmModal, formatearFechaLatina } from "../../core/ui-dialogs.js";
+import { renderizarTabla } from "./project-wbs.js";
+
+// --- HISTORIAL DE AUDITORÍA ---
+let logsAuditoriaCache = [];
+let categoriaHistorialActiva = "todos";
+
+function clasificarEventoAuditoria(log) {
+  const acc = (log.accion || "").toLowerCase();
+  const det = (log.detalle || "").toLowerCase();
+
+  if (acc.includes("deshacer") || acc.includes("rehacer")) {
+    return { cat: "reversion", badge: "bg-purple-50 text-purple-800 border-purple-200", icono: "↶", label: log.accion };
+  }
+  if (acc.includes("nueva") || acc.includes("creó") || acc.includes("lote") || acc.includes("plantilla")) {
+    return { cat: "creacion", badge: "bg-emerald-50 text-emerald-800 border-emerald-200", icono: "✨", label: log.accion };
+  }
+  if (acc.includes("elimina")) {
+    return { cat: "creacion", badge: "bg-rose-50 text-rose-800 border-rose-200", icono: "🗑️", label: log.accion };
+  }
+  if (acc.includes("responsable") || acc.includes("personal") || det.includes("responsable:")) {
+    return { cat: "equipo", badge: "bg-indigo-50 text-indigo-800 border-indigo-200", icono: "👥", label: log.accion };
+  }
+  if (det.includes("plazo:") || det.includes("fechas:") || acc.includes("reorden")) {
+    return { cat: "plazos", badge: "bg-amber-50 text-amber-900 border-amber-200", icono: "📅", label: log.accion };
+  }
+  if (det.includes("estado") || det.includes("avance") || det.includes("progreso")) {
+    return { cat: "progreso", badge: "bg-blue-50 text-blue-800 border-blue-200", icono: "📈", label: log.accion };
+  }
+  return { cat: "progreso", badge: "bg-slate-100 text-slate-700 border-slate-200", icono: "📝", label: log.accion };
+}
+
+export async function abrirHistorial() {
+  const res = await apiFetch(`/proyectos/${state.proyectoActualId}/historial`);
+  if (!res.ok) return;
+
+  logsAuditoriaCache = await res.json();
+  categoriaHistorialActiva = "todos";
+  const inpBusq = document.getElementById("input-busq-historial");
+  if (inpBusq) inpBusq.value = "";
+
+  filtrarCategoriaHistorial("todos");
+  document.getElementById("modal-historial")?.classList.remove("hidden");
+}
+
+export function filtrarCategoriaHistorial(cat) {
+  categoriaHistorialActiva = cat || "todos";
+  const cats = ["todos", "creacion", "progreso", "plazos", "equipo", "reversion"];
+  cats.forEach(c => {
+    const btn = document.getElementById(`btn-hist-cat-${c}`);
+    if (btn) {
+      btn.className = (c === categoriaHistorialActiva)
+        ? "px-2.5 py-1 rounded-lg text-[11px] font-black bg-[#0f2a4a] text-white cursor-pointer transition shadow-2xs"
+        : "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition";
+    }
+  });
+  renderizarVistaHistorialAuditoria();
+}
+
+export function renderizarVistaHistorialAuditoria() {
+  const tbody = document.getElementById("tabla-historial-body");
+  const txtResumen = document.getElementById("txt-resumen-registros-historial");
+  if (!tbody) return;
+
+  const q = (document.getElementById("input-busq-historial")?.value || "").toLowerCase().trim();
+
+  const filtrados = (logsAuditoriaCache || []).filter(l => {
+    const info = clasificarEventoAuditoria(l);
+    if (categoriaHistorialActiva !== "todos" && info.cat !== categoriaHistorialActiva) return false;
+    if (q) {
+      const texto = `${l.timestamp}${l.usuario} ${l.accion}${l.detalle}`.toLowerCase();
+      if (!texto.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (txtResumen) {
+    txtResumen.innerText = `Mostrando ${filtrados.length} de${logsAuditoriaCache.length} evento(s) auditados`;
+  }
+
+  if (filtrados.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-400 italic font-semibold">No se encontraron registros de auditoría con los criterios seleccionados.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtrados.map(l => {
+    const info = clasificarEventoAuditoria(l);
+    const ini = (l.usuario || "U").substring(0, 2).toUpperCase();
+    // Resaltar códigos entre corchetes [1.1] y flechas de cambio →
+    const detalleEnriquecido = String(l.detalle || "")
+      .replace(/\[([\d.]+)\]/g, '<span class="font-mono font-black text-[#0f2a4a] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">[$1]</span>')
+      .replace(/→/g, '<span class="text-teal-600 font-black mx-0.5">→</span>');
+
+    return `
+      <tr class="hover:bg-slate-50/90 transition">
+        <td class="p-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">${l.timestamp}</td>
+        <td class="p-3 whitespace-nowrap">
+          <div class="inline-flex items-center space-x-2">
+            <span class="w-6 h-6 rounded-full bg-[#0f2a4a] text-white text-[9.5px] font-black flex items-center justify-center">${ini}</span>
+            <span class="font-bold text-slate-800">@${l.usuario}</span>
+          </div>
+        </td>
+        <td class="p-3 whitespace-nowrap">
+          <span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold border ${info.badge}">
+            <span>${info.icono}</span>
+            <span>${info.label}</span>
+          </span>
+        </td>
+        <td class="p-3 text-slate-700 font-medium leading-relaxed">${detalleEnriquecido}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+export function exportarHistorialAuditoriaCSV() {
+  if (!logsAuditoriaCache || logsAuditoriaCache.length === 0) {
+    alert("No hay registros de auditoría para exportar.");
+    return;
+  }
+  let csv = "\uFEFFFecha y Hora;Usuario;Acción;Detalle\n";
+  logsAuditoriaCache.forEach(l => {
+    const detLimpio = String(l.detalle || "").replace(/;/g, ",").replace(/\r?\n/g, " ");
+    csv += `"${l.timestamp}";"@${l.usuario}";"${l.accion}";"${detLimpio}"\n`; }); const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `Auditoria_Proyecto_${state.proyectoActualId}.csv`;
+  link.click();
+}
+
+export function cerrarHistorial() {
+  document.getElementById("modal-historial")?.classList.add("hidden");
+}
+
+// --- PERSONAL Y ROLES DEL PROYECTO (WORLD-CLASS TEAM & ACCESS MANAGER) ---
+export async function abrirResponsables() {
+  if (!state.proyectoEsGestor && state.currentUser.rol !== "ADMIN_TI") {
+    alert("Solo un Gestor del Proyecto puede administrar los roles y el personal.");
+    return;
+  }
+
+  state.usuarioSeleccionadoParaRol = null;
+  const inp = document.getElementById("inp-buscar-usuario-rol");
+  if (inp) inp.value = "";
+  const divSug = document.getElementById("sugerencias-usuarios-rol");
+  if (divSug) divSug.classList.add("hidden");
+
+  const modal = document.getElementById("modal-responsables");
+  const tbody = document.getElementById("personal-permisos-tabla-body");
+  if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-gray-400 font-semibold animate-pulse">Sincronizando miembros y permisos...</td></tr>`;
+  modal?.classList.remove("hidden");
+
+  await recargarDatosPersonalProyecto();
+}
+
+export function cerrarResponsables() {
+  document.getElementById("modal-responsables")?.classList.add("hidden");
+}
+
+export async function recargarDatosPersonalProyecto() {
+  try {
+    const res = await apiFetch(`/proyectos/${state.proyectoActualId}/personal_permisos`);
+    if (!res.ok) throw new Error("Error cargando permisos");
+    state.dataPersonalProyecto = await res.json();
+    renderizarTablaMiembrosProyecto();
+    renderizarResumenEquipoOperativo();
+  } catch (e) {
+    alert("No se pudo cargar la lista de personal del proyecto.");
+  }
+}
+
+export function renderizarTablaMiembrosProyecto() {
+  const tbody = document.getElementById("personal-permisos-tabla-body");
+  const badgeCount = document.getElementById("badge-count-miembros-rol");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  const miembros = state.dataPersonalProyecto?.miembros || [];
+  const creadorId = state.dataPersonalProyecto?.creador_id;
+  if (badgeCount) badgeCount.innerText = `${miembros.length} miembro(s) con rol`;
+
+  if (miembros.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-gray-400 font-semibold">No hay roles especiales asignados. Utilice el buscador superior para agregar gestores o visualizadores.</td></tr>`;
+    return;
+  }
+
+  miembros.forEach(m => {
+    const esGestor = (m.nivel_permiso === "GESTOR" || m.es_gestor === 1);
+    const esCreador = (creadorId && Number(m.id) === Number(creadorId));
+    const esMiPropioUsuario = (Number(m.id) === Number(state.currentUser?.id));
+    const protegido = esCreador || (esMiPropioUsuario && state.currentUser?.rol !== "ADMIN_TI");
+
+    const nomMostrar = m.nombre_completo || m.username || "Usuario";
+    const ini = nomMostrar.includes(",")
+      ? (nomMostrar.split(",")[0].trim()[0] + (nomMostrar.split(",")[1]?.trim()[0] || "")).toUpperCase()
+      : (nomMostrar.split(" ")[0][0] + (nomMostrar.split(" ")[1]?.[0] || "")).toUpperCase();
+
+    const selectorRolHTML = protegido
+      ? `<span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300" title="${esCreador ? 'Creador original del proyecto (Rol protegido)' : 'Tu sesión activa'}">
+           <span>👑 Gestor de proyecto</span>
+           ${esCreador ? '<span class="ml-1 text-[9px] bg-amber-800 text-white px-1.5 py-0.2 rounded uppercase">Creador</span>' : '<span class="ml-1 text-[9px] bg-[#0f2a4a] text-white px-1.5 py-0.2 rounded uppercase">Tú</span>'}
+         </span>`
+      : `<select onchange="cambiarRolMiembroInline(${m.id}, this.value)" class="px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer outline-none transition ${esGestor ? 'bg-amber-50 text-amber-900 border-amber-300' : 'bg-blue-50 text-blue-900 border-blue-200'}">
+           <option value="GESTOR" ${esGestor ? 'selected' : ''}>👑 Gestor de proyecto</option>
+           <option value="LECTOR" ${!esGestor ? 'selected' : ''}>👁️ Visualizador (Solo lectura)</option>
+         </select>`;
+
+    const btnAccionHTML = protegido
+      ? `<span class="text-[10px] text-slate-400 font-bold" title="Rol protegido por seguridad">🔒 Fijo</span>`
+      : `<button type="button" onclick="removerRolProyecto(${m.id}, '${nomMostrar.replace(/'/g, "\\'")}')" class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg p-1.5 transition cursor-pointer" title="Revocar rol en este proyecto">
+           <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+             <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+           </svg>
+         </button>`;
+
+    tbody.innerHTML += `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="p-2.5">
+          <div class="flex items-center space-x-2.5">
+            <span class="w-7 h-7 rounded-full bg-[#0f2a4a] text-white text-[10px] font-black flex items-center justify-center flex-shrink-0">${ini}</span>
+            <div>
+              <div class="font-bold text-slate-800">${nomMostrar}</div>
+              ${m.unidad_organica ? `<div class="text-[10px] text-teal-700 font-semibold">${m.unidad_organica}</div>` : ''}
+            </div>
+          </div>
+        </td>
+        <td class="p-2.5 font-mono text-slate-500 text-xs">@${m.username}</td>
+        <td class="p-2.5 text-center">${selectorRolHTML}</td>
+        <td class="p-2.5 text-center">${btnAccionHTML}</td>
+      </tr>
+    `;
+  });
+}
+
+export function renderizarResumenEquipoOperativo() {
+  const box = document.getElementById("personal-operativo-resumen-box");
+  if (!box) return;
+
+  const conteo = {};
+  (state.actividadesGlobal || []).forEach(a => {
+    const rStr = (a.responsable || "").trim();
+    if (rStr && rStr !== "No asignado") {
+      rStr.split(";").map(s => s.trim()).filter(Boolean).forEach(nom => {
+        conteo[nom] = (conteo[nom] || 0) + 1;
+      });
+    }
+  });
+
+  const nombres = Object.keys(conteo).sort();
+  if (nombres.length === 0) {
+    box.innerHTML = `<span class="text-[11px] text-slate-400 italic">Aún no hay responsables asignados en las actividades del cronograma.</span>`;
+    return;
+  }
+
+  box.innerHTML = nombres.map(nom => `
+    <span class="inline-flex items-center space-x-1.5 bg-slate-50 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-lg text-[11px] font-bold">
+      <span class="w-2 h-2 rounded-full bg-teal-500"></span>
+      <span>${nom}</span>
+      <span class="text-[10px] font-black bg-teal-50 text-teal-800 px-1.5 py-0.2 rounded border border-teal-200">${conteo[nom]} tarea(s)</span>
+    </span>
+  `).join("");
+}
+
+export async function cambiarRolMiembroInline(usuarioId, nuevoNivel) {
+  try {
+    const res = await apiFetch(`/proyectos/${state.proyectoActualId}/personal_permisos`, {
+      method: "POST",
+      body: JSON.stringify({ usuario_id: usuarioId, nivel: nuevoNivel })
+    });
+    if (res.ok) {
+      notificarToast(`Nivel de acceso actualizado a ${nuevoNivel === 'GESTOR' ? 'Gestor' : 'Visualizador'}.`, "success");
+      await recargarDatosPersonalProyecto();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.detail || "No se pudo cambiar el rol.");
+      await recargarDatosPersonalProyecto();
+    }
+  } catch (e) {
+    alert("Error de conexión al cambiar el rol.");
+  }
+}
+
+export function autocompletarBusquedaUsuarios(termino) {
+  const term = termino.toLowerCase().trim();
+  const divSugerencias = document.getElementById("sugerencias-usuarios-rol");
+  if (!divSugerencias) return;
+  if (!term) {
+    divSugerencias.innerHTML = "";
+    divSugerencias.classList.add("hidden");
+    state.usuarioSeleccionadoParaRol = null;
+    return;
+  }
+
+  const fuente = (state.dataPersonalProyecto.todos_usuarios && state.dataPersonalProyecto.todos_usuarios.length > 0)
+    ? state.dataPersonalProyecto.todos_usuarios
+    : (state.usuariosTIGlobal || []);
+
+  const coincidencias = fuente.filter(u =>
+    (u.estado === 'ACTIVO' || !u.estado) && (
+      (u.nombre_completo && u.nombre_completo.toLowerCase().includes(term)) ||
+      (u.username && u.username.toLowerCase().includes(term))
+    )
+  );
+
+  divSugerencias.innerHTML = "";
+  if (coincidencias.length === 0) {
+    divSugerencias.innerHTML = `<div class="p-2.5 text-gray-400 italic">No se encontraron usuarios con '${termino}'</div>`;
+  } else {
+    coincidencias.slice(0, 6).forEach(u => {
+      const item = document.createElement("div");
+      item.className = "p-2.5 hover:bg-teal-50 cursor-pointer flex justify-between items-center transition border-b border-gray-100 last:border-0";
+      item.innerHTML = `<span class="font-bold text-[#0f2a4a]">${u.nombre_completo || u.username}</span><span class="font-mono text-gray-400 text-[11px]">@${u.username}</span>`;
+      item.onclick = () => {
+        state.usuarioSeleccionadoParaRol = u;
+        const inp = document.getElementById("inp-buscar-usuario-rol");
+        if (inp) inp.value = `${u.nombre_completo || u.username} (@${u.username})`;
+        divSugerencias.classList.add("hidden");
+      };
+      divSugerencias.appendChild(item);
+    });
+  }
+  divSugerencias.classList.remove("hidden");
+}
+
+export async function confirmarAsignacionRolUsuario() {
+  if (!state.usuarioSeleccionadoParaRol) {
+    alert("Por favor busque y seleccione un trabajador de la lista de sugerencias.");
+    return;
+  }
+
+  const u = state.usuarioSeleccionadoParaRol;
+  const rolElegido = document.getElementById("sel-rol-asignar").value;
+
+  try {
+    const res = await apiFetch(`/proyectos/${state.proyectoActualId}/personal_permisos`, {
+      method: "POST",
+      body: JSON.stringify({ usuario_id: u.id, nivel: rolElegido })
+    });
+    if (res.ok) {
+      notificarToast(`Rol asignado con éxito a ${u.nombre_completo || u.username}.`, "success");
+      document.getElementById("inp-buscar-usuario-rol").value = "";
+      state.usuarioSeleccionadoParaRol = null;
+      await recargarDatosPersonalProyecto();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.detail || "No se pudo asignar el rol.");
+    }
+  } catch (e) {
+    alert("Error de comunicación con el servidor.");
+  }
+}
+
+export async function removerRolProyecto(usuarioId, nombre) {
+  const seguro = await confirmModal(`¿Desea remover los privilegios especiales de ${nombre} en este proyecto?`, "Confirmar retiro de rol", "warning");
+  if (!seguro) return;
+
+  try {
+    const res = await apiFetch(`/proyectos/${state.proyectoActualId}/personal_permisos`, {
+      method: "POST",
+      body: JSON.stringify({ usuario_id: usuarioId, nivel: 'NINGUNO' })
+    });
+    if (res.ok) {
+      notificarToast(`Privilegios removidos para ${nombre}.`, "info");
+      await recargarDatosPersonalProyecto();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.detail || "No se pudo retirar el rol.");
+    }
+  } catch (e) {
+    alert("Error al remover permisos.");
+  }
+}
+
+window.cambiarRolMiembroInline = cambiarRolMiembroInline;
+
+// --- COMENTARIOS COLABORATIVOS TIPO WORD 365 ---
+export async function cargarComentariosProyecto() {
+  if (!state.proyectoActualId) return;
+  try {
+    const res = await apiFetch(`/proyectos/${state.proyectoActualId}/comentarios`);
+    if (res.ok) {
+      state.comentariosGlobal = await res.json();
+      renderizarTabla();
+    }
+  } catch (e) {
+    console.error("Error al cargar comentarios:", e);
+  }
+}
+
+export function obtenerComentariosDeActividad(codigo) {
+  const codLimpio = String(codigo).replace(/\.+$/, "");
+  return (state.comentariosGlobal || []).filter(c => String(c.codigo_actividad).replace(/\.+$/, "") === codLimpio);
+}
+
+export function abrirModalComentarios(cod) {
+  const codLimpio = String(cod).replace(/\.+$/, "");
+  state.actividadComentarioActual = state.actividadesGlobal.find(a => String(a.codigo).replace(/\.+$/, "") === codLimpio);
+  if (!state.actividadComentarioActual) return;
+
+  cancelarEdicionComentario();
+  document.getElementById("com-modal-titulo").innerText = `Comentarios (${obtenerComentariosDeActividad(codLimpio).length})`;
+  document.getElementById("com-modal-subtitulo").innerText = `[${state.actividadComentarioActual.codigo}] ${state.actividadComentarioActual.descripcion}`;
+
+  renderizarTarjetasComentarios();
+  document.getElementById("modal-comentarios")?.classList.remove("hidden");
+  setTimeout(() => document.getElementById("com-input-texto")?.focus(), 100);
+}
+
+export function cerrarModalComentarios() {
+  document.getElementById("modal-comentarios")?.classList.add("hidden");
+  state.actividadComentarioActual = null;
+  cancelarEdicionComentario();
+}
+
+function renderizarTarjetasComentarios() {
+  const contenedor = document.getElementById("com-lista-tarjetas");
+  if (!contenedor || !state.actividadComentarioActual) return;
+  contenedor.innerHTML = "";
+
+  const lista = obtenerComentariosDeActividad(state.actividadComentarioActual.codigo);
+  if (lista.length === 0) {
+    contenedor.innerHTML = `
+      <div class="p-8 text-center text-gray-400 space-y-2">
+        <span class="text-3xl block">💬</span>
+        <p class="text-xs font-semibold">No hay comentarios en esta actividad.</p>
+        <p class="text-[11px] text-gray-400">Sea el primero en dejar una nota técnica o de seguimiento.</p>
+      </div>
+    `;
+    return;
+  }
+
+  lista.forEach(c => {
+    const esMio = (c.usuario_id === state.currentUser.id);
+    const puedeEliminar = esMio || state.proyectoEsGestor || (state.currentUser.rol === "ADMIN_TI");
+    const puedeEditar = esMio;
+
+    const partes = (c.autor_nombre || "U").split(" ");
+    const iniciales = (partes[0][0] + (partes[1] ? partes[1][0] : "")).toUpperCase();
+
+    let hash = 0;
+    for (let i = 0; i < c.autor_nombre.length; i++) hash = c.autor_nombre.charCodeAt(i) + ((hash << 5) - hash);
+    const colorBg = state.coloresAvatar[Math.abs(hash) % state.coloresAvatar.length];
+
+    const editadoTag = c.fecha_edicion ? `<span class="text-[10px] text-gray-400 italic ml-1.5">(editado)</span>` : '';
+
+    const tarjeta = document.createElement("div");
+    tarjeta.className = "bg-white p-3.5 rounded-xl border border-gray-200/90 shadow-xs space-y-2";
+    tarjeta.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <div class="avatar-circle font-black" style="background-color: ${colorBg}; width: 22px; height: 22px; font-size: 8px;">${iniciales}</div>
+          <div>
+            <span class="text-xs font-bold text-[#0f2a4a]">${c.autor_nombre}</span>
+            ${c.autor_unidad ? `<span class="text-[10px] font-semibold text-teal-800 bg-teal-50 px-1.5 py-0.2 rounded border border-teal-200 ml-1">${c.autor_unidad}</span>` : ''}
+          </div>
+        </div>
+        <div class="flex items-center space-x-1.5 text-gray-400">
+          <span class="text-[10px] font-medium text-gray-400">${c.fecha_creacion}</span>
+          ${editadoTag}
+          ${puedeEditar ? `<button onclick="iniciarEdicionComentario(${c.id}, '${c.texto.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" class="text-blue-600 hover:text-blue-800 p-1 text-xs font-bold ml-1 cursor-pointer" title="Editar">✏️</button>` : ''}
+          ${puedeEliminar ? `<button onclick="eliminarComentario(${c.id})" class="text-rose-500 hover:text-rose-700 p-1 text-xs font-bold cursor-pointer" title="Eliminar">🗑️</button>` : ''}
+        </div>
+      </div>
+      <p class="text-xs text-gray-700 leading-relaxed whitespace-pre-line pl-7">${c.texto}</p>
+    `;
+    contenedor.appendChild(tarjeta);
+  });
+  contenedor.scrollTop = contenedor.scrollHeight;
+}
+
+export function actualizarContadorComentario() {
+  const txt = document.getElementById("com-input-texto")?.value || "";
+  document.getElementById("com-contador-chars").innerText = `${txt.length} / 500 caracteres`;
+}
+
+export function iniciarEdicionComentario(id, texto) {
+  state.comentarioEnEdicionId = id;
+  document.getElementById("com-input-texto").value = texto;
+  document.getElementById("com-label-accion").innerText = "✏️ Editando comentario:";
+  document.getElementById("com-txt-btn-publicar").innerText = "Guardar Cambios";
+  document.getElementById("com-btn-cancelar-edicion")?.classList.remove("hidden");
+  actualizarContadorComentario();
+  document.getElementById("com-input-texto")?.focus();
+}
+
+export function cancelarEdicionComentario() {
+  state.comentarioEnEdicionId = null;
+  const inp = document.getElementById("com-input-texto");
+  if (inp) inp.value = "";
+  document.getElementById("com-label-accion").innerText = "✍️ Agregar un comentario:";
+  document.getElementById("com-txt-btn-publicar").innerText = "Publicar Comentario";
+  document.getElementById("com-btn-cancelar-edicion")?.classList.add("hidden");
+  actualizarContadorComentario();
+}
+
+export async function publicarComentario() {
+  const texto = document.getElementById("com-input-texto").value.trim();
+  if (!texto) {
+    alert("Por favor escriba un texto antes de publicar.");
+    return;
+  }
+
+  if (state.comentarioEnEdicionId) {
+    try {
+      const res = await apiFetch(`/comentarios/${state.comentarioEnEdicionId}`, {
+        method: "PUT",
+        body: JSON.stringify({ texto: texto })
+      });
+      if (res.ok) {
+        notificarToast("Comentario editado con éxito.", "success");
+        await cargarComentariosProyecto();
+        renderizarTarjetasComentarios();
+        cancelarEdicionComentario();
+      }
+    } catch (e) {
+      alert("Error al editar comentario.");
+    }
+  } else {
+    try {
+      const res = await apiFetch(`/comentarios`, {
+        method: "POST",
+        body: JSON.stringify({
+          proyecto_id: state.proyectoActualId,
+          codigo_actividad: state.actividadComentarioActual.codigo,
+          texto: texto
+        })
+      });
+      if (res.ok) {
+        notificarToast("Comentario publicado.", "success");
+        await cargarComentariosProyecto();
+        renderizarTarjetasComentarios();
+        document.getElementById("com-input-texto").value = "";
+        actualizarContadorComentario();
+      }
+    } catch (e) {
+      alert("Error al publicar comentario.");
+    }
+  }
+}
+
+export async function eliminarComentario(id) {
+  const seguro = await confirmModal("¿Está seguro de eliminar este comentario?", "Eliminar Comentario", "danger");
+  if (!seguro) return;
+
+  try {
+    const res = await apiFetch(`/comentarios/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      notificarToast("Comentario eliminado.", "info");
+      await cargarComentariosProyecto();
+      if (typeof window.refrescarDatosInspectorActivo === "function") window.refrescarDatosInspectorActivo();
+      renderizarTarjetasComentarios();
+    }
+  } catch (e) {
+    alert("Error al eliminar comentario.");
+  }
+}
+
+// --- EXPORTACIÓN ANALÍTICA DE CRONOGRAMA WBS / CPM PARA EXCEL Y POWER BI ---
+export function exportarExcelCSV() {
+  if (!state.actividadesGlobal || state.actividadesGlobal.length === 0) {
+    alert("No hay actividades para exportar.");
+    return;
+  }
+
+  const limpiarCSV = (val) => String(val ?? "").replace(/(\r\n|\n|\r)/gm, " ").replace(/;/g, ",").replace(/"/g, '""').trim();
+  const proyNombre = document.getElementById("txt-nombre-proyecto")?.value || `Proyecto_${state.proyectoActualId}`;
+  const unidadDur = (state.proyectoModoDuracion === "hours") ? "Horas" : "Dias_Habiles";
+  const hoyMs = new Date().setHours(0, 0, 0, 0);
+
+  const cabeceras = [
+    "ID_Proyecto",
+    "Nombre_Proyecto",
+    "Codigo_WBS",
+    "Nivel_WBS",
+    "Codigo_Padre",
+    "Tipo_Registro",
+    "Actividad_Entregable",
+    "Responsables_Asignados",
+    "Cantidad_Responsables",
+    "Estado_Operativo",
+    "Avance_Porcentaje_Num",
+    "Fecha_Inicio",
+    "Fecha_Vencimiento",
+    `Duracion_${unidadDur}`,
+    "Estado_Plazo",
+    "Dias_Diferencia_Hoy",
+    "Predecesoras_CPM",
+    "Es_Ruta_Critica",
+    "Holgura_CPM",
+    "Nro_Comentarios",
+    "Bitacora_Comentarios"
+  ];
+
+  let csv = "\uFEFF" + cabeceras.join(";") + "\n";
+
+  state.actividadesGlobal.forEach(a => {
+    const codLimpio = String(a.codigo).replace(/\.+$/, "");
+    const partes = codLimpio.split(".");
+    const nivel = partes.length;
+    const codPadre = nivel > 1 ? partes.slice(0, -1).join(".") : "RAIZ";
+
+    const tieneSubtareas = state.actividadesGlobal.some(sub => {
+      const sCod = String(sub.codigo).replace(/\.+$/, "");
+      return sCod.startsWith(codLimpio + ".") && sCod !== codLimpio;
+    });
+    const tipoReg = tieneSubtareas ? "FASE RESUMEN (MADRE)" : "ACTIVIDAD OPERATIVA (HOJA)";
+
+    const respStr = (a.responsable && a.responsable !== "No asignado") ? a.responsable : "No asignado";
+    const cantResp = respStr === "No asignado" ? 0 : respStr.split(";").map(s => s.trim()).filter(Boolean).length;
+
+    // Cálculo de estado de plazo respecto a hoy
+    let estadoPlazo = "EN PLAZO";
+    let diffDias = "";
+    const pFin = formatearFechaLatina(a.fecha_fin).split("/");
+    if (pFin.length === 3) {
+      const dtFin = new Date(parseInt(pFin[2]), parseInt(pFin[1]) - 1, parseInt(pFin[0])).getTime();
+      const dRest = Math.round((dtFin - hoyMs) / (1000 * 60 * 60 * 24));
+      diffDias = dRest;
+      if (a.estado === "Ejecutado") estadoPlazo = "CUMPLIDO";
+      else if (dRest < 0) estadoPlazo = "VENCIDO";
+      else if (dRest <= 5) estadoPlazo = "POR VENCER (<=5d)";
+    }
+
+    const detCpm = state.datosCpmGlobal?.detalles?.[codLimpio];
+    const esCriticaTxt = detCpm ? (detCpm.es_critica ? "SI" : "NO") : (state.datosCpmGlobal?.actividadesCriticas?.has(codLimpio) ? "SI" : "NO");
+    const holguraVal = detCpm && typeof detCpm.holgura === "number" ? detCpm.holgura : "";
+
+    const coms = obtenerComentariosDeActividad(codLimpio);
+    const cantComs = coms.length;
+    const historialTexto = cantComs > 0
+      ? coms.map(c => `[${c.fecha_creacion} - ${c.autor_nombre}]: ${limpiarCSV(c.texto)}`).join(" | ")
+      : "";
+
+    const fila = [
+      state.proyectoActualId,
+      `"${limpiarCSV(proyNombre)}"`,
+      `"${codLimpio}"`,
+      nivel,
+      `"${codPadre}"`,
+      `"${tipoReg}"`,
+      `"${limpiarCSV(a.descripcion)}"`,
+      `"${limpiarCSV(respStr)}"`,
+      cantResp,
+      `"${limpiarCSV(a.estado)}"`,
+      parseInt(a.avance) || 0,
+      `"${formatearFechaLatina(a.fecha_inicio)}"`,
+      `"${formatearFechaLatina(a.fecha_fin)}"`,
+      parseInt(a.dias) || 1,
+      `"${estadoPlazo}"`,
+      diffDias,
+      `"${limpiarCSV(a.predecesores || '')}"`,
+      `"${esCriticaTxt}"`,
+      holguraVal,
+      cantComs,
+      `"${historialTexto}"`
+    ];
+    csv += fila.join(";") + "\n";
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `SPRIN_IMARPE_Cronograma_WBS_Proy_${state.proyectoActualId}_${new Date().toISOString().split("T")[0]}.csv`;
+  link.click();
+  notificarToast("Dataset analítico WBS descargado en Excel.", "success");
+}
+
+// =========================================================================
+// PLANTILLAS MAESTRAS EN PROYECTO ACTIVO (GUARDAR / IMPORTAR)
+// =========================================================================
+export function abrirModalGuardarPlantilla() {
+  if (!state.proyectoActualId) return;
+  const inpNom = document.getElementById("input-plantilla-nombre");
+  if (inpNom) inpNom.value = document.getElementById("txt-nombre-proyecto")?.value || "";
+  const inpCat = document.getElementById("input-plantilla-categoria");
+  if (inpCat) inpCat.value = "";
+  const inpDesc = document.getElementById("input-plantilla-desc");
+  if (inpDesc) inpDesc.value = "";
+  document.getElementById("modal-guardar-plantilla")?.classList.remove("hidden");
+}
+
+export function cerrarModalGuardarPlantilla() {
+  document.getElementById("modal-guardar-plantilla")?.classList.add("hidden");
+}
+
+export async function guardarProyectoComoPlantilla(e) {
+  e.preventDefault();
+  const nombre = document.getElementById("input-plantilla-nombre")?.value.trim();
+  const cat = document.getElementById("input-plantilla-categoria")?.value.trim() || "General";
+  const desc = document.getElementById("input-plantilla-desc")?.value.trim();
+
+  if (!nombre) {
+    alert("Consigne un nombre para la plantilla.");
+    return;
+  }
+
+  try {
+    const res = await apiFetch("/plantillas/desde-proyecto", {
+      method: "POST",
+      body: JSON.stringify({
+        proyecto_id: state.proyectoActualId,
+        nombre: nombre,
+        categoria: cat,
+        descripcion: desc
+      })
+    });
+
+    if (res.ok) {
+      cerrarModalGuardarPlantilla();
+      notificarToast("Plantilla registrada en la biblioteca institucional.", "success");
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.detail || "Error al guardar plantilla.");
+    }
+  } catch (e) {
+    alert("Error de conexión con el servidor.");
+  }
+}
+
+let cachePlantillasImportarModal = [];
+
+function normalizarTextoBusquedaPlantilla(str) {
+  return String(str || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+export async function abrirModalImportarPlantillaProyecto() {
+  state.plantillaParaImportarId = null;
+  document.getElementById("bloque-fechaini-importar")?.classList.add("hidden");
+  document.getElementById("btn-confirmar-importar-plantilla")?.classList.add("hidden");
+
+  const inpBusq = document.getElementById("input-busq-importar-plantilla");
+  if (inpBusq) inpBusq.value = "";
+  const selTipo = document.getElementById("select-tipo-importar-plantilla");
+  if (selTipo) selTipo.value = "TODAS";
+  document.getElementById("btn-limpiar-busq-importar-plantilla")?.classList.add("hidden");
+
+  document.getElementById("modal-importar-plantilla-proyecto")?.classList.remove("hidden");
+
+  const cont = document.getElementById("lista-plantillas-importar-contenedor");
+  if (!cont) return;
+  cont.innerHTML = `<div class="col-span-2 p-6 text-center text-slate-400 font-bold animate-pulse">Cargando biblioteca de plantillas...</div>`;
+
+  try {
+    const res = await apiFetch("/plantillas");
+    cachePlantillasImportarModal = res.ok ? await res.json() : [];
+    filtrarPlantillasModalImportar();
+    setTimeout(() => inpBusq?.focus(), 80);
+  } catch (e) {
+    cont.innerHTML = `<div class="col-span-2 p-6 text-center text-rose-500 font-semibold">Error al cargar plantillas.</div>`;
+  }
+}
+
+export function limpiarBusquedaModalImportarPlantilla() {
+  const inp = document.getElementById("input-busq-importar-plantilla");
+  if (inp) {
+    inp.value = "";
+    inp.focus();
+  }
+  filtrarPlantillasModalImportar();
+}
+
+export function filtrarPlantillasModalImportar() {
+  const cont = document.getElementById("lista-plantillas-importar-contenedor");
+  const badgeConteo = document.getElementById("badge-conteo-importar-plantillas");
+  const btnLimpiar = document.getElementById("btn-limpiar-busq-importar-plantilla");
+  if (!cont) return;
+
+  const qRaw = document.getElementById("input-busq-importar-plantilla")?.value || "";
+  const q = normalizarTextoBusquedaPlantilla(qRaw);
+  const tipo = document.getElementById("select-tipo-importar-plantilla")?.value || "TODAS";
+
+  if (btnLimpiar) btnLimpiar.classList.toggle("hidden", qRaw.trim().length === 0);
+
+  const filtradas = (cachePlantillasImportarModal || []).filter(p => {
+    if (tipo === "OFICIALES" && p.es_oficial !== 1) return false;
+    if (tipo === "PERSONALES" && p.es_oficial === 1) return false;
+    if (!q) return true;
+
+    const textoCompleto = normalizarTextoBusquedaPlantilla(`${p.nombre || ""} ${p.categoria || ""} ${p.descripcion || ""}`);
+    const palabras = q.split(/\s+/).filter(Boolean);
+    return palabras.every(pal => textoCompleto.includes(pal));
+  });
+
+  if (badgeConteo) {
+    badgeConteo.innerText = filtradas.length === 1 ? "1 disponible" : `${filtradas.length} disponibles`;
+  }
+
+  cont.innerHTML = "";
+  if (filtradas.length === 0) {
+    cont.innerHTML = `
+      <div class="col-span-2 p-8 text-center bg-white rounded-xl border border-dashed border-slate-200 space-y-1.5">
+        <p class="text-xs font-bold text-slate-600">No se encontraron plantillas con ese criterio</p>
+        <p class="text-[11px] text-slate-400">Intente buscar con otra palabra clave, sigla o código de proceso (ej: S2.2, PEI, IOARR).</p>
+      </div>
+    `;
+    return;
+  }
+
+  filtradas.forEach(p => {
+    const estaSeleccionada = (state.plantillaParaImportarId === p.id);
+    const numTareas = p.total_actividades || (p.actividades ? p.actividades.length : 0);
+    const item = document.createElement("div");
+    item.className = `bg-white p-3.5 rounded-xl border transition flex flex-col justify-between cursor-pointer ${
+      estaSeleccionada
+        ? "border-teal-600 bg-teal-50/40 ring-2 ring-teal-500/20 shadow-xs"
+        : "border-slate-200/90 hover:border-teal-500 hover:shadow-xs"
+    }`;
+
+    item.onclick = () => {
+      state.plantillaParaImportarId = p.id;
+      filtrarPlantillasModalImportar();
+
+      const hoyISO = new Date().toISOString().split("T")[0];
+      const inpFecha = document.getElementById("input-importar-fechaini");
+      if (inpFecha && !inpFecha.value) inpFecha.value = hoyISO;
+      document.getElementById("bloque-fechaini-importar")?.classList.remove("hidden");
+      document.getElementById("btn-confirmar-importar-plantilla")?.classList.remove("hidden");
+    };
+
+    item.innerHTML = `
+      <div>
+        <div class="flex items-center justify-between gap-1.5 mb-1.5">
+          <span class="text-[9.5px] font-black uppercase text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 truncate" title="${(p.categoria || 'General').replace(/"/g, '&quot;')}">${p.categoria || 'General'}</span>
+          <span class="text-[9.5px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 flex-shrink-0">${numTareas} tareas</span>
+        </div>
+        <h5 class="font-bold text-xs text-[#0f2a4a] leading-snug">${p.nombre}</h5>
+        <p class="text-[10.5px] text-slate-500 line-clamp-2 mt-1 leading-relaxed" title="${(p.descripcion || '').replace(/"/g, '&quot;')}">${p.descripcion || 'Sin descripción adicional.'}</p>
+      </div>
+      <div class="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
+        <span class="text-[9.5px] font-semibold text-slate-400">${p.es_oficial === 1 ? 'Plantilla oficial' : 'Plantilla personal'}</span>
+        <span class="text-[10.5px] font-bold ${estaSeleccionada ? 'text-teal-800' : 'text-teal-600'}">${estaSeleccionada ? '✓ Seleccionada' : 'Seleccionar →'}</span>
+      </div>
+    `;
+    cont.appendChild(item);
+  });
+}
+
+export function cerrarModalImportarPlantillaProyecto() {
+  document.getElementById("modal-importar-plantilla-proyecto")?.classList.add("hidden");
+  state.plantillaParaImportarId = null;
+}
+
+export async function ejecutarImportacionEnProyectoActivo() {
+  if (!state.plantillaParaImportarId || !state.proyectoActualId) return;
+
+  const fIniISO = document.getElementById("input-importar-fechaini")?.value || new Date().toISOString().split("T")[0];
+  const fIniLatina = formatearFechaLatina(fIniISO);
+
+  try {
+    const res = await apiFetch(`/proyectos/${state.proyectoActualId}/aplicar-plantilla`, {
+      method: "POST",
+      body: JSON.stringify({
+        plantilla_id: state.plantillaParaImportarId,
+        nombre_proyecto: "",
+        fecha_inicio: fIniLatina
+      })
+    });
+
+    if (res.ok) {
+      cerrarModalImportarPlantillaProyecto();
+      notificarToast("Estructura importada exitosamente en el proyecto.", "success");
+      const { sincronizarDatosProyecto } = await import("./project-core.js");
+      await sincronizarDatosProyecto(state.proyectoActualId);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.detail || "Error al importar plantilla.");
+    }
+  } catch (e) {
+    alert("Error de conexión al importar plantilla.");
+  }
+}
+
+// =========================================================================
+// PANEL DIRECTIVO: CARGA DE TRABAJO DEL EQUIPO (TEAM WORKLOAD)
+// =========================================================================
+
+export function abrirModalCargaTrabajo() {
+  const modal = document.getElementById("modal-carga-trabajo");
+  const contenedor = document.getElementById("workload-lista-colaboradores");
+  const resumenTxt = document.getElementById("workload-resumen-total");
+  if (!modal || !contenedor) return;
+
+  contenedor.innerHTML = "";
+
+  // Filtrar únicamente actividades operativas (sin subtareas) para no duplicar conteos
+  const actsOperativas = (state.actividadesGlobal || []).filter(a => {
+    const cod = String(a.codigo).replace(/\.+$/, "");
+    return !state.actividadesGlobal.some(sub => {
+      const subCod = String(sub.codigo).replace(/\.+$/, "");
+      return subCod.startsWith(cod + ".") && subCod !== cod;
+    });
+  });
+
+  const totalOperativas = actsOperativas.length;
+  if (totalOperativas === 0) {
+    contenedor.innerHTML = `<div class="p-8 text-center text-gray-400 font-semibold italic">Este proyecto aún no contiene actividades operativas para analizar.</div>`;
+    modal.classList.remove("hidden");
+    return;
+  }
+
+  // Mapear actividades por persona
+  const mapaCarga = {};
+
+  actsOperativas.forEach(act => {
+    const respCampo = (act.responsable || "No asignado").trim();
+    const personas = respCampo.includes(";") 
+      ? respCampo.split(";").map(s => s.trim()).filter(Boolean) 
+      : [respCampo];
+
+    personas.forEach(nom => {
+      if (!mapaCarga[nom]) {
+        mapaCarga[nom] = { total: 0, ejecutadas: 0, enProceso: 0, noIniciadas: 0 };
+      }
+      mapaCarga[nom].total += 1;
+      if (act.estado === "Ejecutado") mapaCarga[nom].ejecutadas += 1;
+      else if (act.estado === "En proceso") mapaCarga[nom].enProceso += 1;
+      else mapaCarga[nom].noIniciadas += 1;
+    });
+  });
+
+  const listaColaboradores = Object.keys(mapaCarga).sort((a, b) => mapaCarga[b].total - mapaCarga[a].total);
+
+  if (resumenTxt) {
+    resumenTxt.innerText = `${listaColaboradores.length} colaborador(es) asignado(s) · ${totalOperativas} actividades operativas totales`;
+  }
+
+  // Renderizar cada tarjeta de colaborador con su barra de progreso segmentada
+  contenedor.innerHTML = listaColaboradores.map(nombre => {
+    const datos = mapaCarga[nombre];
+    const pctTotal = Math.round((datos.total / totalOperativas) * 100);
+    const iniciales = nombre.includes(",") 
+      ? (nombre.split(",")[0].trim()[0] + (nombre.split(",")[1] ? nombre.split(",")[1].trim()[0] : "")).toUpperCase()
+      : (nombre.split(" ")[0][0] + (nombre.split(" ")[1] ? nombre.split(" ")[1][0] : "")).toUpperCase();
+
+    // Generar color consistente
+    let hash = 0;
+    for (let i = 0; i < nombre.length; i++) hash = nombre.charCodeAt(i) + ((hash << 5) - hash);
+    const colorBg = state.coloresAvatar[Math.abs(hash) % state.coloresAvatar.length];
+
+    const pctEjec = Math.round((datos.ejecutadas / datos.total) * 100);
+    const pctProc = Math.round((datos.enProceso / datos.total) * 100);
+    const pctNoInic = Math.round((datos.noIniciadas / datos.total) * 100);
+
+    return `
+      <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2.5 min-w-0">
+            <div class="avatar-circle font-black flex-shrink-0" style="background-color: ${colorBg}; width: 28px; height: 28px; font-size: 10px;">
+              ${iniciales || '?'}
+            </div>
+            <div class="min-w-0">
+              <h4 class="text-xs font-black text-[#0f2a4a] truncate">${nombre}</h4>
+              <p class="text-[10px] text-gray-500 font-semibold">${datos.total} actividad(es) (${pctTotal}% del proyecto)</p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2 text-[10px] font-bold flex-shrink-0">
+            <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200">${datos.ejecutadas} Ejec.</span>
+            <span class="bg-amber-100 text-amber-900 px-2 py-0.5 rounded border border-amber-200">${datos.enProceso} En proc.</span>
+            <span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded border border-slate-300">${datos.noIniciadas} No inic.</span>
+          </div>
+        </div>
+
+        <!-- Barra segmentada multicromática -->
+        <div class="w-full bg-gray-200 rounded-full h-2 flex overflow-hidden shadow-inner">
+          <div class="bg-emerald-500 h-2 transition-all duration-300" style="width: ${pctEjec}%" title="Ejecutadas: ${datos.ejecutadas}"></div>
+          <div class="bg-amber-400 h-2 transition-all duration-300" style="width: ${pctProc}%" title="En proceso: ${datos.enProceso}"></div>
+          <div class="bg-slate-400 h-2 transition-all duration-300" style="width: ${pctNoInic}%" title="No iniciadas: ${datos.noIniciadas}"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  modal.classList.remove("hidden");
+}
+
+export function cerrarModalCargaTrabajo() {
+  document.getElementById("modal-carga-trabajo")?.classList.add("hidden");
+}
+
+// =========================================================================
+// VINCULACIÓN DE FUNCIONES AL OBJETO GLOBAL WINDOW
+// =========================================================================
+window.abrirHistorial = abrirHistorial;
+window.cerrarHistorial = cerrarHistorial;
+window.abrirResponsables = abrirResponsables;
+window.cerrarResponsables = cerrarResponsables;
+window.autocompletarBusquedaUsuarios = autocompletarBusquedaUsuarios;
+window.confirmarAsignacionRolUsuario = confirmarAsignacionRolUsuario;
+window.removerRolProyecto = removerRolProyecto;
+window.abrirModalComentarios = abrirModalComentarios;
+window.cerrarModalComentarios = cerrarModalComentarios;
+window.publicarComentario = publicarComentario;
+window.iniciarEdicionComentario = iniciarEdicionComentario;
+window.cancelarEdicionComentario = cancelarEdicionComentario;
+window.eliminarComentario = eliminarComentario;
+window.exportarExcelCSV = exportarExcelCSV;
+window.abrirModalGuardarPlantilla = abrirModalGuardarPlantilla;
+window.cerrarModalGuardarPlantilla = cerrarModalGuardarPlantilla;
+window.guardarProyectoComoPlantilla = guardarProyectoComoPlantilla;
+window.abrirModalImportarPlantillaProyecto = abrirModalImportarPlantillaProyecto;
+window.cerrarModalImportarPlantillaProyecto = cerrarModalImportarPlantillaProyecto;
+window.ejecutarImportacionEnProyectoActivo = ejecutarImportacionEnProyectoActivo;
+window.abrirModalCargaTrabajo = abrirModalCargaTrabajo;
+window.cerrarModalCargaTrabajo = cerrarModalCargaTrabajo;
+window.filtrarCategoriaHistorial = filtrarCategoriaHistorial;
+window.renderizarVistaHistorialAuditoria = renderizarVistaHistorialAuditoria;
+window.exportarHistorialAuditoriaCSV = exportarHistorialAuditoriaCSV;
+window.cambiarRolMiembroInline = cambiarRolMiembroInline;
+window.filtrarPlantillasModalImportar = filtrarPlantillasModalImportar;
+window.limpiarBusquedaModalImportarPlantilla = limpiarBusquedaModalImportarPlantilla;

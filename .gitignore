@@ -1,0 +1,18 @@
+# Compilados y caché de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Entornos virtuales y dependencias locales
+venv/
+env/
+.env
+
+# Archivos temporales de sistema y editores
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Bases de datos SQLite locales (descomentar si no se desean versionar)
+# *.db

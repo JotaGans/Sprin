@@ -1,0 +1,881 @@
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background-color: #f5f6fa;
+}
+
+/* Filas jerárquicas WBS (Estilo limpio IMARPE) */
+.tree-row-l1 {
+  background-color: #f8fafc !important;
+  font-weight: 800;
+  color: #0f2a4a;
+  border-top: 1px solid #e2e8f0 !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+}
+
+.tree-row-l4 {
+  font-style: italic;
+  color: #576574;
+}
+
+.cell-editable {
+  cursor: pointer;
+  transition: background-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+body:not(.is-dragging-row) .cell-editable:hover {
+  background-color: #ffffff !important;
+  box-shadow: inset 0 0 0 1.5px #0d9488 !important;
+  border-radius: 6px;
+}
+
+/* Evitar cualquier borde redondeado o sombra de celda individual mientras se arrastra una fila */
+body.is-dragging-row .cell-editable,
+body.is-dragging-row .cell-editable:hover {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.row-selected {
+  background-color: #e2eafc !important;
+  border-left: 4px solid #0f2a4a !important;
+}
+
+/* Drag and Drop de actividades con cursor nativo de manito nítida */
+.drag-handle {
+  cursor: grab;
+  cursor: -webkit-grab;
+  user-select: none;
+}
+
+.drag-handle:active,
+body.is-dragging-row,
+body.is-dragging-row * {
+  cursor: grabbing !important;
+  cursor: -webkit-grabbing !important;
+  user-select: none !important;
+}
+
+.row-dragging {
+  opacity: 0.35 !important;
+  background-color: #f1f5f9 !important;
+}
+
+body.is-dragging-row #lista-actividades td * {
+  pointer-events: none !important;
+}
+
+.drop-target-above td {
+  box-shadow: inset 0 3px 0 #2563eb !important;
+  background-color: rgba(239, 246, 255, 0.5) !important;
+  position: relative;
+}
+
+.drop-target-above td:first-child::before {
+  content: "▲";
+  position: absolute;
+  left: 8px;
+  top: -18px;
+  font-size: 20px;
+  line-height: 1;
+  color: #16a34a;
+  font-weight: 900;
+  z-index: 80;
+  pointer-events: none;
+  filter: drop-shadow(0 -1px 2px rgba(0,0,0,0.25));
+}
+
+.drop-target-below td {
+  box-shadow: inset 0 -3px 0 #2563eb !important;
+  background-color: rgba(239, 246, 255, 0.5) !important;
+  position: relative;
+}
+
+.drop-target-below td:first-child::before {
+  content: "▼";
+  position: absolute;
+  left: 8px;
+  bottom: -18px;
+  font-size: 20px;
+  line-height: 1;
+  color: #dc2626;
+  font-weight: 900;
+  z-index: 80;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));
+}
+
+.drop-target-inside td {
+  background-color: rgba(219, 234, 254, 0.7) !important;
+  box-shadow: inset 0 2.5px 0 #1d4ed8, inset 0 -2.5px 0 #1d4ed8 !important;
+}
+
+.drop-target-inside td:first-child {
+  box-shadow: inset 3.5px 0 0 #1d4ed8, inset 0 2.5px 0 #1d4ed8, inset 0 -2.5px 0 #1d4ed8 !important;
+}
+
+.drop-target-inside td:last-child {
+  box-shadow: inset -3.5px 0 0 #1d4ed8, inset 0 2.5px 0 #1d4ed8, inset 0 -2.5px 0 #1d4ed8 !important;
+}
+
+/* Controles temporales y encabezados Gantt */
+.spin-btn {
+  background: #e0e0e0;
+  transition: background 0.1s;
+}
+.spin-btn:hover { background: #cfcfcf; }
+.spin-btn:active { background: #b0b0b0; }
+
+.col-semana-actual {
+  background-color: rgba(22, 160, 133, 0.12) !important;
+}
+
+.header-semana-actual {
+  background-color: #16a085 !important;
+  color: #ffffff !important;
+  font-weight: bold;
+}
+
+thead {
+  background-color: #0f2a4a !important;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background-color: #0f2a4a !important;
+  box-shadow: inset 0 -1px 0 #1c335a, inset -1px 0 0 #1c335a;
+  border: none !important;
+}
+
+.milestone-diamond {
+  width: 14px;
+  height: 14px;
+  transform: rotate(45deg);
+  background-color: #9b59b6;
+  border: 2px solid #5b2c6f;
+  position: absolute;
+  top: 5px;
+  z-index: 25;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+/* Avatares y componentes visuales */
+.avatar-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 9px;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  margin-left: -5px;
+  flex-shrink: 0;
+}
+.avatar-circle:first-child { margin-left: 0; }
+.avatar-group { display: inline-flex; align-items: center; justify-content: center; }
+
+.gantt-avatar-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 7.5px;
+  color: #ffffff;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  margin-left: -4px;
+  flex-shrink: 0;
+}
+.gantt-avatar-circle:first-child { margin-left: 0; }
+
+.select-clean-arrow-white {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%235eead4' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0 center;
+  background-repeat: no-repeat;
+  background-size: 1em 1em;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.is-zooming, .is-zooming tr, .is-zooming td {
+  pointer-events: none !important;
+  transition: none !important;
+}
+
+/* Opciones de desplegables reducidas en 2px (-2px: 12px) */
+#sel-filtro-nivel option,
+#sel-escala-temporal option {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+/* Redimensionador de columnas */
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  cursor: col-resize;
+  user-select: none;
+  height: 100%;
+  z-index: 50;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.col-resizer::after {
+  content: "";
+  width: 2px;
+  height: 100%;
+  background-color: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.col-resizer:hover::after,
+.col-resizer.is-resizing::after {
+  background-color: #5eead4 !important;
+}
+
+/* Etiqueta de Rol con +2px de altura (26px exactos) */
+#badge-rol-gantt,
+div#badge-rol-gantt {
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  padding: 0 10px !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  border-radius: 5px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+}
+
+/* Ocultar definitivamente el circulito de días flotante en Ruta Crítica */
+#badge-duracion-cpm {
+  display: none !important;
+}
+
+/* Botón Ruta Crítica limpio y con texto visible */
+#btn-toggle-cpm,
+button#btn-toggle-cpm {
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  padding: 0 10px !important;
+  background-color: #fff1f2 !important;
+  color: #9f1239 !important;
+  border: 1px solid #fecdd3 !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+#btn-toggle-cpm span,
+button#btn-toggle-cpm span {
+  max-width: none !important;
+  opacity: 1 !important;
+  margin-left: 0 !important;
+  display: inline-block !important;
+}
+
+/* Botón Plantilla integrado en el menú desplegable de Opciones */
+
+/* Blindaje de KPIs semáforo para evitar salto de línea al filtrar */
+#kpi-avance, #kpi-ejecutado, #kpi-proceso, #kpi-pendiente {
+  white-space: nowrap !important;
+  display: inline-block !important;
+  line-height: 1 !important;
+}
+
+/* Transición rápida y sutil (0.18s) para ocultar SEM */
+#box-input-semana {
+  transition: max-width 0.18s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.14s ease, 
+              margin 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#box-input-semana.sem-oculto {
+  max-width: 0 !important;
+  opacity: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Eliminar parpadeo y destellos durante el desplazamiento / renderizado rápido */
+#tabla-actividades-cuerpo tr:hover td:last-child,
+#tabla-actividades-cuerpo td:last-child:hover,
+#tabla-actividades-cuerpo td.col-gantt-lienzo:hover {
+  background-color: transparent !important;
+  transition: none !important;
+}
+
+/* Sellar cabeceras de tabla principal Gantt contra filtraciones subpíxel al hacer scroll vertical */
+#tabla-gantt-main thead tr {
+  background-color: #0f2a4a !important;
+}
+
+#tabla-gantt-main thead th {
+  background-color: #0f2a4a !important;
+  /* Sello lateral de 1px en azul institucional #0f2a4a para impedir que se vea una línea blanca entre Responsables y el Gantt */
+  box-shadow: 1px 0 0 0 #0f2a4a, -1px 0 0 0 #0f2a4a, inset 0 -1px 0 #1c335a !important;
+  border: none !important;
+  outline: none !important;
+  background-clip: padding-box !important;
+}
+
+#th-gantt #gantt-header-meses,
+#th-gantt #gantt-header-semanas {
+  background-color: #0f2a4a !important;
+  border-left: 1px solid #1c335a !important;
+}
+
+/* Eliminar sombreado retenido por foco al retirar el cursor */
+#tabla-actividades td:focus,
+#tabla-actividades td:focus-visible,
+#tabla-actividades td.cell-editable:focus {
+  outline: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Ocultar flechas nativas (spin buttons) del input number para evitar duplicación */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield !important;
+  appearance: none !important;
+}
+
+/* Forzar al menú flotante CPM a estar en el plano superior absoluto */
+#menu-desplegable-cpm {
+  position: absolute !important;
+  z-index: 99999 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Evitar que el contenedor de la tabla bloquee elementos flotantes superiores */
+#view-dashboard {
+  position: relative;
+  z-index: 10;
+}
+
+#tabla-actividades thead {
+  position: sticky;
+  top: 0;
+  z-index: 20 !important; /* Mantenemos el sticky pero por debajo de z-40 del toolbar */
+}
+
+/* Sello total de cabeceras sticky en paneles y modales TI */
+#modal-admin-ti table,
+#box-editar-plantilla-admin table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+#modal-admin-ti thead,
+#box-editar-plantilla-admin thead {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 30 !important;
+  background-color: #0f2a4a !important;
+}
+
+#modal-admin-ti thead th,
+#box-editar-plantilla-admin thead th {
+  position: sticky !important;
+  top: 0 !important;
+  background-color: #0f2a4a !important;
+  color: #ffffff !important;
+  border: none !important;
+  outline: none !important;
+  /* Extensión de 1px a los costados para traslapar y eliminar cualquier rendija subpíxel */
+  box-shadow: 0 0 0 1px #0f2a4a !important;
+}
+
+/* ==========================================================================
+   FASE 1 UX/UI: TABLA BORDERLESS Y CONTROLES INTELIGENTES EN HOVER
+   ========================================================================== */
+
+/* 1. Eliminar líneas verticales divisorias en el cuerpo de la tabla */
+#tabla-gantt-main tbody td,
+#lista-actividades td {
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+/* 2. Ocultar los puntos de arrastre (⠿) y mostrarlos únicamente al señalar la fila */
+#lista-actividades tr .drag-handle {
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+#lista-actividades tr:hover .drag-handle {
+  opacity: 0.75;
+}
+
+#lista-actividades tr .drag-handle:hover {
+  opacity: 1 !important;
+  color: #0d9488 !important;
+}
+
+/* 3. Atenuar los botones de acción (+ / eliminar) hasta pasar el mouse por la fila */
+#lista-actividades tr td:last-child button {
+  opacity: 0.15;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+#lista-actividades tr:hover td:last-child button {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   SPRIN WORLD-CLASS UI: GANTT CONTINUO, LISTA JIRA Y TABLERO KANBAN
+   ========================================================================== */
+
+/* 1. Conmutador de Vistas (Segmented Control con Iconos SVG) */
+.sprin-view-switcher {
+  display: inline-flex;
+  align-items: center;
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 2px;
+  border-radius: 10px;
+  gap: 2px;
+}
+
+.sprin-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+  background: transparent;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sprin-view-btn:hover {
+  color: #0f2a4a;
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.sprin-view-btn.active {
+  background-color: #0f2a4a;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 42, 74, 0.25);
+}
+
+/* 2. Lienzo Gantt Continuo (Sin cajas grises individuales por fila) */
+.gantt-row-canvas {
+  position: relative;
+  width: 100%;
+  height: 36px;
+  background-color: transparent;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.gantt-bar-interactive {
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.gantt-bar-interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px -1px rgba(15, 42, 74, 0.28) !important;
+  filter: brightness(1.04);
+  z-index: 30 !important;
+}
+
+/* 3. Chips de Estado Estilo Jira Work Management */
+.jira-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.4;
+  transition: transform 0.1s ease;
+}
+
+.jira-status-done {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.jira-status-progress {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+.jira-status-todo {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+/* 4. Tablero Kanban Interactivo */
+.kanban-board-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(300px, 1fr));
+  gap: 18px;
+  height: 100%;
+  overflow-x: auto;
+  padding: 4px 2px 12px 2px;
+}
+
+.kanban-col {
+  background-color: #f4f5f7;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  min-height: 420px;
+}
+
+.kanban-col-header {
+  padding: 12px 14px 10px 14px;
+  border-top-left-radius: 11px;
+  border-top-right-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #ffffff;
+}
+
+.kanban-col-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: background-color 0.15s ease;
+}
+
+.kanban-col-body.drag-over {
+  background-color: #e0f2fe;
+}
+
+.kanban-card-item {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  cursor: grab;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  position: relative;
+}
+
+.kanban-card-item:hover {
+  border-color: #0d9488;
+  box-shadow: 0 6px 14px -3px rgba(15, 42, 74, 0.12);
+  transform: translateY(-2px);
+}
+
+.kanban-card-item:active {
+  cursor: grabbing;
+}
+
+.kanban-card-item.is-dragging {
+  opacity: 0.35;
+  transform: scale(0.97);
+}
+
+/* ==========================================================================
+   CONECTORES INTERACTIVOS GANTT (DRAG-TO-CONNECT) Y FLECHAS SVG ORTOGONALES
+   ========================================================================== */
+
+#vista-tabla-gantt-wrapper {
+  position: relative;
+}
+
+#svg-gantt-dependencies-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 24;
+  overflow: visible;
+}
+
+.gantt-dep-path {
+  fill: none;
+  stroke-width: 1.8px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: stroke;
+  cursor: pointer;
+  transition: stroke-width 0.15s ease, filter 0.15s ease;
+}
+
+.gantt-dep-path:hover {
+  stroke-width: 3.2px !important;
+  filter: drop-shadow(0 2px 4px rgba(15, 42, 74, 0.35));
+}
+
+.gantt-dep-path-normal {
+  stroke: #0d9488;
+}
+
+.gantt-dep-path-critical {
+  stroke: #dc2626;
+  stroke-width: 2.3px;
+}
+
+/* Puertos circulares en los extremos de cada barra Gantt para arrastrar y conectar */
+.gantt-connect-handle {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%) scale(0.8);
+  width: 11px;
+  height: 11px;
+  border-radius: 9999px;
+  background-color: #ffffff;
+  border: 2.5px solid #0d9488;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  pointer-events: auto;
+  cursor: crosshair !important;
+  z-index: 40;
+  transition: opacity 0.12s ease, transform 0.12s ease, background-color 0.12s ease;
+}
+
+.gantt-row-canvas:hover .gantt-connect-handle,
+body.is-connecting-gantt .gantt-connect-handle {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+.gantt-connect-handle:hover {
+  background-color: #0d9488;
+  border-color: #ffffff;
+  transform: translateY(-50%) scale(1.3) !important;
+}
+
+.gantt-connect-handle-out {
+  right: -6px;
+}
+
+.gantt-connect-handle-in {
+  left: -6px;
+}
+
+.gantt-bar-drop-target {
+  outline: 2.5px dashed #0d9488 !important;
+  outline-offset: 2px;
+  filter: brightness(1.08) !important;
+}
+
+/* ==========================================================================
+   PERFECCIONAMIENTO EJECUTIVO: KPIS SIMÉTRICOS, RESPONSIVIDAD Y KANBAN PRO
+   ========================================================================== */
+
+/* Ocultar barras de scroll horizontales manteniendo el deslizamiento táctil/rueda */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Estados activos estéticos (Soft Pill) con subrayado instantáneo desde el primer clic */
+.kpi-pill-btn {
+  position: relative;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  border-radius: 10px;
+}
+
+.kpi-pill-active-emerald,
+.kpi-pill-active-emerald:focus {
+  background-color: #ecfdf5 !important;
+  box-shadow: inset 0 -3px 0 #10b981 !important;
+}
+
+.kpi-pill-active-amber,
+.kpi-pill-active-amber:focus {
+  background-color: #fffbeb !important;
+  box-shadow: inset 0 -3px 0 #f59e0b !important;
+}
+
+.kpi-pill-active-rose,
+.kpi-pill-active-rose:focus {
+  background-color: #fff1f2 !important;
+  box-shadow: inset 0 -3px 0 #f43f5e !important;
+}
+
+/* Animación sutil de borde ámbar/naranja tenue intermitente para el indicador de filtros activos */
+@keyframes filterBorderPulse {
+  0%, 100% {
+    border-color: #fbbf24;
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+  50% {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.22);
+  }
+}
+
+.filter-active-pill-animated {
+  background-color: #fffbeb;
+  color: #92400e;
+  border: 1.5px solid #f59e0b;
+  animation: filterBorderPulse 2.2s infinite ease-in-out;
+}
+
+/* Garantizar que los sub-modales (Responsables, Predecesoras, Comentarios, Alertas) SIEMPRE se abran DELANTE de "Editar actividad" */
+#modal-inspector-actividad {
+  z-index: 68 !important;
+}
+
+#modal-asignar-responsables,
+#modal-dependencias,
+#modal-comentarios,
+#modal-notificacion-correo,
+#modal-dialog-imarpe,
+#modal-input-custom {
+  z-index: 110 !important;
+}
+
+/* Animación suave para inserción de tarjetas en Kanban sin parpadeo */
+.kanban-card-item {
+  will-change: transform, box-shadow;
+  transition: transform 0.16s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+@keyframes kanbanDropPulse {
+  0% { transform: scale(0.97); box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.35); }
+  100% { transform: scale(1); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06); }
+}
+
+.kanban-card-dropped {
+  animation: kanbanDropPulse 0.28s ease-out;
+}
+
+/* Eliminar únicamente el outline negro nativo del navegador SIN borrar el box-shadow de los KPIs */
+#bloque-superior-gantt button:focus,
+#bloque-superior-gantt select:focus,
+#view-dashboard button:focus,
+#modal-inspector-actividad button:focus {
+  outline: none !important;
+}
+
+/* Quitar flechitas internas en el cuadro numérico */
+#insp-input-avance-num::-webkit-outer-spin-button,
+#insp-input-avance-num::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+#insp-input-avance-num {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* ==========================================================================
+   SELECCIÓN UNIFORME EN FILAS MADRE, DRAG & DROP 60FPS Y TOOLTIP GANTT PRO
+   ========================================================================== */
+
+/* 1. Garantizar que al seleccionar cualquier fila (incluso actividades madre), todas sus celdas pinten el mismo fondo continuo sin parches blancos */
+#tabla-gantt-main tbody tr.row-selected,
+#tabla-gantt-main tbody tr.row-selected > td {
+  background-color: #e0e7ff !important;
+}
+
+#tabla-gantt-main tbody tr.tree-row-l1:not(.row-selected) > td {
+  background-color: #f1f5f9;
+}
+
+/* 2. Aceleración 60fps en Drag & Drop de filas WBS: desactivar transiciones lentas durante el arrastre y pintar línea continua de extremo a extremo */
+body.is-dragging-row #tabla-gantt-main tbody tr,
+body.is-dragging-row #tabla-gantt-main tbody td {
+  transition: none !important;
+}
+
+#tabla-gantt-main tbody tr.row-dragging {
+  opacity: 0.35 !important;
+  background-color: #f8fafc !important;
+}
+
+#tabla-gantt-main tbody tr.drop-target-above > td {
+  box-shadow: inset 0 3px 0 0 #0d9488 !important;
+  background-color: #f0fdfa !important;
+}
+
+#tabla-gantt-main tbody tr.drop-target-below > td {
+  box-shadow: inset 0 -3px 0 0 #0d9488 !important;
+  background-color: #f0fdfa !important;
+}
+
+#tabla-gantt-main tbody tr.drop-target-inside > td {
+  background-color: #ccfbf1 !important;
+  box-shadow: inset 0 2px 0 0 #0f766e, inset 0 -2px 0 0 #0f766e !important;
+}
+
+#tabla-gantt-main tbody tr.drop-target-invalid > td {
+  background-color: #fff1f2 !important;
+  box-shadow: inset 0 1.5px 0 0 #f43f5e, inset 0 -1.5px 0 0 #f43f5e !important;
+  cursor: not-allowed !important;
+}
+
+/* 3. Popover / Tooltip Ejecutivo de Clase Mundial para el Cronograma Gantt */
+#gantt-custom-tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  width: 290px;
+  background: rgba(15, 42, 74, 0.97);
+  backdrop-filter: blur(6px);
+  color: #f8fafc;
+  border: 1px solid rgba(45, 212, 191, 0.35);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: 0 14px 28px -6px rgba(15, 23, 42, 0.45), 0 4px 10px -2px rgba(15, 23, 42, 0.25);
+  transition: opacity 0.1s ease, transform 0.1s ease;
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+#gantt-custom-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}

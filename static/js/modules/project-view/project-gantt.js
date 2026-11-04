@@ -1,0 +1,960 @@
+import { state } from "../../core/state.js";
+import { parsearFechaUniversal } from "../../core/ui-dialogs.js";
+import { renderizarTabla } from "./project-wbs.js";
+
+export function obtenerListaResponsablesAsignados(responsablesStr) {
+  if (!responsablesStr || responsablesStr === "No asignado" || responsablesStr === "-" || String(responsablesStr).trim() === "") return [];
+  const str = String(responsablesStr).trim();
+  if (str.includes(";")) return str.split(";").map(s => s.trim()).filter(Boolean);
+  return [str];
+}
+
+export function obtenerAvatarHTML(responsablesStr) {
+  const listaNombres = obtenerListaResponsablesAsignados(responsablesStr);
+  if (listaNombres.length === 0) {
+    return `<div class="w-6 h-6 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-[10px] font-bold mx-auto" title="Sin responsable">?</div>`;
+  }
+
+  let avataresHTML = "";
+  const maxMostrar = 2;
+  const mostrar = listaNombres.slice(0, maxMostrar);
+  const restantes = listaNombres.length - maxMostrar;
+
+  mostrar.forEach(nom => {
+    let iniciales = "";
+    if (nom.includes(",")) {
+      const partes = nom.split(",");
+      const apellido = partes[0].trim().split(" ")[0];
+      const nombre = partes[1] ? partes[1].trim().split(" ")[0] : "";
+      iniciales = (apellido[0] + (nombre ? nombre[0] : "")).toUpperCase();
+    } else {
+      const partes = nom.split(" ");
+      iniciales = (partes[0][0] + (partes[1] ? partes[1][0] : "")).toUpperCase();
+    }
+
+    let hash = 0;
+    for (let i = 0; i < nom.length; i++) hash = nom.charCodeAt(i) + ((hash << 5) - hash);
+    const colorBg = state.coloresAvatar[Math.abs(hash) % state.coloresAvatar.length];
+
+    avataresHTML += `<div class="avatar-circle" style="background-color: ${colorBg};">${iniciales}</div>`;
+  });
+
+  if (restantes > 0) {
+    avataresHTML += `<div class="avatar-circle bg-gray-600 text-[9px] font-black">+${restantes}</div>`;
+  }
+
+  return `<div class="avatar-group cursor-pointer">${avataresHTML}</div>`;
+}
+
+export function obtenerMiniAvataresGanttHTML(responsablesStr) {
+  const listaNombres = obtenerListaResponsablesAsignados(responsablesStr);
+  if (listaNombres.length === 0) return "";
+
+  let avataresHTML = "";
+  const maxMostrar = 2;
+  const mostrar = listaNombres.slice(0, maxMostrar);
+  const restantes = listaNombres.length - maxMostrar;
+
+  mostrar.forEach(nom => {
+    let iniciales = "";
+    if (nom.includes(",")) {
+      const partes = nom.split(",");
+      const apellido = partes[0].trim().split(" ")[0];
+      const nombre = partes[1] ? partes[1].trim().split(" ")[0] : "";
+      iniciales = (apellido[0] + (nombre ? nombre[0] : "")).toUpperCase();
+    } else {
+      const partes = nom.split(" ");
+      iniciales = (partes[0][0] + (partes[1] ? partes[1][0] : "")).toUpperCase();
+    }
+
+    let hash = 0;
+    for (let i = 0; i < nom.length; i++) hash = nom.charCodeAt(i) + ((hash << 5) - hash);
+    const colorBg = state.coloresAvatar[Math.abs(hash) % state.coloresAvatar.length];
+
+    avataresHTML += `<div class="gantt-avatar-circle" style="background-color: ${colorBg};">${iniciales}</div>`;
+  });
+
+  if (restantes > 0) {
+    avataresHTML += `<div class="gantt-avatar-circle bg-gray-700 text-[7px] font-black">+${restantes}</div>`;
+  }
+
+  return `<div class="inline-flex items-center ml-1.5 align-middle select-none">${avataresHTML}</div>`;
+}
+
+export function construirCalendarioAnual() {
+  const anioActual = new Date().getFullYear();
+  let minAnio = anioActual, maxAnio = anioActual;
+
+  if (state.actividadesGlobal && state.actividadesGlobal.length > 0) {
+    state.actividadesGlobal.forEach(a => {
+      const dtIni = parsearFechaUniversal(a.fecha_inicio);
+      const dtFin = parsearFechaUniversal(a.fecha_fin);
+      if (dtIni) minAnio = Math.min(minAnio, dtIni.getFullYear());
+      if (dtFin) maxAnio = Math.max(maxAnio, dtFin.getFullYear());
+    });
+  }
+
+  state.diasTotalesAnio = [];
+  state.semanasTotales = [];
+
+  let currDia = new Date(minAnio, 0, 1);
+  const finCalendario = new Date(maxAnio + 1, 11, 31);
+  const ahora = new Date();
+  ahora.setHours(0, 0, 0, 0);
+
+  while (currDia <= finCalendario) {
+    const dNum = currDia.getDate();
+    const mIdx = currDia.getMonth();
+    const yNum = currDia.getFullYear();
+    const esHoy = (currDia.getTime() === ahora.getTime());
+
+    state.diasTotalesAnio.push({
+      fecha: new Date(currDia),
+      dia: String(dNum).padStart(2, '0'),
+      mes: mIdx,
+      mesNombre: state.nombresMeses[mIdx],
+      anio: yNum,
+      diaSemana: currDia.getDay(),
+      esHoy: esHoy
+    });
+    currDia.setDate(currDia.getDate() + 1);
+  }
+
+  let currSem = new Date(minAnio, 0, 1);
+  while (currSem.getDay() !== 1) currSem.setDate(currSem.getDate() - 1);
+  let nroSemGlobal = 1;
+
+  while (currSem <= finCalendario || currSem.getFullYear() <= maxAnio + 1) {
+    const dLunes = currSem.getDate();
+    const mIndex = currSem.getMonth();
+    const yIndex = currSem.getFullYear();
+    const fechaIniSem = new Date(currSem);
+    const fechaFinSem = new Date(currSem.getTime() + 7 * 24 * 60 * 60 * 1000 - 1);
+    const esSemanaActual = (ahora >= fechaIniSem && ahora <= fechaFinSem);
+
+    if (esSemanaActual) state.indiceSemanaHoy = nroSemGlobal - 1;
+
+    state.semanasTotales.push({
+      nro: nroSemGlobal,
+      fechaLunes: fechaIniSem,
+      fechaDomingo: fechaFinSem,
+      dia: String(dLunes).padStart(2, '0'),
+      mes: mIndex,
+      mesNombre: state.nombresMeses[mIndex],
+      anio: yIndex,
+      esHoy: esSemanaActual
+    });
+
+    currSem.setDate(currSem.getDate() + 7);
+    nroSemGlobal++;
+    if (currSem > finCalendario && currSem.getDay() === 1) break;
+  }
+}
+
+// Función auxiliar para obtener la ventana de tiempo según el modo y el offset del scroll
+function calcularVentanaTemporal() {
+  const modo = state.modoZoom || "semanas";
+  const offset = Math.max(0, state.semanaInicioIndex || 0);
+
+  if (modo === "dias") {
+    const ventanaDias = 28;
+    const maxOffset = Math.max(0, state.diasTotalesAnio.length - ventanaDias);
+    // Si existe un índice de día exacto calculado por los botones Hoy/Inicio, usarlo con precisión; si se mueve con flechas, avanza de 7 en 7 días
+    const startIdx = (typeof state.diaInicioIndexExacto === "number")
+      ? Math.min(maxOffset, Math.max(0, state.diaInicioIndexExacto))
+      : Math.min(maxOffset, offset * 7);
+    const dias = state.diasTotalesAnio.slice(startIdx, startIdx + ventanaDias);
+    if (!dias.length) return null;
+    const tIni = dias[0].fecha.getTime();
+    const ultDia = dias[dias.length - 1].fecha;
+    const tFin = new Date(ultDia.getFullYear(), ultDia.getMonth(), ultDia.getDate(), 23, 59, 59).getTime();
+    return { modo, items: dias, tIni, tFin, duracion: tFin - tIni };
+  }
+
+  if (modo === "meses") {
+    const minAnioCal = state.diasTotalesAnio.length > 0 ? state.diasTotalesAnio[0].anio : new Date().getFullYear();
+    const startMonthTotal = (minAnioCal * 12) + Math.floor(offset / 4);
+    const mesesItems = [];
+    for (let i = 0; i < 12; i++) {
+      const currentMonthTotal = startMonthTotal + i;
+      const y = Math.floor(currentMonthTotal / 12);
+      const m = currentMonthTotal % 12;
+      mesesItems.push({ anio: y, mes: m, nombre: state.nombresMeses[m].substring(0, 3) });
+    }
+    const tIni = new Date(mesesItems[0].anio, mesesItems[0].mes, 1).getTime();
+    const tFin = new Date(mesesItems[11].anio, mesesItems[11].mes + 1, 0, 23, 59, 59).getTime();
+    return { modo, items: mesesItems, tIni, tFin, duracion: tFin - tIni };
+  }
+
+  if (modo === "trimestres") {
+    const minAnioCal = state.diasTotalesAnio.length > 0 ? state.diasTotalesAnio[0].anio : new Date().getFullYear();
+    const startQTotal = (minAnioCal * 4) + Math.floor(offset / 12);
+    const trimestresItems = [];
+    for (let i = 0; i < 8; i++) {
+      const currQ = startQTotal + i;
+      const y = Math.floor(currQ / 4);
+      const q = (currQ % 4) + 1;
+      trimestresItems.push({ anio: y, q: `T${q}`, startMonth: (q - 1) * 3 });
+    }
+    const tIni = new Date(trimestresItems[0].anio, trimestresItems[0].startMonth, 1).getTime();
+    const tFin = new Date(trimestresItems[7].anio, trimestresItems[7].startMonth + 3, 0, 23, 59, 59).getTime();
+    return { modo, items: trimestresItems, tIni, tFin, duracion: tFin - tIni };
+  }
+
+  if (modo === "semestres") {
+    const minAnioCal = state.diasTotalesAnio.length > 0 ? state.diasTotalesAnio[0].anio : new Date().getFullYear();
+    const startSTotal = (minAnioCal * 2) + Math.floor(offset / 24);
+    const semestresItems = [];
+    for (let i = 0; i < 6; i++) {
+      const currS = startSTotal + i;
+      const y = Math.floor(currS / 2);
+      const s = (currS % 2) + 1;
+      semestresItems.push({ anio: y, s: `S${s}`, startMonth: (s - 1) * 6 });
+    }
+    const tIni = new Date(semestresItems[0].anio, semestresItems[0].startMonth, 1).getTime();
+    const tFin = new Date(semestresItems[5].anio, semestresItems[5].startMonth + 6, 0, 23, 59, 59).getTime();
+    return { modo, items: semestresItems, tIni, tFin, duracion: tFin - tIni };
+  }
+
+  const ventanaSemanas = 16;
+  const maxOffset = Math.max(0, state.semanasTotales.length - ventanaSemanas);
+  const startIdx = Math.min(maxOffset, offset);
+  const semanas = state.semanasTotales.slice(startIdx, startIdx + ventanaSemanas);
+  if (!semanas.length) return null;
+  const tIni = semanas[0].fechaLunes.getTime();
+  const tFin = new Date(semanas[semanas.length - 1].fechaDomingo).getTime();
+  return { modo: "semanas", items: semanas, tIni, tFin, duracion: tFin - tIni };
+}
+
+export function renderizarCabeceraGantt() {
+  const divMeses = document.getElementById("gantt-header-meses");
+  const divSemanas = document.getElementById("gantt-header-semanas");
+  if (!divMeses || !divSemanas) return;
+
+  divMeses.innerHTML = "";
+  divSemanas.innerHTML = "";
+
+  const ventana = calcularVentanaTemporal();
+  if (!ventana) return;
+
+  if (ventana.modo === "dias") {
+    const gruposMes = [];
+    let mesActual = null, mesNombreSolo = null, anioSolo = null, contador = 0;
+
+    ventana.items.forEach(d => {
+      const label = `${d.mesNombre} ${d.anio}`;
+      if (mesActual === null || mesActual !== label) {
+        if (mesActual !== null) gruposMes.push({ nombreCompleto: mesActual, count: contador });
+        mesActual = label;
+        contador = 1;
+      } else contador++;
+    });
+    if (mesActual !== null) gruposMes.push({ nombreCompleto: mesActual, count: contador });
+
+    gruposMes.forEach(g => {
+      const pct = (g.count / ventana.items.length) * 100;
+      divMeses.innerHTML += `<div style="width: ${pct}%;" class="text-center font-black border-r border-[#1c335a] text-[10px] tracking-wide text-teal-200 overflow-hidden whitespace-nowrap truncate px-0.5">${g.nombreCompleto}</div>`;
+    });
+
+    ventana.items.forEach(d => {
+      const esFinSemana = (d.diaSemana === 0 || d.diaSemana === 6);
+      const claseHoy = d.esHoy ? "bg-teal-500 text-white font-black rounded-xs shadow" : (esFinSemana ? "text-gray-400 bg-blue-950/40" : "text-teal-300 opacity-90");
+      divSemanas.innerHTML += `<div class="flex-1 text-center py-0.5 border-r border-[#1c335a] text-[9px] font-mono overflow-hidden whitespace-nowrap ${claseHoy}">${d.dia}</div>`;
+    });
+    return;
+  }
+
+  if (ventana.modo === "semanas") {
+    const gruposMes = [];
+    let mesActual = null, contador = 0;
+
+    ventana.items.forEach(s => {
+      const label = `${s.mesNombre} ${s.anio}`;
+      if (mesActual === null || mesActual !== label) {
+        if (mesActual !== null) gruposMes.push({ nombreCompleto: mesActual, count: contador });
+        mesActual = label;
+        contador = 1;
+      } else contador++;
+    });
+    if (mesActual !== null) gruposMes.push({ nombreCompleto: mesActual, count: contador });
+
+    gruposMes.forEach(g => {
+      const pct = (g.count / ventana.items.length) * 100;
+      divMeses.innerHTML += `<div style="width: ${pct}%;" class="text-center font-bold border-r border-[#1c335a] text-[10px] overflow-hidden whitespace-nowrap truncate px-0.5">${g.nombreCompleto}</div>`;
+    });
+
+    ventana.items.forEach(s => {
+      const claseHoy = s.esHoy ? "header-semana-actual rounded-sm shadow" : "opacity-90";
+      divSemanas.innerHTML += `<div class="flex-1 text-center py-0.5 border-r border-[#1c335a] text-[9px] font-mono overflow-hidden whitespace-nowrap ${claseHoy}">${s.dia}</div>`;
+    });
+    return;
+  }
+
+  if (ventana.modo === "meses") {
+    const aniosUnicos = [...new Set(ventana.items.map(m => m.anio))];
+    aniosUnicos.forEach(y => {
+      const count = ventana.items.filter(m => m.anio === y).length;
+      const pct = (count / ventana.items.length) * 100;
+      divMeses.innerHTML += `<div style="width: ${pct}%;" class="text-center font-black border-r border-[#1c335a] text-[10px] text-teal-200 tracking-widest">${y}</div>`;
+    });
+
+    const mesActualNum = new Date().getMonth();
+    const anioActualNum = new Date().getFullYear();
+
+    ventana.items.forEach(m => {
+      const esHoy = (m.anio === anioActualNum && m.mes === mesActualNum);
+      const claseHoy = esHoy ? "bg-teal-500 text-white font-black" : "text-teal-200";
+      divSemanas.innerHTML += `<div class="flex-1 text-center py-0.5 border-r border-[#1c335a] text-[9.5px] font-bold overflow-hidden ${claseHoy}">${m.nombre}</div>`;
+    });
+    return;
+  }
+
+  if (ventana.modo === "trimestres") {
+    const aniosUnicos = [...new Set(ventana.items.map(t => t.anio))];
+    aniosUnicos.forEach(y => {
+      const count = ventana.items.filter(t => t.anio === y).length;
+      const pct = (count / ventana.items.length) * 100;
+      divMeses.innerHTML += `<div style="width: ${pct}%;" class="text-center font-black border-r border-[#1c335a] text-[10px] text-teal-200">${y}</div>`;
+    });
+
+    const ahora = new Date();
+    const anioHoy = ahora.getFullYear();
+    const qHoy = `T${Math.floor(ahora.getMonth() / 3) + 1}`;
+
+    ventana.items.forEach(t => {
+      const esHoy = (t.anio === anioHoy && t.q === qHoy);
+      const claseHoy = esHoy ? "bg-teal-500 text-white font-black shadow-xs" : "text-teal-200";
+      divSemanas.innerHTML += `<div class="flex-1 text-center py-0.5 border-r border-[#1c335a] text-[9.5px] font-bold overflow-hidden ${claseHoy}">${t.q}</div>`;
+    });
+    return;
+  }
+
+  if (ventana.modo === "semestres") {
+    const aniosUnicos = [...new Set(ventana.items.map(s => s.anio))];
+    aniosUnicos.forEach(y => {
+      const count = ventana.items.filter(s => s.anio === y).length;
+      const pct = (count / ventana.items.length) * 100;
+      divMeses.innerHTML += `<div style="width: ${pct}%;" class="text-center font-black border-r border-[#1c335a] text-[10px] text-teal-200">${y}</div>`;
+    });
+
+    const ahora = new Date();
+    const anioHoy = ahora.getFullYear();
+    const sHoy = `S${Math.floor(ahora.getMonth() / 6) + 1}`;
+
+    ventana.items.forEach(s => {
+      const esHoy = (s.anio === anioHoy && s.s === sHoy);
+      const claseHoy = esHoy ? "bg-teal-500 text-white font-black shadow-xs" : "text-teal-200";
+      divSemanas.innerHTML += `<div class="flex-1 text-center py-0.5 border-r border-[#1c335a] text-[9.5px] font-bold overflow-hidden ${claseHoy}">${s.s}</div>`;
+    });
+  }
+}
+
+export function renderizarGanttFila(act, esMadre, codLimpio) {
+  const ventana = calcularVentanaTemporal();
+  if (!ventana) return "";
+
+  const tInicioVisible = ventana.tIni;
+  const tFinVisible = ventana.tFin;
+  const duracionVisibleMs = ventana.duracion;
+
+  const mostrarAvatares = (state.visibilidadColumnas.avatares_gantt !== false);
+  const mostrarPorcentajes = (state.visibilidadColumnas.porcentajes_gantt !== false);
+
+  const ahoraRef = new Date();
+  const anioRef = ahoraRef.getFullYear();
+  const mesRef = ahoraRef.getMonth();
+  const qRef = `T${Math.floor(mesRef / 3) + 1}`;
+  const sRef = `S${Math.floor(mesRef / 6) + 1}`;
+
+  let divisionesHTML = "";
+  if (ventana.modo === "dias") {
+    divisionesHTML = ventana.items.map(d => {
+      const esFinde = (d.diaSemana === 0 || d.diaSemana === 6);
+      const bgCol = d.esHoy ? "bg-teal-500/15 border-r-2 border-r-teal-500/60" : (esFinde ? "bg-slate-100/70 border-r border-slate-200/50" : "border-r border-slate-200/50");
+      return `<div class="flex-1 h-full ${bgCol}"></div>`;
+    }).join("");
+  } else if (ventana.modo === "semanas") {
+    divisionesHTML = ventana.items.map(s => `<div class="flex-1 h-full border-r border-slate-200/60 ${s.esHoy ? 'bg-teal-500/12 border-r-2 border-r-teal-500/50' : ''}"></div>`).join("");
+  } else if (ventana.modo === "meses") {
+    divisionesHTML = ventana.items.map(m => {
+      const esMesActual = (m.anio === anioRef && m.mes === mesRef);
+      return `<div class="flex-1 h-full border-r border-slate-200/60 ${esMesActual ? 'bg-teal-500/12 border-r-2 border-r-teal-500/50' : ''}"></div>`;
+    }).join("");
+  } else if (ventana.modo === "trimestres") {
+    divisionesHTML = ventana.items.map(t => {
+      const esTrimActual = (t.anio === anioRef && t.q === qRef);
+      return `<div class="flex-1 h-full border-r border-slate-200/60 ${esTrimActual ? 'bg-teal-500/12 border-r-2 border-r-teal-500/50' : ''}"></div>`;
+    }).join("");
+  } else if (ventana.modo === "semestres") {
+    divisionesHTML = ventana.items.map(s => {
+      const esSemActual = (s.anio === anioRef && s.s === sRef);
+      return `<div class="flex-1 h-full border-r border-slate-200/60 ${esSemActual ? 'bg-teal-500/12 border-r-2 border-r-teal-500/50' : ''}"></div>`;
+    }).join("");
+  } else {
+    divisionesHTML = ventana.items.map(() => `<div class="flex-1 h-full border-r border-slate-200/60"></div>`).join("");
+  }
+
+  const dtIniObj = parsearFechaUniversal(act.fecha_inicio);
+  const dtFinObj = parsearFechaUniversal(act.fecha_fin);
+  let barraOElementoHTML = "";
+
+  if (dtIniObj && dtFinObj) {
+    const dtIni = dtIniObj.getTime();
+    const dtFin = new Date(dtFinObj.getFullYear(), dtFinObj.getMonth(), dtFinObj.getDate(), 23, 59, 59).getTime();
+
+    if (dtFin >= tInicioVisible && dtIni <= tFinVisible) {
+      const startClamped = Math.max(dtIni, tInicioVisible);
+      const endClamped = Math.min(dtFin, tFinVisible);
+      const leftPct = Math.min(100, Math.max(0, ((startClamped - tInicioVisible) / duracionVisibleMs) * 100));
+      const widthPct = Math.min(100 - leftPct, Math.max(2.2, ((endClamped - startClamped) / duracionVisibleMs) * 100));
+      const esBarraAncha = widthPct >= 8.5;
+      const predsLista = (act.predecesores || "").split(",").map(s => s.trim()).filter(Boolean);
+      const tienePredecesor = predsLista.length > 0;
+
+      if (esMadre) {
+        barraOElementoHTML = `
+          <div id="gantt-bar-el-${codLimpio.replace(/\./g, '_')}"
+               data-cod="${codLimpio}"
+               onmouseenter="mostrarTooltipGantt(event, '${codLimpio}')"
+               onmousemove="moverTooltipGantt(event)"
+               onmouseleave="ocultarTooltipGantt()"
+               class="absolute top-2 bottom-2 z-10 gantt-bar-interactive"
+               style="left: ${leftPct}%; width: ${widthPct}%;">
+            <div class="w-full h-full bg-[#0f2a4a] rounded-md shadow-xs relative overflow-hidden flex items-center justify-between px-2">
+              <div class="absolute top-0 bottom-0 left-0 bg-teal-500/35 transition-all duration-300" style="width: ${act.avance}%;"></div>
+              <span class="relative z-10 text-[9.5px] font-bold text-teal-200 truncate pr-2">${esBarraAncha ? act.descripcion : ''}</span>
+              ${mostrarPorcentajes ? `<span class="relative z-10 text-[9.5px] font-black text-white bg-black/25 px-1.5 py-0.2 rounded">${act.avance}%</span>` : ''}
+            </div>
+          </div>
+        `;
+      } else {
+        const esActividadCritica = state.capaCpmActiva && state.datosCpmGlobal?.actividadesCriticas?.has(codLimpio);
+        let bgBarra = "#64748b";
+        let bgProgreso = "#475569";
+
+        if (state.capaCpmActiva) {
+          bgBarra = esActividadCritica ? "#dc2626" : "#94a3b8";
+          bgProgreso = esActividadCritica ? "#b91c1c" : "#64748b";
+        } else if (act.estado === "Ejecutado") {
+          bgBarra = "#10b981";
+          bgProgreso = "#059669";
+        } else if (act.estado === "En proceso") {
+          bgBarra = "#2563eb";
+          bgProgreso = "#1d4ed8";
+        }
+
+        const listaResp = obtenerListaResponsablesAsignados(act.responsable);
+        let avatarInternoHTML = "";
+        if (mostrarAvatares && listaResp.length > 0 && widthPct >= 4.2) {
+          const primerNom = listaResp[0];
+          const ini = primerNom.includes(",")
+            ? (primerNom.split(",")[0].trim()[0] + (primerNom.split(",")[1]?.trim()[0] || "")).toUpperCase()
+            : (primerNom.split(" ")[0][0] + (primerNom.split(" ")[1]?.[0] || "")).toUpperCase();
+          avatarInternoHTML = `
+            <span class="w-5 h-5 rounded-full bg-white/95 text-[#0f2a4a] font-black text-[8.5px] flex items-center justify-center shadow-xs flex-shrink-0 border border-white">
+              ${ini}
+            </span>
+          `;
+        }
+
+        const checkDoneHTML = act.estado === "Ejecutado" ? `<span class="text-[10px] font-black text-white drop-shadow-2xs">✓</span>` : "";
+        const badgePredHTML = tienePredecesor
+          ? `<span onclick="event.stopPropagation(); abrirModalDependencias('${codLimpio}')" class="text-[9px] font-black text-white bg-black/25 hover:bg-black/45 px-1 rounded flex items-center gap-0.5 cursor-pointer" title="Configurar predecesoras">🔗${predsLista.join(',')}</span>`
+          : "";
+        const opacidadCpm = (state.capaCpmActiva && !esActividadCritica) ? "opacity-45" : "opacity-100";
+
+        const puertosConexionHTML = state.proyectoEsGestor ? `
+          <span class="gantt-connect-handle gantt-connect-handle-in"
+                data-cod="${codLimpio}"
+                title="Soltar aquí para conectar dependencia"></span>
+          <span class="gantt-connect-handle gantt-connect-handle-out"
+                data-cod="${codLimpio}"
+                onmousedown="iniciarConexionGanttMouse(event, '${codLimpio}')"
+                title="Arrastrar hacia otra tarea para crear dependencia"></span>
+        ` : "";
+
+        barraOElementoHTML = `
+          <div id="gantt-bar-el-${codLimpio.replace(/\./g, '_')}"
+               data-cod="${codLimpio}"
+               onclick="event.stopPropagation(); abrirInspectorActividad('${codLimpio}')"
+               ondblclick="event.stopPropagation(); abrirInspectorActividad('${codLimpio}')"
+               onmouseenter="resaltarDestinoConexionGantt('${codLimpio}', true); mostrarTooltipGantt(event, '${codLimpio}')"
+               onmousemove="moverTooltipGantt(event)"
+               onmouseleave="resaltarDestinoConexionGantt('${codLimpio}', false); ocultarTooltipGantt()"
+               onmouseup="finalizarConexionEnBarraGantt(event, '${codLimpio}')"
+               class="absolute top-1.5 bottom-1.5 z-10 rounded-md shadow-xs flex items-center justify-between px-1.5 gantt-bar-interactive ${opacidadCpm}"
+               style="left: ${leftPct}%; width: ${widthPct}%; background-color: ${bgBarra};">
+            
+            ${act.estado === "En proceso" && act.avance > 0 ? `<div class="absolute inset-y-0 left-0 rounded-l-md pointer-events-none" style="width: ${act.avance}%; background-color: ${bgProgreso};"></div>` : ''}
+
+            <div class="relative z-10 flex items-center space-x-1.5 min-w-0 overflow-hidden">
+              ${avatarInternoHTML}
+              ${esBarraAncha ? `<span class="text-[10px] font-bold text-white truncate drop-shadow-2xs">${act.descripcion}</span>` : ''}
+            </div>
+
+            <div class="relative z-10 flex items-center space-x-1 flex-shrink-0 pl-1">
+              ${mostrarPorcentajes && widthPct >= 6.0 && act.avance > 0 && act.avance < 100 ? `<span class="text-[9px] font-black text-white/95 bg-black/20 px-1 rounded">${act.avance}%</span>` : ''}
+              ${checkDoneHTML}
+              ${badgePredHTML}
+            </div>
+
+            ${puertosConexionHTML}
+          </div>
+        `;
+      }
+    }
+  }
+
+  return `
+    <div class="gantt-row-canvas" data-row-cod="${codLimpio}">
+      <div class="absolute inset-0 flex pointer-events-none">${divisionesHTML}</div>
+      ${barraOElementoHTML}
+    </div>
+  `;
+}
+
+// =========================================================================
+// MOTOR DE FLECHAS ORTOGONALES INTELIGENTES Y CONEXIÓN CON MOUSE EN GANTT
+// =========================================================================
+
+let conexionGanttActiva = null;
+
+export function dibujarFlechasDependenciasGantt() {
+  const wrapper = document.getElementById("vista-tabla-gantt-wrapper");
+  const tabla = document.getElementById("tabla-gantt-main");
+  if (!wrapper || !tabla || !state.visibilidadColumnas.gantt || state.vistaProyectoActiva === "kanban" || state.vistaProyectoActiva === "lista") {
+    document.getElementById("svg-gantt-dependencies-layer")?.remove();
+    return;
+  }
+
+  let svg = document.getElementById("svg-gantt-dependencies-layer");
+  if (!svg) {
+    svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.id = "svg-gantt-dependencies-layer";
+    wrapper.appendChild(svg);
+  }
+
+  svg.setAttribute("width", tabla.scrollWidth);
+  svg.setAttribute("height", tabla.scrollHeight);
+
+  // Definición de puntas de flecha (normal en turquesa #0d9488 y crítica en rojo #dc2626)
+  let contenidoSVG = `
+    <defs>
+      <marker id="gantt-arrow-normal" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#0d9488" />
+      </marker>
+      <marker id="gantt-arrow-critical" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#dc2626" />
+      </marker>
+    </defs>
+  `;
+
+  const rectWrapper = wrapper.getBoundingClientRect();
+  const scrollLeft = wrapper.scrollLeft;
+  const scrollTop = wrapper.scrollTop;
+
+  // Recolectar todos los enlaces activos
+  const enlaces = [];
+  (state.actividadesGlobal || []).forEach(act => {
+    const codDest = String(act.codigo).replace(/\.+$/, "");
+    const preds = (act.predecesores || "").split(",").map(s => s.trim().replace(/\.+$/, "")).filter(Boolean);
+    preds.forEach(codOrig => {
+      enlaces.push({ origen: codOrig, destino: codDest });
+    });
+  });
+
+  enlaces.forEach(({ origen, destino }) => {
+    const elOrig = document.getElementById(`gantt-bar-el-${origen.replace(/\./g, '_')}`);
+    const elDest = document.getElementById(`gantt-bar-el-${destino.replace(/\./g, '_')}`);
+    if (!elOrig || !elDest) return;
+
+    const rOrig = elOrig.getBoundingClientRect();
+    const rDest = elDest.getBoundingClientRect();
+    if (rOrig.width === 0 || rDest.width === 0) return;
+
+    // Coordenadas relativas al contenedor desplazable
+    const x1 = (rOrig.right - rectWrapper.left) + scrollLeft;
+    const y1 = (rOrig.top + rOrig.height / 2 - rectWrapper.top) + scrollTop;
+    const x2 = (rDest.left - rectWrapper.left) + scrollLeft;
+    const y2 = (rDest.top + rDest.height / 2 - rectWrapper.top) + scrollTop;
+
+    // Ruteo Ortogonal Inteligente con esquinas redondeadas (evita atravesar las barras por encima)
+    const dirY = y2 >= y1 ? 1 : -1;
+    const radio = 5;
+    let dPath = "";
+
+    if (x2 >= x1 + 18) {
+      // Caso estándar hacia adelante: escalón limpio entre el fin de A y el inicio de B
+      const midX = x1 + Math.min(16, (x2 - x1) / 2);
+      dPath = `M ${x1} ${y1} L ${midX - radio} ${y1} Q ${midX} ${y1} ${midX} ${y1 + dirY * radio} L ${midX} ${y2 - dirY * radio} Q ${midX} ${y2} ${midX + radio} ${y2} L ${x2 - 2} ${y2}`;
+    } else {
+      // Caso en que B empieza antes o muy cerca del fin de A: rodea por la línea divisoria entre filas sin cruzar el texto de la barra
+      const salidaX = x1 + 10;
+      const entradaX = x2 - 12;
+      const canalY = y1 + dirY * (rOrig.height / 2 + 5);
+      dPath = `M ${x1} ${y1} L ${salidaX} ${y1} L ${salidaX} ${canalY} L ${entradaX} ${canalY} L ${entradaX} ${y2} L ${x2 - 2} ${y2}`;
+    }
+
+    const esCritico = state.capaCpmActiva &&
+      state.datosCpmGlobal?.actividadesCriticas?.has(origen) &&
+      state.datosCpmGlobal?.actividadesCriticas?.has(destino);
+
+    const clasePath = esCritico ? "gantt-dep-path gantt-dep-path-critical" : "gantt-dep-path gantt-dep-path-normal";
+    const markerUrl = esCritico ? "url(#gantt-arrow-critical)" : "url(#gantt-arrow-normal)";
+
+    contenidoSVG += `
+      <path d="${dPath}"
+            class="${clasePath}"
+            marker-end="${markerUrl}"
+            onclick="solicitarEliminarEnlaceGantt(event, '${origen}', '${destino}')">
+        <title>Dependencia: [${origen}] → [${destino}] ${esCritico ? '(RUTA CRÍTICA)' : ''} — Clic en la flecha para desconectar</title>
+      </path>
+    `;
+  });
+
+  svg.innerHTML = contenidoSVG;
+}
+
+export function iniciarConexionGanttMouse(e, codOrigen) {
+  if (!state.proyectoEsGestor) return;
+  e.stopPropagation();
+  e.preventDefault();
+
+  const wrapper = document.getElementById("vista-tabla-gantt-wrapper");
+  const elOrig = document.getElementById(`gantt-bar-el-${codOrigen.replace(/\./g, '_')}`);
+  if (!wrapper || !elOrig) return;
+
+  document.body.classList.add("is-connecting-gantt");
+  const rectWrapper = wrapper.getBoundingClientRect();
+  const rOrig = elOrig.getBoundingClientRect();
+
+  const xIni = (rOrig.right - rectWrapper.left) + wrapper.scrollLeft;
+  const yIni = (rOrig.top + rOrig.height / 2 - rectWrapper.top) + wrapper.scrollTop;
+
+  conexionGanttActiva = { codOrigen, xIni, yIni };
+
+  const alMover = (ev) => {
+    if (!conexionGanttActiva) return;
+    const svg = document.getElementById("svg-gantt-dependencies-layer");
+    if (!svg) return;
+
+    const xMouse = (ev.clientX - rectWrapper.left) + wrapper.scrollLeft;
+    const yMouse = (ev.clientY - rectWrapper.top) + wrapper.scrollTop;
+
+    let tempLine = document.getElementById("gantt-temp-drag-line");
+    if (!tempLine) {
+      tempLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      tempLine.id = "gantt-temp-drag-line";
+      tempLine.setAttribute("fill", "none");
+      tempLine.setAttribute("stroke", "#0f2a4a");
+      tempLine.setAttribute("stroke-width", "2.2");
+      tempLine.setAttribute("stroke-dasharray", "4,4");
+      tempLine.setAttribute("marker-end", "url(#gantt-arrow-normal)");
+      svg.appendChild(tempLine);
+    }
+    tempLine.setAttribute("d", `M ${conexionGanttActiva.xIni} ${conexionGanttActiva.yIni} L ${xMouse} ${yMouse}`);
+  };
+
+  const alSoltarGlobal = () => {
+    document.body.classList.remove("is-connecting-gantt");
+    document.getElementById("gantt-temp-drag-line")?.remove();
+    document.querySelectorAll(".gantt-bar-drop-target").forEach(el => el.classList.remove("gantt-bar-drop-target"));
+    conexionGanttActiva = null;
+    window.removeEventListener("mousemove", alMover);
+    window.removeEventListener("mouseup", alSoltarGlobal);
+  };
+
+  window.addEventListener("mousemove", alMover);
+  window.addEventListener("mouseup", alSoltarGlobal);
+}
+
+export function resaltarDestinoConexionGantt(codDestino, entrando) {
+  if (!conexionGanttActiva || conexionGanttActiva.codOrigen === codDestino) return;
+  const el = document.getElementById(`gantt-bar-el-${codDestino.replace(/\./g, '_')}`);
+  if (el) el.classList.toggle("gantt-bar-drop-target", entrando);
+}
+
+export async function finalizarConexionEnBarraGantt(e, codDestino) {
+  if (!conexionGanttActiva) return;
+  e.stopPropagation();
+  const codOrigen = conexionGanttActiva.codOrigen;
+  conexionGanttActiva = null;
+  document.body.classList.remove("is-connecting-gantt");
+  document.getElementById("gantt-temp-drag-line")?.remove();
+  document.querySelectorAll(".gantt-bar-drop-target").forEach(el => el.classList.remove("gantt-bar-drop-target"));
+
+  if (codOrigen === codDestino) return;
+  if (typeof window.vincularPredecesoraInteractiva === "function") {
+    await window.vincularPredecesoraInteractiva(codOrigen, codDestino);
+  }
+}
+
+export function mostrarTooltipGantt(e, codLimpio) {
+  if (document.body.classList.contains("is-connecting-gantt")) return;
+  const act = (state.actividadesGlobal || []).find(a => String(a.codigo).replace(/\.+$/, "") === codLimpio);
+  if (!act) return;
+
+  let tip = document.getElementById("gantt-custom-tooltip");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.id = "gantt-custom-tooltip";
+    document.body.appendChild(tip);
+  }
+
+  const esMadre = (state.actividadesGlobal || []).some(sub => {
+    const subC = String(sub.codigo).replace(/\.+$/, "");
+    return subC.startsWith(codLimpio + ".") && subC !== codLimpio;
+  });
+
+  const unidadTxt = (state.proyectoModoDuracion === "hours") ? "horas" : "días hábiles";
+  const badgeEstColor = act.estado === "Ejecutado"
+    ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40"
+    : (act.estado === "En proceso" ? "bg-blue-500/25 text-blue-200 border-blue-400/40" : "bg-slate-500/25 text-slate-300 border-slate-400/40");
+
+  const preds = (act.predecesores || "").trim();
+  const resp = (act.responsable && act.responsable !== "No asignado") ? act.responsable : "Sin responsable asignado";
+
+  // Información de Ruta Crítica y Holgura si la capa CPM está activa
+  let bloqueCpmHTML = "";
+  const detCpm = state.datosCpmGlobal?.detalles?.[codLimpio];
+  if (state.capaCpmActiva && detCpm) {
+    const esCrit = detCpm.es_critica;
+    const holg = detCpm.holgura || 0;
+    bloqueCpmHTML = esCrit
+      ? `<div class="mb-2 px-2.5 py-1 rounded-lg bg-rose-500/25 border border-rose-400/50 text-rose-200 text-[10px] font-black flex items-center justify-between">
+           <span>⚡ RUTA CRÍTICA (Sin margen)</span>
+           <span class="font-mono">Holgura: 0d</span>
+         </div>`
+      : `<div class="mb-2 px-2.5 py-1 rounded-lg bg-teal-500/15 border border-teal-400/30 text-teal-200 text-[10px] font-bold flex items-center justify-between">
+           <span>Margen de holgura disponible</span>
+           <span class="font-mono font-black">+${holg} ${state.proyectoModoDuracion === 'hours' ? 'h' : 'd'}</span>
+         </div>`;
+  }
+
+  tip.innerHTML = `
+    <div class="flex items-center justify-between gap-2 mb-1.5">
+      <div class="flex items-center space-x-1.5">
+        <span class="font-mono font-black text-[10px] bg-teal-400 text-[#0f2a4a] px-1.5 py-0.2 rounded">[${codLimpio}]</span>
+        <span class="text-[9.5px] font-bold uppercase tracking-wider text-teal-300">${esMadre ? 'Fase resumen' : 'Tarea operativa'}</span>
+      </div>
+      <span class="text-[9.5px] font-extrabold px-2 py-0.2 rounded-full border ${badgeEstColor}">${act.estado}</span>
+    </div>
+
+    <div class="text-xs font-bold text-white leading-snug mb-2 border-b border-white/10 pb-2">${act.descripcion}</div>
+
+    ${bloqueCpmHTML}
+
+    <div class="grid grid-cols-2 gap-2 text-[10.5px] mb-2">
+      <div class="bg-white/5 rounded-lg p-1.5 border border-white/10">
+        <span class="block text-[9px] uppercase font-bold text-slate-400">Plazo programado</span>
+        <span class="font-bold text-teal-200">${act.fecha_inicio} → ${act.fecha_fin}</span>
+      </div>
+      <div class="bg-white/5 rounded-lg p-1.5 border border-white/10">
+        <span class="block text-[9px] uppercase font-bold text-slate-400">Duración y avance</span>
+        <span class="font-bold text-white">${act.dias} ${unidadTxt} · <strong class="text-teal-300">${act.avance}%</strong></span>
+      </div>
+    </div>
+
+    <div class="text-[10px] text-slate-300 space-y-1">
+      <div class="truncate"><strong class="text-slate-400">Resp:</strong> ${resp}</div>
+      ${preds ? `<div><strong class="text-slate-400">Predecesora(s):</strong> <span class="font-mono text-amber-300">[${preds}]</span></div>` : ''}
+    </div>
+  `;
+
+  tip.classList.add("is-visible");
+  moverTooltipGantt(e);
+}
+
+export function moverTooltipGantt(e) {
+  const tip = document.getElementById("gantt-custom-tooltip");
+  if (!tip || !tip.classList.contains("is-visible")) return;
+
+  const anchoTip = 295;
+  const altoTip = tip.offsetHeight || 165;
+  let x = e.clientX + 14;
+  let y = e.clientY + 16;
+
+  if (x + anchoTip > window.innerWidth - 12) x = e.clientX - anchoTip - 12;
+  if (y + altoTip > window.innerHeight - 12) y = e.clientY - altoTip - 12;
+
+  tip.style.left = `${Math.max(8, x)}px`;
+  tip.style.top = `${Math.max(8, y)}px`;
+}
+
+export function ocultarTooltipGantt() {
+  const tip = document.getElementById("gantt-custom-tooltip");
+  if (tip) tip.classList.remove("is-visible");
+}
+
+export function actualizarEstadoBotonesNavegacionGantt(modoActivo) {
+  const btnInicio = document.getElementById("btn-nav-gantt-inicio");
+  const btnHoy = document.getElementById("btn-nav-gantt-hoy");
+
+  // Mismo padding exacto (px-2.5) y sin transición de layout para evitar cualquier parpadeo al pulsar las flechas ◀ ▶
+  const claseActiva = "h-[22px] bg-[#0f2a4a] text-white text-[11px] font-bold px-2.5 rounded whitespace-nowrap flex items-center cursor-pointer shadow-2xs";
+  const claseInactiva = "h-[22px] hover:bg-white text-[#0f2a4a] text-[11px] font-bold px-2.5 rounded whitespace-nowrap flex items-center cursor-pointer";
+
+  if (btnInicio) btnInicio.className = (modoActivo === "inicio") ? claseActiva : claseInactiva;
+  if (btnHoy) btnHoy.className = (modoActivo === "hoy") ? claseActiva : claseInactiva;
+}
+
+export function obtenerTimestampMinimoProyecto() {
+  if (!state.actividadesGlobal || state.actividadesGlobal.length === 0) return null;
+  let minTimestamp = null;
+  state.actividadesGlobal.forEach(a => {
+    const dt = parsearFechaUniversal(a.fecha_inicio);
+    if (dt) {
+      const t = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+      if (minTimestamp === null || t < minTimestamp) minTimestamp = t;
+    }
+  });
+  return minTimestamp;
+}
+
+export function autoAjustarSemanaInicio() {
+  if (!state.actividadesGlobal || state.actividadesGlobal.length === 0) {
+    irASemanaActual();
+    return;
+  }
+  irAInicioProyecto();
+}
+
+export function irAInicioProyecto() {
+  const minTs = obtenerTimestampMinimoProyecto();
+  if (minTs === null) {
+    irASemanaActual();
+    return;
+  }
+
+  const dtIni = new Date(minTs);
+  const minAnioCal = state.diasTotalesAnio.length > 0 ? state.diasTotalesAnio[0].anio : dtIni.getFullYear();
+  const modo = state.modoZoom || "dias";
+
+  if (modo === "dias") {
+    const idxDia = state.diasTotalesAnio.findIndex(d => d.fecha.getTime() >= minTs);
+    state.diaInicioIndexExacto = Math.max(0, idxDia);
+    fijarSemanaInicio(Math.floor(state.diaInicioIndexExacto / 7) + 1, "inicio");
+    return;
+  }
+
+  state.diaInicioIndexExacto = null;
+
+  if (modo === "meses") {
+    const mesesDiff = (dtIni.getFullYear() - minAnioCal) * 12 + dtIni.getMonth();
+    fijarSemanaInicio(Math.max(0, mesesDiff) * 4 + 1, "inicio");
+    return;
+  }
+  if (modo === "trimestres") {
+    const qDiff = (dtIni.getFullYear() - minAnioCal) * 4 + Math.floor(dtIni.getMonth() / 3);
+    fijarSemanaInicio(Math.max(0, qDiff) * 12 + 1, "inicio");
+    return;
+  }
+  if (modo === "semestres") {
+    const sDiff = (dtIni.getFullYear() - minAnioCal) * 2 + Math.floor(dtIni.getMonth() / 6);
+    fijarSemanaInicio(Math.max(0, sDiff) * 24 + 1, "inicio");
+    return;
+  }
+
+  // Modo Semanas
+  const idxSem = state.semanasTotales.findIndex(s => {
+    const tIni = new Date(s.fechaLunes).setHours(0, 0, 0, 0);
+    const tFin = new Date(s.fechaDomingo).setHours(23, 59, 59, 999);
+    return minTs >= tIni && minTs <= tFin;
+  });
+  fijarSemanaInicio(idxSem >= 0 ? idxSem + 1 : 1, "inicio");
+}
+
+export function irASemanaActual() {
+  const ahora = new Date();
+  const minAnioCal = state.diasTotalesAnio.length > 0 ? state.diasTotalesAnio[0].anio : ahora.getFullYear();
+  const modo = state.modoZoom || "dias";
+
+  if (modo === "dias") {
+    const idxHoyDia = state.diasTotalesAnio.findIndex(d => d.esHoy);
+    // Dejamos 3 días previos de margen a la izquierda para que la columna turquesa de Hoy se vea centrada y clara
+    state.diaInicioIndexExacto = idxHoyDia >= 0 ? Math.max(0, idxHoyDia - 3) : 0;
+    fijarSemanaInicio(Math.floor(state.diaInicioIndexExacto / 7) + 1, "hoy");
+    return;
+  }
+
+  state.diaInicioIndexExacto = null;
+
+  if (modo === "meses") {
+    const mesesDiff = (ahora.getFullYear() - minAnioCal) * 12 + Math.max(0, ahora.getMonth() - 1);
+    fijarSemanaInicio(Math.max(0, mesesDiff) * 4 + 1, "hoy");
+    return;
+  }
+  if (modo === "trimestres") {
+    const qDiff = (ahora.getFullYear() - minAnioCal) * 4 + Math.floor(ahora.getMonth() / 3);
+    fijarSemanaInicio(Math.max(0, qDiff) * 12 + 1, "hoy");
+    return;
+  }
+  if (modo === "semestres") {
+    const sDiff = (ahora.getFullYear() - minAnioCal) * 2 + Math.floor(ahora.getMonth() / 6);
+    fijarSemanaInicio(Math.max(0, sDiff) * 24 + 1, "hoy");
+    return;
+  }
+
+  // Modo Semanas
+  const tAhora = ahora.getTime();
+  const indexHoy = state.semanasTotales.findIndex(s => {
+    const tIni = new Date(s.fechaLunes).setHours(0, 0, 0, 0);
+    const tFin = new Date(s.fechaDomingo).setHours(23, 59, 59, 999);
+    return tAhora >= tIni && tAhora <= tFin;
+  });
+  fijarSemanaInicio(indexHoy >= 0 ? Math.max(1, indexHoy) : 1, "hoy");
+}
+
+export function fijarSemanaInicio(val, origenBoton = "manual") {
+  let num = parseInt(val);
+  if (isNaN(num) || num < 1) num = 1;
+  state.semanaInicioIndex = num - 1;
+  const input = document.getElementById("input-semana-inicio");
+  if (input) input.value = num;
+  actualizarEstadoBotonesNavegacionGantt(origenBoton);
+  renderizarCabeceraGantt();
+  renderizarTabla();
+}
+
+export function cambiarSemanaInicio(delta) {
+  if ((state.modoZoom || "dias") === "dias" && typeof state.diaInicioIndexExacto === "number") {
+    state.diaInicioIndexExacto = Math.max(0, state.diaInicioIndexExacto + (delta * 7));
+    fijarSemanaInicio(Math.floor(state.diaInicioIndexExacto / 7) + 1, "manual");
+    return;
+  }
+  state.diaInicioIndexExacto = null;
+  const baseActual = (state.semanaInicioIndex || 0) + 1;
+  let val = baseActual + delta;
+  if (val < 1) val = 1;
+  fijarSemanaInicio(val, "manual");
+}
+
+export function desplazarGanttPorEscala(direccion) {
+  const dir = direccion > 0 ? 1 : -1;
+  let salto = 1;
+  if (state.modoZoom === "meses") salto = 4;
+  else if (state.modoZoom === "trimestres") salto = 12;
+  else if (state.modoZoom === "semestres") salto = 24;
+  cambiarSemanaInicio(dir * salto);
+}
+
+export function fijarModoZoomDirecto(modo) {
+  state.modoZoom = modo;
+  state.diaInicioIndexExacto = null;
+  const labelEscala = document.getElementById("txt-escala-activa-label");
+  if (labelEscala) labelEscala.innerText = modo.charAt(0).toUpperCase() + modo.slice(1);
+  irASemanaActual();
+}
+
+window.addEventListener("resize", () => {
+  requestAnimationFrame(dibujarFlechasDependenciasGantt);
+});
+
+window.desplazarGanttPorEscala = desplazarGanttPorEscala;
+window.dibujarFlechasDependenciasGantt = dibujarFlechasDependenciasGantt;
+window.iniciarConexionGanttMouse = iniciarConexionGanttMouse;
+window.resaltarDestinoConexionGantt = resaltarDestinoConexionGantt;
+window.finalizarConexionEnBarraGantt = finalizarConexionEnBarraGantt;
+window.mostrarTooltipGantt = mostrarTooltipGantt;
+window.moverTooltipGantt = moverTooltipGantt;
+window.ocultarTooltipGantt = ocultarTooltipGantt;
