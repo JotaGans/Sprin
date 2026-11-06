@@ -27,7 +27,7 @@ export function obtenerPrimerNombre(nombreCompleto, usernameFallback) {
 
 export function actualizarDisplaysUsuario() {
   const primerNombre = obtenerPrimerNombre(state.currentUser.nombre_completo, state.currentUser.username);
-  const userText = state.currentUser.username || "admin";
+  const userText = state.currentUser.username || "usuario";
 
   let roleText = "PERSONAL IMARPE";
   if (state.currentUser.rol === "ADMIN_TI") {
@@ -39,15 +39,22 @@ export function actualizarDisplaysUsuario() {
   const saludoHub = document.getElementById("hub-saludo-bienvenida");
   if (saludoHub) saludoHub.innerText = `Bienvenido(a), ${primerNombre}`;
 
-  const uHub = document.getElementById("user-display-hub");
-  const rHub = document.getElementById("role-display-hub");
-  const uGantt = document.getElementById("user-display");
-  const rGantt = document.getElementById("role-display");
+  // Actualizar por ID y por clase en Hub y en Vista Proyecto (Gantt)
+  ["user-display-hub", "user-display", "gantt-user-nombre"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = userText;
+  });
+  document.querySelectorAll(".gantt-user-nombre, .hub-user-nombre").forEach(el => {
+    el.innerText = userText;
+  });
 
-  if (uHub) uHub.innerText = userText;
-  if (rHub) rHub.innerText = roleText;
-  if (uGantt) uGantt.innerText = userText;
-  if (rGantt) rGantt.innerText = roleText;
+  ["role-display-hub", "role-display", "gantt-user-rol"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = roleText;
+  });
+  document.querySelectorAll(".gantt-user-rol, .hub-user-rol").forEach(el => {
+    el.innerText = roleText;
+  });
 
   const esAdminTI = (state.currentUser.rol === "ADMIN_TI");
   const btnTI = document.getElementById("btn-admin-ti") || document.getElementById("btn-admin-ti-hub");
