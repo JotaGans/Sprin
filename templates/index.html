@@ -941,41 +941,18 @@
     </div>
   </main>
 
-  <!-- MODAL: CREACIÓN DE PROYECTO -->
-  <div id="modal-nuevo-proyecto" class="hidden fixed inset-0 bg-black/60 z-[75] flex items-center justify-center p-4 backdrop-blur-[1px]">
-    <div class="bg-[#f8f9fa] rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-300 flex flex-col max-h-[90vh]">
-      <div class="bg-[#0f2a4a] text-white p-4 flex justify-between items-center flex-shrink-0">
-        <div class="flex items-center space-x-2.5">
-          <span class="w-7 h-7 rounded-lg bg-teal-500/20 border border-teal-400/30 flex items-center justify-center text-teal-300">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-          </span>
-          <h3 class="font-black text-sm tracking-wide">Crear Nuevo Proyecto o Programa</h3>
-        </div>
-        <button onclick="cerrarModalNuevoProyecto()" class="text-white text-2xl font-bold hover:text-gray-300 leading-none cursor-pointer">&times;</button>
-      </div>
-
-      <div class="flex border-b border-gray-200 bg-gray-100 text-xs font-bold px-4 pt-2 space-x-2 flex-shrink-0">
-        <button id="np-tab-btn-blanco" onclick="cambiarTabNuevoProyecto('blanco')" class="px-4 py-2 rounded-t-lg bg-white text-[#0f2a4a] border-t border-l border-r border-gray-200 shadow-xs flex items-center space-x-1.5 font-bold cursor-pointer">
-          <svg class="w-3.5 h-3.5 text-teal-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-          </svg>
-          <span>Proyecto en Blanco</span>
-        </button>
-        <button id="np-tab-btn-plantilla" onclick="cambiarTabNuevoProyecto('plantilla')" class="px-4 py-2 rounded-t-lg text-gray-500 hover:text-[#0f2a4a] transition flex items-center space-x-1.5 font-bold cursor-pointer">
-          <svg class="w-3.5 h-3.5 text-teal-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
-          </svg>
-          <span>Desde Plantilla de proyecto</span>
-        </button>
-      </div>
-
+  <!-- TAB 1: PROYECTO EN BLANCO -->
       <div id="np-tab-content-blanco" class="p-6 space-y-4 overflow-y-auto flex-1 bg-[#f8f9fa]">
         <form onsubmit="guardarNuevoProyecto(event)" class="space-y-4">
           <div>
-            <label class="text-[11px] font-bold text-gray-600 uppercase">Nombre del Proyecto / Programa:</label>
-            <input type="text" id="input-nuevo-proy-nombre" maxlength="80" required placeholder="Ej. Sistema de Gestión Integrado (máx. 80 caracteres)" class="w-full mt-1 p-2.5 bg-white border border-gray-300 rounded-lg text-xs font-semibold outline-none focus:border-[#0f2a4a]">
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-[11px] font-bold text-gray-600 uppercase">Nombre del Proyecto / Programa:</label>
+              <span id="contador-nuevo-proy-blanco" class="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">0/80</span>
+            </div>
+            <input type="text" id="input-nuevo-proy-nombre" maxlength="80" required 
+                   oninput="actualizarContadorNuevoProy(this, 'contador-nuevo-proy-blanco')"
+                   placeholder="Ej. Sistema de Gestión Integrado (máx. 80 caracteres)" 
+                   class="w-full p-2.5 bg-white border border-gray-300 rounded-lg text-xs font-semibold outline-none focus:border-[#0f2a4a]">
           </div>
           <div class="relative">
             <label class="text-[11px] font-bold text-gray-600 uppercase">Unidad de Organización Responsable:</label>
@@ -1032,19 +1009,44 @@
         </form>
       </div>
 
+      <!-- TAB 2: DESDE PLANTILLA DE PROYECTO (COMBOBOX INTELIGENTE + CARACTERES + PROCESO SELLADO) -->
       <div id="np-tab-content-plantilla" class="hidden p-5 space-y-4 overflow-y-auto flex-1 bg-[#f8f9fa]">
-        <div class="bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs space-y-2">
+        
+        <!-- BLOQUE COMBOBOX INTELIGENTE DE PLANTILLAS -->
+        <div class="bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs space-y-1.5 relative">
           <label class="block font-bold text-gray-700 text-xs uppercase">Seleccione la plantilla base:</label>
-          <select id="np-select-plantilla" onchange="vincularProcesoDesdePlantillaSeleccionada()" class="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg font-bold text-[#0f2a4a] text-xs outline-none focus:bg-white focus:border-[#0f2a4a] cursor-pointer">
-            <option value="">-- Seleccione una plantilla --</option>
-          </select>
+          <div class="relative">
+            <div class="relative flex items-center">
+              <svg class="w-4 h-4 text-teal-600 absolute left-3 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              <input type="text" id="np-combobox-plantilla-busq" 
+                     oninput="filtrarComboboxPlantillas(this.value)"
+                     onfocus="mostrarDropdownPlantillas()"
+                     autocomplete="off"
+                     placeholder="Buscar por código de proceso o nombre de plantilla (ej. E1.3, PEI, Convenio)..."
+                     class="w-full pl-9 pr-8 py-2.5 bg-gray-50 border border-gray-300 rounded-lg font-bold text-[#0f2a4a] text-xs outline-none focus:bg-white focus:border-[#0f2a4a] transition">
+              <button type="button" onclick="limpiarComboboxPlantilla()" id="btn-limpiar-combobox-plantilla" class="hidden absolute right-2.5 text-gray-400 hover:text-gray-600 text-base font-bold cursor-pointer">&times;</button>
+            </div>
+            
+            <!-- Menú Flotante Dropdown de Coincidencias -->
+            <div id="sugerencias-plantilla-nuevo-proy" class="hidden absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-xl shadow-2xl mt-1 max-h-56 overflow-y-auto z-[99] text-xs divide-y divide-gray-100"></div>
+          </div>
+          <input type="hidden" id="np-select-plantilla">
         </div>
 
+        <!-- FORMULARIO DE DETALLE DEL PROYECTO CLONADO -->
         <div id="bloque-config-clonacion" class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-3">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <div class="sm:col-span-2">
-              <label class="block font-bold text-gray-600 mb-1">Nombre de su nuevo proyecto:</label>
-              <input type="text" id="np-input-clon-nombre" maxlength="80" required placeholder="Ej.: Implementación de la gestión por procesos" class="w-full p-2 border border-gray-300 rounded-lg font-bold text-[#0f2a4a] outline-none focus:border-[#0f2a4a]">
+              <div class="flex items-center justify-between mb-1">
+                <label class="block font-bold text-gray-600">Nombre de su nuevo proyecto:</label>
+                <span id="contador-nuevo-proy-clon" class="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">0/80</span>
+              </div>
+              <input type="text" id="np-input-clon-nombre" maxlength="80" required 
+                     oninput="actualizarContadorNuevoProy(this, 'contador-nuevo-proy-clon')"
+                     placeholder="Ej.: Implementación de la gestión por procesos" 
+                     class="w-full p-2 border border-gray-300 rounded-lg font-bold text-[#0f2a4a] outline-none focus:border-[#0f2a4a]">
             </div>
 
             <div class="relative">
@@ -1059,9 +1061,18 @@
               <input type="date" id="np-input-clon-fechaini" class="w-full p-2 border border-gray-300 rounded-lg font-bold text-teal-800 outline-none focus:border-[#0f2a4a]">
             </div>
 
+            <!-- PROCESO SELLADO (SOLO LECTURA) INSTITUCIONAL -->
             <div class="relative sm:col-span-2">
-              <label class="block font-bold text-gray-600 mb-1">Proceso o subproceso relacionado (autocompletado):</label>
-              <input type="text" id="np-busqueda-proceso" placeholder="Se completará según la plantilla elegida..." class="w-full p-2 bg-slate-50 border border-gray-300 rounded-lg font-bold text-teal-900 outline-none focus:border-[#0f2a4a]">
+              <div class="flex items-center justify-between mb-1">
+                <label class="block font-bold text-gray-600">Proceso o subproceso relacionado (autocompletado):</label>
+                <span class="text-[10px] text-teal-700 font-semibold flex items-center gap-1">
+                  <svg class="w-3 h-3 text-teal-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
+                  Establecido por la plantilla
+                </span>
+              </div>
+              <input type="text" id="np-busqueda-proceso" readonly 
+                     placeholder="Se completará según la plantilla elegida..." 
+                     class="w-full p-2 bg-slate-100 border border-slate-300 rounded-lg font-bold text-slate-700 cursor-not-allowed select-none outline-none">
               <input type="hidden" id="input-nuevo-proy-proceso">
             </div>
 

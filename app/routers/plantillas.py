@@ -39,10 +39,10 @@ def listar_plantillas(
 
     es_admin = (user.get("rol") == "ADMIN_TI")
 
+    # Deduplicación nativa por (nombre, categoria): Agrupa registros repetidos seleccionando el ID más bajo o con mayor cantidad de actividades
     if es_admin and modo_admin == 1:
-        # Vista completa para el panel de Gestión TI
         filas = db.execute("""
-            SELECT p.id, p.nombre, p.descripcion, p.categoria, p.creador_id,
+            SELECT MIN(p.id) AS id, p.nombre, p.descripcion, p.categoria, p.creador_id,
                    COALESCE(p.es_oficial, 1) AS es_oficial,
                    COALESCE(u.nombre_completo, u.username, 'Sistema IMARPE') AS creador_nombre,
                    COUNT(pa.id) AS total_actividades,
@@ -50,13 +50,12 @@ def listar_plantillas(
             FROM plantillas p
             LEFT JOIN usuarios u ON p.creador_id = u.id
             LEFT JOIN plantillas_actividades pa ON p.id = pa.plantilla_id
-            GROUP BY p.id
+            GROUP BY LOWER(TRIM(p.nombre)), LOWER(TRIM(COALESCE(p.categoria, 'General')))
             ORDER BY COALESCE(p.es_oficial, 1) DESC, p.categoria ASC, p.nombre ASC
         """).fetchall()
     else:
-        # Vista operativa: oficiales del IMARPE + personales del propio usuario conectado
         filas = db.execute("""
-            SELECT p.id, p.nombre, p.descripcion, p.categoria, p.creador_id,
+            SELECT MIN(p.id) AS id, p.nombre, p.descripcion, p.categoria, p.creador_id,
                    COALESCE(p.es_oficial, 1) AS es_oficial,
                    COALESCE(u.nombre_completo, u.username, 'Sistema IMARPE') AS creador_nombre,
                    COUNT(pa.id) AS total_actividades,
@@ -65,7 +64,7 @@ def listar_plantillas(
             LEFT JOIN usuarios u ON p.creador_id = u.id
             LEFT JOIN plantillas_actividades pa ON p.id = pa.plantilla_id
             WHERE COALESCE(p.es_oficial, 1) = 1 OR p.creador_id = ?
-            GROUP BY p.id
+            GROUP BY LOWER(TRIM(p.nombre)), LOWER(TRIM(COALESCE(p.categoria, 'General')))
             ORDER BY COALESCE(p.es_oficial, 1) DESC, p.categoria ASC, p.nombre ASC
         """, (user["id"],)).fetchall()
 
@@ -477,3 +476,38 @@ def aplicar_plantilla_en_proyecto_existente(
 
     db.commit()
     return {"status": "success", "mensaje": "Plantilla importada exitosamente en el proyecto."}
+
+# 9. Limpieza de duplicados redundantes en plantillas maestras
+@router.post("/plantillas/deduplicar-base-datos")
+def deduplicar_plantillas_base_datos(
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    if user.get("rol") != "ADMIN_TI":
+        raise HTTPException(status_code=403, detail="Acceso denegado: solo Admin TI.")
+
+    grupos_duplicados = db.execute("""
+        SELECT LOWER(TRIM(nombre)) as nom, LOWER(TRIM(COALESCE(categoria, 'General'))) as cat, COUNT(*) as cant
+        FROM plantillas
+        GROUP BY LOWER(TRIM(nombre)), LOWER(TRIM(COALESCE(categoria, 'General')))
+        HAVING COUNT(*) > 1
+    """).fetchall()
+
+    total_purgados = 0
+    for g in grupos_duplicados:
+        items = db.execute("""
+            SELECT id FROM plantillas 
+            WHERE LOWER(TRIM(nombre)) = ? AND LOWER(TRIM(COALESCE(categoria, 'General'))) = ?
+            ORDER BY id ASC
+        """, (g["nom"], g["cat"])).fetchall()
+
+        if len(items) > 1:
+            id_maestro = items[0]["id"]
+            ids_borrar = [r["id"] for r in items[1:]]
+            for id_del in ids_borrar:
+                db.execute("DELETE FROM plantillas_actividades WHERE plantilla_id = ?", (id_del,))
+                db.execute("DELETE FROM plantillas WHERE id = ?", (id_del,))
+                total_purgados += 1
+
+    db.commit()
+    return {"status": "success", "mensaje": f"Se purgaron {total_purgados} plantillas redundantes.", "purgados": total_purgados}

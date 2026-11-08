@@ -2067,9 +2067,6 @@ export async function cambiarTabNuevoProyecto(tab) {
 }
 
 export async function cargarPlantillasModalNuevoProyecto() {
-  const sel = document.getElementById("np-select-plantilla");
-  if (!sel) return;
-
   try {
     const res = await apiFetch("/plantillas");
     if (!res.ok) throw new Error("Error al consultar plantillas");
@@ -2077,67 +2074,189 @@ export async function cargarPlantillasModalNuevoProyecto() {
     state.catalogoPlantillasGlobal = plantillas;
     window.catalogoPlantillasCache = plantillas;
 
-    const oficiales = plantillas.filter(p => p.es_oficial === 1);
-    const personales = plantillas.filter(p => p.es_oficial === 0);
+    // Si ya había una seleccionada la mantiene; si no, selecciona la primera por defecto
+    const idActual = parseInt(document.getElementById("np-select-plantilla")?.value, 10);
+    const plantInicial = plantillas.find(p => p.id === idActual) || plantillas[0];
 
-    let html = `<option value="">-- Seleccione una plantilla --</option>`;
-
-    if (personales.length > 0) {
-      html += `<optgroup label="👤 MIS PLANTILLAS PERSONALES (visibles solo para mí)">`;
-      personales.forEach(p => {
-        const num = (p.actividades || []).length;
-        html += `<option value="${p.id}">⭐ ${p.nombre} (${num} tareas)</option>`;
-      });
-      html += `</optgroup>`;
-    }
-
-    if (oficiales.length > 0) {
-      html += `<optgroup label="🏛️ PLANTILLAS OFICIALES IMARPE (${oficiales.length} disponibles)">`;
-      oficiales.forEach(p => {
-        const num = (p.actividades || []).length;
-        const codCorto = (p.categoria && p.categoria.includes(" - ")) ? `[${p.categoria.split(" - ")[0]}] ` : "";
-        html += `<option value="${p.id}">${codCorto}${p.nombre} (${num} tareas)</option>`;
-      });
-      html += `</optgroup>`;
-    }
-
-    sel.innerHTML = html;
-
-    if (plantillas.length > 0) {
-      sel.value = String(plantillas[0].id);
-      vincularProcesoDesdePlantillaSeleccionada();
+    if (plantInicial) {
+      seleccionarPlantillaCombobox(plantInicial.id);
     }
   } catch (e) {
     console.error("Error cargando plantillas:", e);
   }
 }
 
-export function vincularProcesoDesdePlantillaSeleccionada() {
-  const selPlant = document.getElementById("np-select-plantilla");
-  if (!selPlant) return;
-  const pId = parseInt(selPlant.value, 10);
-  if (!pId) return;
+export function normalizarBusqueda(str) {
+  return String(str || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
 
-  const listaPlantillas = window.catalogoPlantillasCache || state.catalogoPlantillasGlobal || [];
-  const plant = listaPlantillas.find(x => x.id === pId);
+export function mostrarDropdownPlantillas() {
+  const q = document.getElementById("np-combobox-plantilla-busq")?.value || "";
+  filtrarComboboxPlantillas(q);
+}
+
+export function filtrarComboboxPlantillas(termino) {
+  const divSug = document.getElementById("sugerencias-plantilla-nuevo-proy");
+  const btnLimpiar = document.getElementById("btn-limpiar-combobox-plantilla");
+  if (!divSug) return;
+
+  const q = normalizarBusqueda(termino);
+  if (btnLimpiar) btnLimpiar.classList.toggle("hidden", !termino.trim());
+
+  const lista = window.catalogoPlantillasCache || state.catalogoPlantillasGlobal || [];
+  if (lista.length === 0) {
+    divSug.innerHTML = `<div class="p-3 text-slate-400 italic text-center">No hay plantillas cargadas.</div>`;
+    divSug.classList.remove("hidden");
+    return;
+  }
+
+  const palabras = q.split(/\s+/).filter(Boolean);
+  const filtradas = lista.filter(p => {
+    if (palabras.length === 0) return true;
+    const cat = p.categoria || "General";
+    const textoCompuesto = normalizarBusqueda(`${p.nombre} ${cat} ${p.descripcion || ''}`);
+    return palabras.every(pal => textoCompuesto.includes(pal));
+  });
+
+  if (filtradas.length === 0) {
+    divSug.innerHTML = `<div class="p-3 text-slate-400 italic text-center">Sin coincidencias para "${termino}"</div>`;
+    divSug.classList.remove("hidden");
+    return;
+  }
+
+  const oficiales = filtradas.filter(p => p.es_oficial === 1);
+  const personales = filtradas.filter(p => p.es_oficial === 0);
+
+  let html = "";
+  if (personales.length > 0) {
+    html += `<div class="px-3 py-1.5 text-[10px] font-black uppercase text-indigo-700 bg-indigo-50/70 tracking-wider">👤 Plantillas Personales (${personales.length})</div>`;
+    personales.forEach(p => {
+      const num = (p.actividades || []).length;
+      html += `
+        <div onclick="seleccionarPlantillaCombobox(${p.id})" class="p-2.5 hover:bg-teal-50 cursor-pointer flex items-center justify-between transition">
+          <div class="min-w-0 pr-2">
+            <span class="font-bold text-[#0f2a4a] text-xs block leading-tight">⭐ ${p.nombre}</span>
+            <span class="text-[10px] text-slate-400 block truncate mt-0.5">${p.descripcion || 'Sin descripción'}</span>
+          </div>
+          <span class="text-[10px] font-black bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 flex-shrink-0">${num} tareas</span>
+        </div>
+      `;
+    });
+  }
+
+  if (oficiales.length > 0) {
+    html += `<div class="px-3 py-1.5 text-[10px] font-black uppercase text-teal-800 bg-teal-50/70 tracking-wider">🏛️ Plantillas Oficiales IMARPE (${oficiales.length})</div>`;
+    oficiales.forEach(p => {
+      const num = (p.actividades || []).length;
+      const tieneCod = p.categoria && p.categoria.includes(" - ");
+      const codBadge = tieneCod ? `<span class="bg-teal-100 text-teal-900 border border-teal-200 px-1.5 py-0.2 rounded text-[9.5px] font-black mr-1">[${p.categoria.split(" - ")[0]}]</span>` : '';
+      html += `
+        <div onclick="seleccionarPlantillaCombobox(${p.id})" class="p-2.5 hover:bg-teal-50 cursor-pointer flex items-center justify-between transition">
+          <div class="min-w-0 pr-2">
+            <div class="font-bold text-[#0f2a4a] text-xs leading-tight flex items-center flex-wrap gap-1">
+              ${codBadge}
+              <span>${p.nombre}</span>
+            </div>
+            <span class="text-[10px] text-slate-400 block truncate mt-0.5">${p.categoria || 'General'}</span>
+          </div>
+          <span class="text-[10px] font-black bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 flex-shrink-0">${num} tareas</span>
+        </div>
+      `;
+    });
+  }
+
+  divSug.innerHTML = html;
+  divSug.classList.remove("hidden");
+}
+
+export function seleccionarPlantillaCombobox(plantillaId) {
+  const lista = window.catalogoPlantillasCache || state.catalogoPlantillasGlobal || [];
+  const plant = lista.find(p => p.id === plantillaId);
   if (!plant) return;
 
+  const inpHidden = document.getElementById("np-select-plantilla");
+  const inpBusq = document.getElementById("np-combobox-plantilla-busq");
+  const divSug = document.getElementById("sugerencias-plantilla-nuevo-proy");
+  const btnLimpiar = document.getElementById("btn-limpiar-combobox-plantilla");
+
+  const num = (plant.actividades || []).length;
+  const tieneCod = plant.categoria && plant.categoria.includes(" - ");
+  const codTxt = tieneCod ? `[${plant.categoria.split(" - ")[0]}] ` : "";
+
+  if (inpHidden) inpHidden.value = plant.id;
+  if (inpBusq) inpBusq.value = `${codTxt}${plant.nombre} (${num} tareas)`;
+  if (divSug) divSug.classList.add("hidden");
+  if (btnLimpiar) btnLimpiar.classList.remove("hidden");
+
+  // Rellenar campos del formulario
   const procVal = (plant.categoria && plant.categoria !== "General") ? plant.categoria : "";
   const inpProcOculto = document.getElementById("input-nuevo-proy-proceso");
   const inpBusqProc = document.getElementById("np-busqueda-proceso");
 
   if (inpProcOculto) inpProcOculto.value = procVal;
-  if (inpBusqProc) inpBusqProc.value = procVal;
+  if (inpBusqProc) inpBusqProc.value = procVal ? procVal : "Sin proceso específico (General)";
 
   const inpDescClon = document.getElementById("np-input-clon-desc");
   if (inpDescClon && plant.descripcion) inpDescClon.value = plant.descripcion;
 
   const inpNomClon = document.getElementById("np-input-clon-nombre");
-  if (inpNomClon) inpNomClon.value = (plant.nombre || "").substring(0, 80);
+  if (inpNomClon) {
+    inpNomClon.value = (plant.nombre || "").substring(0, 80);
+    actualizarContadorNuevoProy(inpNomClon, "contador-nuevo-proy-clon");
+  }
 
   const inpFechaIni = document.getElementById("np-input-clon-fechaini");
   if (inpFechaIni && !inpFechaIni.value) {
     inpFechaIni.value = new Date().toISOString().split("T")[0];
+  }
+}
+
+export function limpiarComboboxPlantilla() {
+  const inpHidden = document.getElementById("np-select-plantilla");
+  const inpBusq = document.getElementById("np-combobox-plantilla-busq");
+  const btnLimpiar = document.getElementById("btn-limpiar-combobox-plantilla");
+
+  if (inpHidden) inpHidden.value = "";
+  if (inpBusq) {
+    inpBusq.value = "";
+    inpBusq.focus();
+  }
+  if (btnLimpiar) btnLimpiar.classList.add("hidden");
+
+  const inpProcOculto = document.getElementById("input-nuevo-proy-proceso");
+  const inpBusqProc = document.getElementById("np-busqueda-proceso");
+  if (inpProcOculto) inpProcOculto.value = "";
+  if (inpBusqProc) inpBusqProc.value = "";
+
+  mostrarDropdownPlantillas();
+}
+
+// Cierre al hacer clic fuera del dropdown
+if (typeof window !== "undefined") {
+  window.addEventListener("click", (e) => {
+    if (!e.target.closest("#np-combobox-plantilla-busq") && !e.target.closest("#sugerencias-plantilla-nuevo-proy")) {
+      document.getElementById("sugerencias-plantilla-nuevo-proy")?.classList.add("hidden");
+    }
+  });
+}
+
+// Contador dinámico de caracteres con feedback cromático estilo SPRIN
+export function actualizarContadorNuevoProy(inputEl, idContador) {
+  const lbl = document.getElementById(idContador);
+  if (!lbl || !inputEl) return;
+  const cant = (inputEl.value || "").length;
+  lbl.innerText = `${cant}/80`;
+
+  if (cant >= 80) {
+    lbl.className = "text-[10px] font-black text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-300";
+  } else if (cant >= 70) {
+    lbl.className = "text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-300";
+  } else {
+    lbl.className = "text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200";
   }
 }
 
@@ -2721,3 +2840,8 @@ window.restablecerBloquesHub = restablecerBloquesHub;
 window.mostrarTooltipProyectoAlertasHub = mostrarTooltipProyectoAlertasHub;
 window.mostrarTooltipDescripcionHub = mostrarTooltipDescripcionHub;
 window.volverArribaHubSuave = volverArribaHubSuave;
+window.filtrarComboboxPlantillas = filtrarComboboxPlantillas;
+window.mostrarDropdownPlantillas = mostrarDropdownPlantillas;
+window.seleccionarPlantillaCombobox = seleccionarPlantillaCombobox;
+window.limpiarComboboxPlantilla = limpiarComboboxPlantilla;
+window.actualizarContadorNuevoProy = actualizarContadorNuevoProy;
