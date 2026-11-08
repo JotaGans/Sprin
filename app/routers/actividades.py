@@ -19,7 +19,8 @@ router = APIRouter(tags=["Actividades y WBS"])
 
 # 1. Funciones auxiliares de orden natural, calendario laboral y permisos jerárquicos ROF
 def clave_orden_natural_wbs(row_dict):
-    cod_limpio = str(row_dict.get("codigo", "")).rstrip(".")
+    raw_cod = row_dict["codigo"] if "codigo" in row_dict.keys() else ""
+    cod_limpio = str(raw_cod or "").rstrip(".")
     partes = []
     for p in cod_limpio.split("."):
         if p.isdigit():
@@ -112,17 +113,20 @@ def sincronizar_codigos_comentarios_por_mapeo(proyecto_id: int, mapeo_codigos: d
     """Mantiene los comentarios amarrados a su actividad cuando los códigos WBS se renumeran."""
     if not mapeo_codigos:
         return
-    coms = db.execute("""
-        SELECT id, codigo_actividad FROM comentarios_actividad WHERE proyecto_id = ?
-    """, (proyecto_id,)).fetchall()
-    for c in coms:
-        cod_ant = str(c["codigo_actividad"] or "").strip().rstrip(".")
-        if cod_ant in mapeo_codigos:
-            nuevo_cod = mapeo_codigos[cod_ant]
-            if nuevo_cod != cod_ant:
-                db.execute("""
-                    UPDATE comentarios_actividad SET codigo_actividad = ? WHERE id = ?
-                """, (nuevo_cod, c["id"]))
+    try:
+        coms = db.execute("""
+            SELECT id, codigo_actividad FROM comentarios_actividad WHERE proyecto_id = ?
+        """, (proyecto_id,)).fetchall()
+        for c in coms:
+            cod_ant = str(c["codigo_actividad"] or "").strip().rstrip(".")
+            if cod_ant in mapeo_codigos:
+                nuevo_cod = mapeo_codigos[cod_ant]
+                if nuevo_cod != cod_ant:
+                    db.execute("""
+                        UPDATE comentarios_actividad SET codigo_actividad = ? WHERE id = ?
+                    """, (nuevo_cod, c["id"]))
+    except Exception:
+        pass
 
 def reestructurar_codigos_wbs(proyecto_id: int, db: sqlite3.Connection, lista_ordenada_manual: Optional[List[dict]] = None):
     if lista_ordenada_manual is not None:
@@ -336,30 +340,37 @@ def eliminar_actividad(
     if not usuario_tiene_permiso_gestor_proyecto(db, proyecto_id, user):
         raise HTTPException(status_code=403, detail="Solo un Gestor del Proyecto puede eliminar actividades.")
 
-    cod_limpio = str(codigo).strip().rstrip(".")
-    
-    # 1. Eliminar los comentarios amarrados a la actividad eliminada (y a sus subactividades hijas si tenía)
-    db.execute("""
-        DELETE FROM comentarios_actividad
-        WHERE proyecto_id = ? AND (codigo_actividad = ? OR codigo_actividad = ? OR codigo_actividad LIKE ?)
-    """, (proyecto_id, cod_limpio, f"{cod_limpio}.", f"{cod_limpio}.%"))
+    try:
+        cod_limpio = str(codigo).strip().rstrip(".")
+        
+        # 1. Eliminar los comentarios amarrados a la actividad eliminada (y a sus subactividades hijas si tenía)
+        try:
+            db.execute("""
+                DELETE FROM comentarios_actividad
+                WHERE proyecto_id = ? AND (codigo_actividad = ? OR codigo_actividad = ? OR codigo_actividad LIKE ?)
+            """, (proyecto_id, cod_limpio, f"{cod_limpio}.", f"{cod_limpio}.%"))
+        except Exception:
+            pass
 
-    # 2. Eliminar la actividad y sus subactividades en cascada
-    db.execute("""
-        DELETE FROM actividades 
-        WHERE proyecto_id = ? AND (codigo = ? OR codigo = ? OR codigo LIKE ?)
-    """, (proyecto_id, cod_limpio, f"{cod_limpio}.", f"{cod_limpio}.%"))
-    
-    # 3. Reestructurar códigos WBS y renumerar simultáneamente los comentarios de las actividades restantes
-    reestructurar_codigos_wbs(proyecto_id, db)
+        # 2. Eliminar la actividad y sus subactividades en cascada
+        db.execute("""
+            DELETE FROM actividades 
+            WHERE proyecto_id = ? AND (codigo = ? OR codigo = ? OR codigo LIKE ?)
+        """, (proyecto_id, cod_limpio, f"{cod_limpio}.", f"{cod_limpio}.%"))
+        
+        # 3. Reestructurar códigos WBS y renumerar simultáneamente los comentarios de las actividades restantes
+        reestructurar_codigos_wbs(proyecto_id, db)
 
-    db.execute("""
-        INSERT INTO historial (proyecto_id, timestamp, usuario, accion, detalle) 
-        VALUES (?, ?, ?, 'Eliminación Actividad', ?)
-    """, (proyecto_id, ahora_peru_str(), user["username"], f"Eliminó [{cod_limpio}] (con sus comentarios asociados) y reestructuró correlativamente el WBS"))
-    
-    db.commit()
-    return {"mensaje": "Actividad eliminada y jerarquía reestructurada correlativamente"}
+        db.execute("""
+            INSERT INTO historial (proyecto_id, timestamp, usuario, accion, detalle) 
+            VALUES (?, ?, ?, 'Eliminación Actividad', ?)
+        """, (proyecto_id, ahora_peru_str(), user["username"], f"Eliminó [{cod_limpio}] (con sus comentarios asociados) y reestructuró correlativamente el WBS"))
+        
+        db.commit()
+        return {"mensaje": "Actividad eliminada y jerarquía reestructurada correlativamente"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al eliminar actividad: {str(e)}")
 
 # 5. Reorganizar actividades mediante Drag and Drop
 @router.put("/proyectos/{proyecto_id}/reordenar-actividades")

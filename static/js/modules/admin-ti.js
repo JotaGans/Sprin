@@ -446,12 +446,31 @@ export async function cargarCatalogoUnidades() {
         }
       });
 
+      const usandoCatalogoTrabajadores = Boolean(state.catalogoTrabajadoresGlobal && state.catalogoTrabajadoresGlobal.length > 0);
       let opcionesTitular = '<option value="">(Sin titular asignado)</option>';
+      let yaSeleccionoTitular = false;
+
       listaPersonas.forEach(p => {
-        const pId = p.id;
-        const pNombre = p.nombre_completo || p.username;
+        const pId = Number(p.id);
+        const pNombre = (p.nombre_completo || p.username || "").trim();
         const pCargo = p.cargo ? ` - ${p.cargo}` : '';
-        const estaAsignado = (u.titular_trabajador_id === pId || u.titular_usuario_id === pId);
+
+        let estaAsignado = false;
+        if (!yaSeleccionoTitular) {
+          if (usandoCatalogoTrabajadores) {
+            if (u.titular_trabajador_id && Number(u.titular_trabajador_id) === pId) {
+              estaAsignado = true;
+            } else if (!u.titular_trabajador_id && u.titular_nombre && pNombre.toLowerCase() === String(u.titular_nombre).trim().toLowerCase()) {
+              estaAsignado = true;
+            }
+          } else {
+            if (u.titular_usuario_id && Number(u.titular_usuario_id) === pId) {
+              estaAsignado = true;
+            }
+          }
+        }
+        if (estaAsignado) yaSeleccionoTitular = true;
+
         opcionesTitular += `<option value="${pId}" ${estaAsignado ? 'selected' : ''}>${pNombre}${pCargo}</option>`;
       });
 
