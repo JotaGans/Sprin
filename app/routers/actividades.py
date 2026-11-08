@@ -17,7 +17,7 @@ from app.models.schemas import (
 
 router = APIRouter(tags=["Actividades y WBS"])
 
-# 1. Funciones auxiliares de orden natural y calendario laboral
+# 1. Funciones auxiliares de orden natural, calendario laboral y permisos jerárquicos ROF
 def clave_orden_natural_wbs(row_dict):
     cod_limpio = str(row_dict.get("codigo", "")).rstrip(".")
     partes = []
@@ -50,6 +50,79 @@ def calcular_fecha_fin_habil(fecha_ini_date: datetime.date, dias_habiles: int, f
         if es_dia_laborable(cur, feriados_set):
             contados += 1
     return cur
+
+def usuario_tiene_permiso_gestor_proyecto(db: sqlite3.Connection, proyecto_id: int, user: dict) -> bool:
+    """Verifica si el usuario es ADMIN_TI, creador, gestor en proyecto_usuarios o Titular ROF de la unidad del proyecto (o de su órgano superior)."""
+    if user.get("rol") == "ADMIN_TI":
+        return True
+
+    uid = user.get("id")
+    uname = (user.get("username") or "").strip().lower()
+    unombre = (user.get("nombre_completo") or "").strip().lower()
+
+    directo = db.execute("""
+        SELECT p.unidad_organica,
+               CASE WHEN (p.creador_id = ? OR pu.es_gestor = 1 OR pu.permiso = 'GESTOR') THEN 1 ELSE 0 END as es_gestor_directo
+        FROM proyectos p
+        LEFT JOIN proyecto_usuarios pu ON p.id = pu.proyecto_id AND pu.usuario_id = ?
+        WHERE p.id = ?
+    """, (uid, uid, proyecto_id)).fetchone()
+
+    if not directo:
+        return False
+    if directo["es_gestor_directo"] == 1:
+        return True
+
+    uo_proy = (directo["unidad_organica"] or "").strip().upper()
+    if not uo_proy:
+        return False
+
+    try:
+        uos = db.execute("""
+            SELECT uo.sigla, COALESCE(uo.sigla_padre, '') as sigla_padre,
+                   uo.titular_usuario_id, uo.titular_trabajador_id,
+                   COALESCE(t.nombre_completo, u.nombre_completo, '') as titular_nombre,
+                   COALESCE(u.username, '') as titular_username
+            FROM unidades_organicas uo
+            LEFT JOIN trabajadores t ON uo.titular_trabajador_id = t.id
+            LEFT JOIN usuarios u ON uo.titular_usuario_id = u.id
+            WHERE uo.estado = 'ACTIVO' OR uo.estado IS NULL
+        """).fetchall()
+
+        mapa_uo = {str(r["sigla"]).strip().upper(): dict(r) for r in uos if r["sigla"]}
+        actual_sigla = uo_proy
+        visitados = set()
+
+        while actual_sigla and actual_sigla in mapa_uo and actual_sigla not in visitados:
+            visitados.add(actual_sigla)
+            info = mapa_uo[actual_sigla]
+            if uid and info.get("titular_usuario_id") == uid:
+                return True
+            t_nom = (info.get("titular_nombre") or "").strip().lower()
+            t_usr = (info.get("titular_username") or "").strip().lower()
+            if (unombre and t_nom and unombre == t_nom) or (uname and t_usr and uname == t_usr):
+                return True
+            actual_sigla = (info.get("sigla_padre") or "").strip().upper()
+    except Exception:
+        pass
+
+    return False
+
+def sincronizar_codigos_comentarios_por_mapeo(proyecto_id: int, mapeo_codigos: dict, db: sqlite3.Connection):
+    """Mantiene los comentarios amarrados a su actividad cuando los códigos WBS se renumeran."""
+    if not mapeo_codigos:
+        return
+    coms = db.execute("""
+        SELECT id, codigo_actividad FROM comentarios_actividad WHERE proyecto_id = ?
+    """, (proyecto_id,)).fetchall()
+    for c in coms:
+        cod_ant = str(c["codigo_actividad"] or "").strip().rstrip(".")
+        if cod_ant in mapeo_codigos:
+            nuevo_cod = mapeo_codigos[cod_ant]
+            if nuevo_cod != cod_ant:
+                db.execute("""
+                    UPDATE comentarios_actividad SET codigo_actividad = ? WHERE id = ?
+                """, (nuevo_cod, c["id"]))
 
 def reestructurar_codigos_wbs(proyecto_id: int, db: sqlite3.Connection, lista_ordenada_manual: Optional[List[dict]] = None):
     if lista_ordenada_manual is not None:
@@ -120,6 +193,9 @@ def reestructurar_codigos_wbs(proyecto_id: int, db: sqlite3.Connection, lista_or
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, actividades_renumeradas)
 
+    # Sincronizar los códigos de actividad en los comentarios para que sigan a su actividad
+    sincronizar_codigos_comentarios_por_mapeo(proyecto_id, mapeo_nuevos_codigos, db)
+
 # 2. Obtener actividades de un proyecto ordenadas por WBS
 @router.get("/proyectos/{proyecto_id}/actividades")
 def obtener_actividades_proyecto(proyecto_id: int, user: dict = Depends(get_current_user), db: sqlite3.Connection = Depends(get_db)):
@@ -159,13 +235,7 @@ def guardar_actividad(act: ActividadModel, user: dict = Depends(get_current_user
             except Exception:
                 pass
 
-        es_gestor = db.execute("""
-            SELECT 1 FROM proyectos p 
-            LEFT JOIN proyecto_usuarios pu ON p.id = pu.proyecto_id AND pu.usuario_id = ?
-            WHERE p.id = ? AND (p.creador_id = ? OR pu.es_gestor = 1 OR pu.permiso = 'GESTOR')
-        """, (user["id"], p_id, user["id"])).fetchone()
-
-        es_admin_o_gestor = bool(es_gestor or user.get("rol") == "ADMIN_TI")
+        es_admin_o_gestor = usuario_tiene_permiso_gestor_proyecto(db, p_id, user)
 
         existe = db.execute("""
             SELECT * FROM actividades 
@@ -227,7 +297,6 @@ def guardar_actividad(act: ActividadModel, user: dict = Depends(get_current_user
                     WHERE proyecto_id = ? AND (codigo = ? OR codigo = ?)
                 """, (est, av, p_id, cod, f"{cod}."))
 
-            # Solo registrar en el historial de auditoría si hubo un cambio real en algún campo
             if cambios:
                 detalle_cambio = f"[{cod}] {desc[:38]} — " + " | ".join(cambios)
                 db.execute("""
@@ -256,7 +325,7 @@ def guardar_actividad(act: ActividadModel, user: dict = Depends(get_current_user
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error en base de datos: {str(e)}")
 
-# 4. Eliminar actividad y renumerar WBS
+# 4. Eliminar actividad, eliminar sus comentarios amarrados en cascada y renumerar WBS
 @router.delete("/proyectos/{proyecto_id}/actividades/{codigo}")
 def eliminar_actividad(
     proyecto_id: int, 
@@ -264,28 +333,30 @@ def eliminar_actividad(
     user: dict = Depends(get_current_user), 
     db: sqlite3.Connection = Depends(get_db)
 ):
-    es_gestor = db.execute("""
-        SELECT 1 FROM proyectos p 
-        LEFT JOIN proyecto_usuarios pu ON p.id = pu.proyecto_id AND pu.usuario_id = ?
-        WHERE p.id = ? AND (p.creador_id = ? OR pu.es_gestor = 1 OR pu.permiso = 'GESTOR')
-    """, (user["id"], proyecto_id, user["id"])).fetchone()
-
-    if not es_gestor and user.get("rol") != "ADMIN_TI":
+    if not usuario_tiene_permiso_gestor_proyecto(db, proyecto_id, user):
         raise HTTPException(status_code=403, detail="Solo un Gestor del Proyecto puede eliminar actividades.")
 
-    cod_limpio = codigo.rstrip(".")
+    cod_limpio = str(codigo).strip().rstrip(".")
     
+    # 1. Eliminar los comentarios amarrados a la actividad eliminada (y a sus subactividades hijas si tenía)
+    db.execute("""
+        DELETE FROM comentarios_actividad
+        WHERE proyecto_id = ? AND (codigo_actividad = ? OR codigo_actividad = ? OR codigo_actividad LIKE ?)
+    """, (proyecto_id, cod_limpio, f"{cod_limpio}.", f"{cod_limpio}.%"))
+
+    # 2. Eliminar la actividad y sus subactividades en cascada
     db.execute("""
         DELETE FROM actividades 
         WHERE proyecto_id = ? AND (codigo = ? OR codigo = ? OR codigo LIKE ?)
     """, (proyecto_id, cod_limpio, f"{cod_limpio}.", f"{cod_limpio}.%"))
     
+    # 3. Reestructurar códigos WBS y renumerar simultáneamente los comentarios de las actividades restantes
     reestructurar_codigos_wbs(proyecto_id, db)
 
     db.execute("""
         INSERT INTO historial (proyecto_id, timestamp, usuario, accion, detalle) 
         VALUES (?, ?, ?, 'Eliminación Actividad', ?)
-    """, (proyecto_id, ahora_peru_str(), user["username"], f"Eliminó [{codigo}] y reestructuró correlativamente el WBS"))
+    """, (proyecto_id, ahora_peru_str(), user["username"], f"Eliminó [{cod_limpio}] (con sus comentarios asociados) y reestructuró correlativamente el WBS"))
     
     db.commit()
     return {"mensaje": "Actividad eliminada y jerarquía reestructurada correlativamente"}
@@ -298,13 +369,7 @@ def reordenar_actividades_proyecto(
     user: dict = Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db)
 ):
-    es_gestor = db.execute("""
-        SELECT 1 FROM proyectos p 
-        LEFT JOIN proyecto_usuarios pu ON p.id = pu.proyecto_id AND pu.usuario_id = ?
-        WHERE p.id = ? AND (p.creador_id = ? OR pu.es_gestor = 1 OR pu.permiso = 'GESTOR')
-    """, (user["id"], proyecto_id, user["id"])).fetchone()
-
-    if not es_gestor and user.get("rol") != "ADMIN_TI":
+    if not usuario_tiene_permiso_gestor_proyecto(db, proyecto_id, user):
         raise HTTPException(status_code=403, detail="Solo un Gestor del Proyecto puede reorganizar actividades.")
 
     rows = db.execute("SELECT * FROM actividades WHERE proyecto_id = ?", (proyecto_id,)).fetchall()
@@ -414,6 +479,9 @@ def reordenar_actividades_proyecto(
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, actividades_finales_db)
 
+    # Sincronizar comentarios con los nuevos códigos WBS tras el Drag & Drop
+    sincronizar_codigos_comentarios_por_mapeo(proyecto_id, mapeo_codigos, db)
+
     db.execute("""
         INSERT INTO historial (proyecto_id, timestamp, usuario, accion, detalle) 
         VALUES (?, ?, ?, 'Reorganización WBS', ?)
@@ -430,6 +498,9 @@ def actualizar_responsable_actividad(
     db: sqlite3.Connection = Depends(get_db)
 ):
     p_id = int(data.proyecto_id)
+    if not usuario_tiene_permiso_gestor_proyecto(db, p_id, user):
+        raise HTTPException(status_code=403, detail="Solo un Gestor del Proyecto puede asignar responsables.")
+
     cod_limpio = str(data.codigo).strip().rstrip(".")
     resp_limpio = str(data.responsable or "No asignado").strip()
     
@@ -545,15 +616,9 @@ def eliminar_comentario(comentario_id: int, user: dict = Depends(get_current_use
         raise HTTPException(status_code=404, detail="Comentario no encontrado.")
 
     es_autor = (row["usuario_id"] == user["id"])
-    es_admin = (user.get("rol") == "ADMIN_TI")
-    
-    es_gestor = db.execute("""
-        SELECT 1 FROM proyectos p
-        LEFT JOIN proyecto_usuarios pu ON p.id = pu.proyecto_id AND pu.usuario_id = ?
-        WHERE p.id = ? AND (p.creador_id = ? OR pu.es_gestor = 1 OR pu.permiso = 'GESTOR')
-    """, (user["id"], row["proyecto_id"], user["id"])).fetchone()
+    es_admin_o_gestor = usuario_tiene_permiso_gestor_proyecto(db, int(row["proyecto_id"]), user)
 
-    if not (es_autor or es_admin or es_gestor):
+    if not (es_autor or es_admin_o_gestor):
         raise HTTPException(status_code=403, detail="No tiene permisos para eliminar este comentario.")
 
     db.execute("DELETE FROM comentarios_actividad WHERE id = ?", (int(comentario_id),))
@@ -561,7 +626,7 @@ def eliminar_comentario(comentario_id: int, user: dict = Depends(get_current_use
 
     return {"status": "success", "message": "Comentario eliminado."}
 
-    # 8. Creación Masiva por Lote (Pegado Inteligente desde Excel / Word)
+# 8. Creación Masiva por Lote (Pegado Inteligente desde Excel / Word)
 @router.post("/proyectos/{proyecto_id}/actividades-lote")
 def crear_actividades_en_lote(
     proyecto_id: int,
@@ -570,13 +635,7 @@ def crear_actividades_en_lote(
     db: sqlite3.Connection = Depends(get_db)
 ):
     import re
-    es_gestor = db.execute("""
-        SELECT 1 FROM proyectos p 
-        LEFT JOIN proyecto_usuarios pu ON p.id = pu.proyecto_id AND pu.usuario_id = ?
-        WHERE p.id = ? AND (p.creador_id = ? OR pu.es_gestor = 1 OR pu.permiso = 'GESTOR')
-    """, (user["id"], proyecto_id, user["id"])).fetchone()
-
-    if not es_gestor and user.get("rol") != "ADMIN_TI":
+    if not usuario_tiene_permiso_gestor_proyecto(db, proyecto_id, user):
         raise HTTPException(status_code=403, detail="Solo un Gestor del Proyecto puede importar listas de actividades.")
 
     lineas_limpias = [l.strip() for l in (data.lineas or []) if l and l.strip()]
@@ -588,7 +647,6 @@ def crear_actividades_en_lote(
     while not es_dia_laborable(hoy_habil, feriados_set):
         hoy_habil += timedelta(days=1)
 
-    # Determinar el último código raíz existente
     existentes = db.execute("SELECT codigo, fecha_fin FROM actividades WHERE proyecto_id = ?", (proyecto_id,)).fetchall()
     if len(existentes) > 0 and len(lineas_limpias) > 1:
         raise HTTPException(
@@ -619,13 +677,11 @@ def crear_actividades_en_lote(
     ultimo_codigo_hoja = None
 
     for linea in lineas_limpias:
-        # Detectar si la línea ya trae código WBS al inicio (ej. "1.1 Elaborar informe" o "- Elaborar")
         match_wbs = re.match(r"^(\d+(?:\.\d+){0,3})[\.\)\s\-]+(.+)$", linea)
         if match_wbs and len(existentes) == 0:
             cod_cand = match_wbs.group(1).rstrip(".")
             desc_limpia = match_wbs.group(2).strip()
         else:
-            # Limpiar viñetas comunes (-, *, •)
             desc_limpia = re.sub(r"^[\-\*\•\›\>]+\s*", "", linea).strip()
             contador_raiz += 1
             cod_cand = str(contador_raiz)
@@ -677,7 +733,7 @@ def crear_actividades_en_lote(
 
     return {"status": "success", "creadas": len(nuevas_filas), "mensaje": f"Se crearon {len(nuevas_filas)} actividades automáticamente."}
 
-    # 9. Motor Transaccional para Deshacer (Ctrl+Z) y Rehacer (Ctrl+Y) sin fricción
+# 9. Motor Transaccional para Deshacer (Ctrl+Z) y Rehacer (Ctrl+Y) que restaura Actividades + Comentarios Amarrados
 @router.post("/proyectos/{proyecto_id}/restaurar-snapshot")
 def restaurar_snapshot_proyecto(
     proyecto_id: int,
@@ -685,17 +741,10 @@ def restaurar_snapshot_proyecto(
     user: dict = Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db)
 ):
-    es_gestor = db.execute("""
-        SELECT 1 FROM proyectos p 
-        LEFT JOIN proyecto_usuarios pu ON p.id = pu.proyecto_id AND pu.usuario_id = ?
-        WHERE p.id = ? AND (p.creador_id = ? OR pu.es_gestor = 1 OR pu.permiso = 'GESTOR')
-    """, (user["id"], proyecto_id, user["id"])).fetchone()
-
-    es_admin_o_gestor = bool(es_gestor or user.get("rol") == "ADMIN_TI")
+    es_admin_o_gestor = usuario_tiene_permiso_gestor_proyecto(db, proyecto_id, user)
 
     try:
         if es_admin_o_gestor:
-            # El Gestor puede deshacer/rehacer cambios estructurales completos (incluso restaurar tareas eliminadas o reordenadas)
             filas_restaurar = []
             for a in data.actividades:
                 cod_limpio = str(a.codigo).strip().rstrip(".")
@@ -718,8 +767,29 @@ def restaurar_snapshot_proyecto(
                     INSERT INTO actividades (proyecto_id, codigo, descripcion, responsable, estado, avance, fecha_inicio, fecha_fin, dias, predecesores)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, filas_restaurar)
+
+            # Si el snapshot incluye el estado de los comentarios, restaurarlos íntegramente junto con sus actividades
+            if data.comentarios is not None:
+                db.execute("DELETE FROM comentarios_actividad WHERE proyecto_id = ?", (proyecto_id,))
+                filas_coms = []
+                for c in data.comentarios:
+                    filas_coms.append((
+                        proyecto_id,
+                        str(c.codigo_actividad or "").strip().rstrip("."),
+                        c.usuario_id if c.usuario_id is not None else user["id"],
+                        str(c.autor_nombre or user.get("nombre_completo") or user["username"]),
+                        str(c.autor_unidad or ""),
+                        str(c.texto or "").strip(),
+                        str(c.fecha_creacion or ahora_peru_str()),
+                        c.fecha_edicion
+                    ))
+                if filas_coms:
+                    db.executemany("""
+                        INSERT INTO comentarios_actividad 
+                        (proyecto_id, codigo_actividad, usuario_id, autor_nombre, autor_unidad, texto, fecha_creacion, fecha_edicion)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, filas_coms)
         else:
-            # Un Responsable Asignado solo puede deshacer/rehacer el estado y avance de sus propias actividades
             u_nombre = (user.get("nombre_completo") or "").strip().lower()
             u_user = (user.get("username") or "").strip().lower()
 

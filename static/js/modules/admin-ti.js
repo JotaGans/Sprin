@@ -533,21 +533,57 @@ export async function actualizarDependenciaROF(unidadId, siglaPadre, siglaHijo) 
 }
 
 export async function asignarTitularUnidad(unidadId, personaId, sigla) {
+  const uoObj = (state.catalogoUnidadesGlobal || []).find(u => Number(u.id) === Number(unidadId));
+  const titularAnterior = (uoObj?.titular_nombre || "").trim();
+  const nuevoTrab = personaId
+    ? (state.catalogoTrabajadoresGlobal || []).find(t => Number(t.id) === Number(personaId))
+    : null;
+  const nuevoNombre = nuevoTrab ? nuevoTrab.nombre_completo : "";
+
+  let transferirCartera = true;
+  if (personaId && titularAnterior && nuevoNombre && titularAnterior.toLowerCase() !== nuevoNombre.toLowerCase()) {
+    transferirCartera = await confirmModal(
+      `🔄 RELEVO INSTITUCIONAL DE JEFATURA EN [${sigla}]\n\n` +
+      `• Titular saliente: ${titularAnterior}\n` +
+      `• Nuevo titular: ${nuevoNombre}\n\n` +
+      `¿Desea transferir automáticamente al nuevo titular los proyectos de [${sigla}] (rol de Gestor) y las actividades en curso que tenía asignadas ${titularAnterior}?\n\n` +
+      `(Las actividades ya ejecutadas al 100% conservarán el nombre de ${titularAnterior} por trazabilidad histórica).`,
+      "Transferencia Automática de Cartera",
+      "question"
+    );
+  }
+
   try {
     const res = await apiFetch(`/unidades-organicas/${unidadId}/titular`, {
       method: "PUT",
-      body: JSON.stringify({ titular_trabajador_id: personaId ? parseInt(personaId) : null, titular_usuario_id: null })
+      body: JSON.stringify({
+        titular_trabajador_id: personaId ? parseInt(personaId) : null,
+        titular_usuario_id: null,
+        transferir_cartera: Boolean(transferirCartera)
+      })
     });
 
     if (res.ok) {
-      notificarToast(`Titular de [${sigla}] actualizado con éxito.`, "success");
+      const data = await res.json().catch(() => ({}));
+      if (data.proyectos_actualizados > 0 || data.actividades_actualizadas > 0) {
+        notificarToast(
+          `✓ Relevo en [${sigla}] completado: ${data.proyectos_actualizados} proyecto(s) y ${data.actividades_actualizadas} actividad(es) transferidos a ${data.nuevo_titular || 'nuevo titular'}.`,
+          "success",
+          5000
+        );
+      } else {
+        notificarToast(`Titular de [${sigla}] actualizado con éxito.`, "success");
+      }
       await cargarCatalogoUnidades();
+      await cargarDirectorioTrabajadores();
     } else {
       const err = await res.json().catch(() => ({}));
       alert(err.detail || "Error al actualizar titular.");
+      await cargarCatalogoUnidades();
     }
   } catch (e) {
     alert("Error de conexión al asignar titular.");
+    await cargarCatalogoUnidades();
   }
 }
 

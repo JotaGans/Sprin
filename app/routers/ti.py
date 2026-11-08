@@ -149,34 +149,170 @@ def crear_unidad_organica(data: UnidadOrganicaModel, user: dict = Depends(get_cu
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=400, detail="La sigla ingresada ya existe.")
 
+def ejecutar_relevo_institucional_cartera(
+    db: sqlite3.Connection,
+    sigla_uo: str,
+    ant_user_id: Optional[int],
+    ant_nombre: str,
+    nuevo_user_id: Optional[int],
+    nuevo_nombre: str,
+    ejecutor_username: str
+) -> dict:
+    """Transfiere proyectos (rol Gestor) y actividades operativas en curso del directivo saliente al nuevo directivo."""
+    proyectos_transferidos = set()
+    actividades_transferidas = 0
+    ahora_str = ahora_peru_str()
+
+    ant_nom_limpio = (ant_nombre or "").strip()
+    nuevo_nom_limpio = (nuevo_nombre or "").strip()
+
+    # 1. Transferir proyectos de la Unidad Orgánica o donde el titular saliente era Creador o Gestor
+    if nuevo_user_id:
+        proys_uo = db.execute("SELECT id, creador_id FROM proyectos WHERE UPPER(unidad_organica) = UPPER(?)", (sigla_uo,)).fetchall()
+        for p in proys_uo:
+            pid = p["id"]
+            if ant_user_id and p["creador_id"] == ant_user_id:
+                db.execute("UPDATE proyectos SET creador_id = ? WHERE id = ?", (nuevo_user_id, pid))
+            db.execute("DELETE FROM proyecto_usuarios WHERE proyecto_id = ? AND usuario_id = ?", (pid, nuevo_user_id))
+            db.execute("""
+                INSERT INTO proyecto_usuarios (proyecto_id, usuario_id, permiso, es_gestor)
+                VALUES (?, ?, 'GESTOR', 1)
+            """, (pid, nuevo_user_id))
+            if ant_user_id and ant_user_id != nuevo_user_id:
+                db.execute("DELETE FROM proyecto_usuarios WHERE proyecto_id = ? AND usuario_id = ?", (pid, ant_user_id))
+            proyectos_transferidos.add(pid)
+
+        if ant_user_id and ant_user_id != nuevo_user_id:
+            proys_creador = db.execute("SELECT id FROM proyectos WHERE creador_id = ?", (ant_user_id,)).fetchall()
+            for p in proys_creador:
+                db.execute("UPDATE proyectos SET creador_id = ? WHERE id = ?", (nuevo_user_id, p["id"]))
+                proyectos_transferidos.add(p["id"])
+
+            proys_gestor = db.execute("""
+                SELECT proyecto_id FROM proyecto_usuarios 
+                WHERE usuario_id = ? AND (es_gestor = 1 OR permiso = 'GESTOR')
+            """, (ant_user_id,)).fetchall()
+            for pg in proys_gestor:
+                pid = pg["proyecto_id"]
+                db.execute("DELETE FROM proyecto_usuarios WHERE proyecto_id = ? AND usuario_id IN (?, ?)", (pid, ant_user_id, nuevo_user_id))
+                db.execute("""
+                    INSERT INTO proyecto_usuarios (proyecto_id, usuario_id, permiso, es_gestor)
+                    VALUES (?, ?, 'GESTOR', 1)
+                """, (pid, nuevo_user_id))
+                proyectos_transferidos.add(pid)
+
+    # 2. Reemplazar al jefe saliente por el nuevo jefe en actividades NO ejecutadas (preserva intacto el historial de las ya Ejecutadas)
+    if ant_nom_limpio and nuevo_nom_limpio and ant_nom_limpio.lower() != nuevo_nom_limpio.lower():
+        acts_afectadas = db.execute("""
+            SELECT rowid, proyecto_id, codigo, responsable, estado 
+            FROM actividades 
+            WHERE LOWER(responsable) LIKE ? AND COALESCE(estado, '') != 'Ejecutado'
+        """, (f"%{ant_nom_limpio.lower()}%",)).fetchall()
+
+        for act in acts_afectadas:
+            partes_resp = [r.strip() for r in (act["responsable"] or "").split(";") if r.strip()]
+            nuevas_partes = []
+            modificado = False
+            for r in partes_resp:
+                if r.lower() == ant_nom_limpio.lower():
+                    if nuevo_nom_limpio.lower() not in [x.lower() for x in nuevas_partes]:
+                        nuevas_partes.append(nuevo_nom_limpio)
+                    modificado = True
+                else:
+                    if r.lower() not in [x.lower() for x in nuevas_partes]:
+                        nuevas_partes.append(r)
+
+            if modificado:
+                nuevo_resp_str = "; ".join(nuevas_partes) if nuevas_partes else nuevo_nom_limpio
+                db.execute("UPDATE actividades SET responsable = ? WHERE rowid = ?", (nuevo_resp_str, act["rowid"]))
+                actividades_transferidas += 1
+                proyectos_transferidos.add(act["proyecto_id"])
+
+    # 3. Registrar trazabilidad en el historial de auditoría de cada proyecto involucrado
+    for pid in proyectos_transferidos:
+        detalle_relevo = f"Relevo institucional en [{sigla_uo}]: transferencia de gestión y actividades en curso de '{ant_nom_limpio or 'Titular anterior'}' a '{nuevo_nom_limpio}'"
+        db.execute("""
+            INSERT INTO historial (proyecto_id, timestamp, usuario, accion, detalle)
+            VALUES (?, ?, ?, 'Relevo de Jefatura', ?)
+        """, (pid, ahora_str, ejecutor_username, detalle_relevo))
+
+    return {
+        "proyectos_actualizados": len(proyectos_transferidos),
+        "actividades_actualizadas": actividades_transferidas
+    }
+
 @router.put("/unidades-organicas/{unidad_id}/titular")
 def asignar_titular_unidad(unidad_id: int, data: AsignarTitularModel, user: dict = Depends(get_current_user), db: sqlite3.Connection = Depends(get_db)):
     if user["rol"] != "ADMIN_TI":
         raise HTTPException(status_code=403, detail="Solo el Administrador TI puede asignar directivos y titulares de unidades.")
 
+    uo_actual = db.execute("""
+        SELECT uo.id, uo.sigla, uo.titular_trabajador_id, uo.titular_usuario_id,
+               COALESCE(t.nombre_completo, u.nombre_completo, '') as ant_nombre
+        FROM unidades_organicas uo
+        LEFT JOIN trabajadores t ON uo.titular_trabajador_id = t.id
+        LEFT JOIN usuarios u ON uo.titular_usuario_id = u.id
+        WHERE uo.id = ?
+    """, (unidad_id,)).fetchone()
+
+    if not uo_actual:
+        raise HTTPException(status_code=404, detail="Unidad orgánica no encontrada.")
+
+    ant_u_id = uo_actual["titular_usuario_id"]
+    ant_nombre = (uo_actual["ant_nombre"] or "").strip()
+    sigla_uo = (uo_actual["sigla"] or "").strip().upper()
+
+    if not ant_u_id and ant_nombre:
+        u_ant_row = db.execute("SELECT id FROM usuarios WHERE LOWER(nombre_completo) = LOWER(?) LIMIT 1", (ant_nombre,)).fetchone()
+        if u_ant_row:
+            ant_u_id = u_ant_row["id"]
+
     t_id = data.titular_trabajador_id
     u_id = data.titular_usuario_id
+    nuevo_nombre = ""
 
-    if t_id and not u_id:
+    if t_id:
         trab = db.execute("SELECT nombre_completo, correo FROM trabajadores WHERE id = ?", (t_id,)).fetchone()
         if trab:
-            u_row = db.execute("""
-                SELECT id FROM usuarios 
-                WHERE LOWER(nombre_completo) = LOWER(?) 
-                   OR LOWER(username) = LOWER(?)
-                   OR LOWER(?) LIKE LOWER(username || '@%')
-                LIMIT 1
-            """, (trab["nombre_completo"], trab["correo"].split("@")[0] if trab["correo"] else "", trab["correo"] or "")).fetchone()
-            if u_row:
-                u_id = u_row["id"]
+            nuevo_nombre = (trab["nombre_completo"] or "").strip()
+            if not u_id:
+                u_row = db.execute("""
+                    SELECT id FROM usuarios 
+                    WHERE LOWER(nombre_completo) = LOWER(?) 
+                       OR LOWER(username) = LOWER(?)
+                       OR LOWER(?) LIKE LOWER(username || '@%')
+                    LIMIT 1
+                """, (trab["nombre_completo"], trab["correo"].split("@")[0] if trab["correo"] else "", trab["correo"] or "")).fetchone()
+                if u_row:
+                    u_id = u_row["id"]
+            # Asegurar que el nuevo titular quede marcado como Directivo en el directorio
+            db.execute("UPDATE trabajadores SET es_directivo = 1 WHERE id = ?", (t_id,))
 
     db.execute("""
         UPDATE unidades_organicas 
         SET titular_trabajador_id = ?, titular_usuario_id = ? 
         WHERE id = ?
     """, (t_id, u_id, unidad_id))
+
+    resumen_relevo = {"proyectos_actualizados": 0, "actividades_actualizadas": 0}
+    if data.transferir_cartera and t_id and nuevo_nombre:
+        resumen_relevo = ejecutar_relevo_institucional_cartera(
+            db=db,
+            sigla_uo=sigla_uo,
+            ant_user_id=ant_u_id,
+            ant_nombre=ant_nombre,
+            nuevo_user_id=u_id,
+            nuevo_nombre=nuevo_nombre,
+            ejecutor_username=user["username"]
+        )
+
     db.commit()
-    return {"mensaje": "Titular de unidad asignado exitosamente."}
+    return {
+        "mensaje": "Titular de unidad asignado exitosamente.",
+        "proyectos_actualizados": resumen_relevo["proyectos_actualizados"],
+        "actividades_actualizadas": resumen_relevo["actividades_actualizadas"],
+        "nuevo_titular": nuevo_nombre
+    }
 
 @router.put("/unidades-organicas/{unidad_id}/dependencia")
 def actualizar_dependencia_rof_unidad(
@@ -327,15 +463,44 @@ def actualizar_trabajador(
     else:
         user_vinculado_id = None
 
-    if es_dir == 1 and user_vinculado_id:
+    resumen_relevo = {"proyectos_actualizados": 0, "actividades_actualizadas": 0}
+    if es_dir == 1:
+        uo_prev = db.execute("""
+            SELECT uo.titular_trabajador_id, uo.titular_usuario_id,
+                   COALESCE(t.nombre_completo, u.nombre_completo, '') as ant_nombre
+            FROM unidades_organicas uo
+            LEFT JOIN trabajadores t ON uo.titular_trabajador_id = t.id
+            LEFT JOIN usuarios u ON uo.titular_usuario_id = u.id
+            WHERE UPPER(uo.sigla) = UPPER(?)
+        """, (uo_final,)).fetchone()
+
         db.execute("""
             UPDATE unidades_organicas 
             SET titular_trabajador_id = ?, titular_usuario_id = ?
-            WHERE sigla = ?
+            WHERE UPPER(sigla) = UPPER(?)
         """, (trabajador_id, user_vinculado_id, uo_final))
 
+        if uo_prev and getattr(data, "transferir_cartera", True):
+            ant_nom = (uo_prev["ant_nombre"] or "").strip()
+            ant_uid = uo_prev["titular_usuario_id"]
+            if ant_nom and ant_nom.lower() != nuevo_nombre_completo.lower():
+                resumen_relevo = ejecutar_relevo_institucional_cartera(
+                    db=db,
+                    sigla_uo=uo_final,
+                    ant_user_id=ant_uid,
+                    ant_nombre=ant_nom,
+                    nuevo_user_id=user_vinculado_id,
+                    nuevo_nombre=nuevo_nombre_completo,
+                    ejecutor_username=user["username"]
+                )
+
     db.commit()
-    return {"status": "success", "mensaje": "Datos del trabajador actualizados correctamente."}
+    return {
+        "status": "success",
+        "mensaje": "Datos del trabajador actualizados correctamente.",
+        "proyectos_actualizados": resumen_relevo["proyectos_actualizados"],
+        "actividades_actualizadas": resumen_relevo["actividades_actualizadas"]
+    }
 
 @router.api_route("/trabajadores/estado/{trabajador_id}", methods=["PUT", "POST"])
 def alternar_estado_trabajador(
@@ -536,76 +701,6 @@ def eliminar_proceso_institucional(
     db.commit()
     return {
         "mensaje": f"Proceso {cod_ant} eliminado correctamente.",
-        "proyectos_desvinculados": proyectos_afectados
-    }
-
-@router.put("/procesos-institucionales/{proc_id}/estado")
-def cambiar_estado_proceso(
-    proc_id: int,
-    datos: dict = Body(...),
-    user: dict = Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db)
-):
-    if usuario["rol"] != "ADMIN_TI":
-        raise HTTPException(status_code=403, detail="No autorizado")
-
-    proc_actual = db.execute("SELECT codigo, nombre FROM procesos_institucionales WHERE id = ?", (proc_id,)).fetchone()
-    if not proc_actual:
-        raise HTTPException(status_code=404, detail="Proceso no encontrado")
-
-    nuevo_estado = datos.get("estado", "ACTIVO")
-    db.execute("UPDATE procesos_institucionales SET estado = ? WHERE id = ?", (nuevo_estado, proc_id))
-
-    proyectos_afectados = 0
-    if nuevo_estado != "ACTIVO":
-        cod_ant = proc_actual["codigo"]
-        etiqueta_ant = f"{cod_ant} - {proc_actual['nombre']}"
-        cur = db.execute("""
-            UPDATE proyectos
-            SET proceso_relacionado = ''
-            WHERE proceso_relacionado = ? OR proceso_relacionado LIKE ?
-        """, (etiqueta_ant, f"{cod_ant} - %"))
-        proyectos_afectados = cur.rowcount
-
-    db.commit()
-    return {"mensaje": f"Estado actualizado a {nuevo_estado}", "proyectos_desvinculados": proyectos_afectados}
-
-
-@router.delete("/procesos-institucionales/{proc_id}")
-def eliminar_proceso_institucional(
-    proc_id: int,
-    user: dict = Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db)
-):
-    if usuario["rol"] != "ADMIN_TI":
-        raise HTTPException(status_code=403, detail="Solo el Administrador TI puede eliminar procesos")
-
-    proc_actual = db.execute("SELECT codigo, nombre FROM procesos_institucionales WHERE id = ?", (proc_id,)).fetchone()
-    if not proc_actual:
-        raise HTTPException(status_code=404, detail="Proceso no encontrado")
-
-    cod_ant = proc_actual["codigo"]
-    etiqueta_ant = f"{cod_ant} - {proc_actual['nombre']}"
-
-    # Limpiar en proyectos existentes donde se había seleccionado este proceso
-    cur = db.execute("""
-        UPDATE proyectos
-        SET proceso_relacionado = ''
-        WHERE proceso_relacionado = ? OR proceso_relacionado LIKE ?
-    """, (etiqueta_ant, f"{cod_ant} - %"))
-    proyectos_afectados = cur.rowcount
-
-    # Limpiar en plantillas que apuntaban al proceso eliminado
-    db.execute("""
-        UPDATE plantillas
-        SET categoria = 'General'
-        WHERE categoria = ? OR categoria LIKE ?
-    """, (etiqueta_ant, f"{cod_ant} - %"))
-
-    db.execute("DELETE FROM procesos_institucionales WHERE id = ?", (proc_id,))
-    db.commit()
-    return {
-        "mensaje": f"Proceso {cod_ant} eliminado correctamente",
         "proyectos_desvinculados": proyectos_afectados
     }
 

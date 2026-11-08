@@ -1581,32 +1581,58 @@ export async function guardarActividadDesdeWizard() {
 }
 
 export async function eliminarActividad(cod) {
-  if (!state.proyectoEsGestor) return;
-  const codLimpio = cod.replace(/\.+$/, "");
-  const hijas = state.actividadesGlobal.filter(a => {
-    const c = a.codigo.replace(/\.+$/, "");
+  if (!state.proyectoEsGestor && state.currentUser?.rol !== "ADMIN_TI") {
+    notificarToast("Solo un Gestor del Proyecto puede eliminar actividades.", "warning");
+    return;
+  }
+  const codLimpio = String(cod || "").trim().replace(/\.+$/, "");
+  if (!codLimpio) return;
+
+  const hijas = (state.actividadesGlobal || []).filter(a => {
+    const c = String(a.codigo || "").replace(/\.+$/, "");
     return c.startsWith(codLimpio + ".") && c !== codLimpio;
   });
 
-  let mensaje = `¿Está seguro de eliminar la actividad [${cod}]?`;
+  const comsAfectados = (state.comentariosGlobal || []).filter(c => {
+    const cCod = String(c.codigo_actividad || "").replace(/\.+$/, "");
+    return cCod === codLimpio || cCod.startsWith(codLimpio + ".");
+  });
+
+  let mensaje = `¿Está seguro de eliminar la actividad [${codLimpio}]?`;
   if (hijas.length > 0) {
-    mensaje = `⚠️ ATENCIÓN: La actividad [${cod}] contiene ${hijas.length} actividad(es) subordinada(s).\n\nSi continúa, se eliminarán todas en cascada. ¿Desea proceder?`;
+    mensaje = `⚠️ ATENCIÓN: La actividad [${codLimpio}] contiene ${hijas.length} subactividad(es) subordinada(s).\n\nSi continúa, se eliminarán todas en cascada.`;
+  }
+  if (comsAfectados.length > 0) {
+    mensaje += `\n\n💬 Nota: También se eliminarán ${comsAfectados.length} comentario(s) vinculado(s) (podrá recuperarlos si presiona Deshacer Ctrl+Z).`;
   }
 
-  const confirma = await confirmModal(mensaje, "Eliminar Registro", "danger");
+  const confirma = await confirmModal(mensaje, "Eliminar Actividad", "danger");
   if (!confirma) return;
 
-  registrarSnapshotAntesDeAccion(`Eliminar actividad [${cod}]`);
+  try {
+    if (typeof registrarSnapshotAntesDeAccion === "function") {
+      registrarSnapshotAntesDeAccion(`Eliminar actividad [${codLimpio}]`);
+    }
+  } catch (snapErr) {
+    console.warn("Aviso snapshot:", snapErr);
+  }
 
   try {
-    const res = await apiFetch(`/proyectos/${state.proyectoActualId}/actividades/${cod}`, { method: "DELETE" });
+    const res = await apiFetch(`/proyectos/${state.proyectoActualId}/actividades/${encodeURIComponent(codLimpio)}`, { method: "DELETE" });
     if (res.ok) {
       state.codigoFilaSeleccionada = null;
-      notificarToast(`Actividad [${cod}] eliminada.`, "info");
+      notificarToast(`Actividad [${codLimpio}] eliminada. (Puede usar Ctrl+Z para revertir)`, "info", 3200);
       await sincronizarDatosProyecto(state.proyectoActualId);
+      if (state.vistaProyectoActiva === "kanban" && typeof renderizarTableroKanban === "function") {
+        renderizarTableroKanban();
+      }
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      notificarToast(errData.detail || "No se pudo eliminar la actividad.", "error", 4000);
     }
   } catch (e) {
-    alert("Error al eliminar la actividad.");
+    console.error("Error al eliminar actividad:", e);
+    notificarToast("Error de comunicación al eliminar la actividad.", "error");
   }
 }
 
@@ -2951,7 +2977,7 @@ export async function guardarCambiosInspectorActividad() {
 }
 
 // =========================================================================
-// MOTOR DE DESHACER (CTRL+Z) Y REHACER (CTRL+Y) DE FRICCIÓN CERO
+// MOTOR DE DESHACER (CTRL+Z) Y REHACER (CTRL+Y) DE FRICCIÓN CERO CON COMENTARIOS AMARRADOS
 // =========================================================================
 
 const LIMITE_PILA_UNDO = 20;
@@ -2971,15 +2997,35 @@ export function clonarActividadesSnapshot(lista) {
   }));
 }
 
-export function registrarSnapshotEnPilaUndo(etiqueta, snapshotPrevio) {
+export function clonarComentariosSnapshot(listaComs) {
+  return (listaComs || []).map(c => ({
+    id: c.id,
+    proyecto_id: parseInt(state.proyectoActualId) || 1,
+    codigo_actividad: String(c.codigo_actividad || "").replace(/\.+$/, ""),
+    usuario_id: c.usuario_id,
+    autor_nombre: String(c.autor_nombre || ""),
+    autor_unidad: String(c.autor_unidad || ""),
+    texto: String(c.texto || ""),
+    fecha_creacion: String(c.fecha_creacion || ""),
+    fecha_edicion: c.fecha_edicion || null
+  }));
+}
+
+export function registrarSnapshotEnPilaUndo(etiqueta, snapshotPrevio, comentariosPrevios = null) {
   if (state.ejecutandoUndoRedo || !snapshotPrevio) return;
-  const serialPrevio = JSON.stringify(snapshotPrevio);
-  const topeActual = state.undoStack.length > 0 ? JSON.stringify(state.undoStack[state.undoStack.length - 1].actividades) : null;
+  if (!state.undoStack) state.undoStack = [];
+  if (!state.redoStack) state.redoStack = [];
+
+  const comsFoto = clonarComentariosSnapshot(comentariosPrevios !== null ? comentariosPrevios : state.comentariosGlobal);
+  const serialPrevio = JSON.stringify({ a: snapshotPrevio, c: comsFoto });
+  const ultimoItem = state.undoStack.length > 0 ? state.undoStack[state.undoStack.length - 1] : null;
+  const topeActual = ultimoItem ? JSON.stringify({ a: ultimoItem.actividades, c: ultimoItem.comentarios || [] }) : null;
   if (serialPrevio === topeActual) return;
 
   state.undoStack.push({
     etiqueta: etiqueta || "Acción",
-    actividades: JSON.parse(serialPrevio)
+    actividades: JSON.parse(JSON.stringify(snapshotPrevio)),
+    comentarios: comsFoto
   });
 
   if (state.undoStack.length > LIMITE_PILA_UNDO) {
@@ -2991,8 +3037,9 @@ export function registrarSnapshotEnPilaUndo(etiqueta, snapshotPrevio) {
 
 export function registrarSnapshotAntesDeAccion(etiqueta) {
   if (state.ejecutandoUndoRedo) return;
-  const foto = state.ultimoSnapshotSincronizado || clonarActividadesSnapshot(state.actividadesGlobal);
-  registrarSnapshotEnPilaUndo(etiqueta, foto);
+  const fotoActs = clonarActividadesSnapshot(state.actividadesGlobal);
+  const fotoComs = clonarComentariosSnapshot(state.comentariosGlobal);
+  registrarSnapshotEnPilaUndo(etiqueta, fotoActs, fotoComs);
 }
 
 export function actualizarBotonesUndoRedoUI() {
@@ -3029,10 +3076,11 @@ export async function ejecutarDeshacerProyecto() {
   state.ejecutandoUndoRedo = true;
   const itemUndo = state.undoStack.pop();
 
-  // Guardar foto actual en la pila de Rehacer (Redo)
+  // Guardar foto actual (actividades + comentarios) en la pila de Rehacer (Redo)
   state.redoStack.push({
     etiqueta: itemUndo.etiqueta,
-    actividades: clonarActividadesSnapshot(state.actividadesGlobal)
+    actividades: clonarActividadesSnapshot(state.actividadesGlobal),
+    comentarios: clonarComentariosSnapshot(state.comentariosGlobal)
   });
 
   try {
@@ -3041,7 +3089,8 @@ export async function ejecutarDeshacerProyecto() {
       body: JSON.stringify({
         etiqueta_accion: itemUndo.etiqueta,
         operacion: "DESHACER",
-        actividades: itemUndo.actividades
+        actividades: itemUndo.actividades,
+        comentarios: itemUndo.comentarios || []
       })
     });
 
@@ -3068,10 +3117,11 @@ export async function ejecutarRehacerProyecto() {
   state.ejecutandoUndoRedo = true;
   const itemRedo = state.redoStack.pop();
 
-  // Guardar foto actual de vuelta en la pila de Deshacer (Undo)
+  // Guardar foto actual (actividades + comentarios) de vuelta en la pila de Deshacer (Undo)
   state.undoStack.push({
     etiqueta: itemRedo.etiqueta,
-    actividades: clonarActividadesSnapshot(state.actividadesGlobal)
+    actividades: clonarActividadesSnapshot(state.actividadesGlobal),
+    comentarios: clonarComentariosSnapshot(state.comentariosGlobal)
   });
 
   try {
@@ -3080,7 +3130,8 @@ export async function ejecutarRehacerProyecto() {
       body: JSON.stringify({
         etiqueta_accion: itemRedo.etiqueta,
         operacion: "REHACER",
-        actividades: itemRedo.actividades
+        actividades: itemRedo.actividades,
+        comentarios: itemRedo.comentarios || []
       })
     });
 

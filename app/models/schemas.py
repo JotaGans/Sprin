@@ -37,6 +37,7 @@ class UnidadOrganicaModel(BaseModel):
 class AsignarTitularModel(BaseModel):
     titular_trabajador_id: Optional[int] = None
     titular_usuario_id: Optional[int] = None
+    transferir_cartera: Optional[bool] = True
 
 class ActualizarDependenciaROFModel(BaseModel):
     sigla_padre: Optional[str] = None
@@ -62,6 +63,7 @@ class TrabajadorActualizarModel(BaseModel):
     celular: Optional[str] = ""
     cargo: Optional[str] = "Sin cargo / nivel"
     es_directivo: Optional[int] = 0
+    transferir_cartera: Optional[bool] = True
 
 # 4. Modelos de Proyectos y Programas
 class ProyectoCrearModel(BaseModel):
@@ -220,8 +222,20 @@ class ActividadesLoteModel(BaseModel):
     dias_por_defecto: Optional[int] = 3
     encadenar_secuencialmente: Optional[bool] = True
 
-    # 14. Modelo de Restauración Instantánea para Deshacer / Rehacer (Ctrl+Z / Ctrl+Y)
+    # 14. Modelo de Restauración Instantánea para Deshacer / Rehacer (Ctrl+Z / Ctrl+Y) con Comentarios Amarrados
+class ComentarioSnapshotModel(BaseModel):
+    id: Optional[int] = None
+    proyecto_id: Optional[int] = None
+    codigo_actividad: str
+    usuario_id: Optional[int] = None
+    autor_nombre: Optional[str] = ""
+    autor_unidad: Optional[str] = ""
+    texto: str
+    fecha_creacion: Optional[str] = ""
+    fecha_edicion: Optional[str] = None
+
 class RestaurarSnapshotProyectoModel(BaseModel):
     etiqueta_accion: Optional[str] = "Acción"
     operacion: Optional[str] = "DESHACER"  # 'DESHACER' | 'REHACER'
     actividades: List[ActividadModel]
+    comentarios: Optional[List[ComentarioSnapshotModel]] = None
