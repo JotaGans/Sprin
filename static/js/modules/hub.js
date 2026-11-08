@@ -2215,6 +2215,14 @@ export function seleccionarPlantillaCombobox(plantillaId) {
   }
 }
 
+export function vincularProcesoDesdePlantillaSeleccionada() {
+  const inpHidden = document.getElementById("np-select-plantilla");
+  const pId = inpHidden ? parseInt(inpHidden.value, 10) : null;
+  if (pId) {
+    seleccionarPlantillaCombobox(pId);
+  }
+}
+
 export function limpiarComboboxPlantilla() {
   const inpHidden = document.getElementById("np-select-plantilla");
   const inpBusq = document.getElementById("np-combobox-plantilla-busq");
