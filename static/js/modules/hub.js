@@ -2102,10 +2102,12 @@ export function mostrarDropdownPlantillas() {
 export function filtrarComboboxPlantillas(termino) {
   const divSug = document.getElementById("sugerencias-plantilla-nuevo-proy");
   const btnLimpiar = document.getElementById("btn-limpiar-combobox-plantilla");
+  const badgeTareas = document.getElementById("np-badge-tareas-plantilla");
   if (!divSug) return;
 
   const q = normalizarBusqueda(termino);
   if (btnLimpiar) btnLimpiar.classList.toggle("hidden", !termino.trim());
+  if (badgeTareas) badgeTareas.classList.add("hidden");
 
   const lista = window.catalogoPlantillasCache || state.catalogoPlantillasGlobal || [];
   if (lista.length === 0) {
@@ -2137,12 +2139,12 @@ export function filtrarComboboxPlantillas(termino) {
     personales.forEach(p => {
       const num = (p.actividades || []).length;
       html += `
-        <div onclick="seleccionarPlantillaCombobox(${p.id})" class="p-2.5 hover:bg-teal-50 cursor-pointer flex items-center justify-between transition">
+        <div onclick="seleccionarPlantillaCombobox(${p.id})" class="p-2.5 hover:bg-teal-50/70 cursor-pointer flex items-center justify-between transition">
           <div class="min-w-0 pr-2">
             <span class="font-bold text-[#0f2a4a] text-xs block leading-tight">⭐ ${p.nombre}</span>
-            <span class="text-[10px] text-slate-400 block truncate mt-0.5">${p.descripcion || 'Sin descripción'}</span>
+            <span class="text-[10px] text-slate-400 block truncate mt-0.5">${p.descripcion || 'Plantilla personal'}</span>
           </div>
-          <span class="text-[10px] font-black bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 flex-shrink-0">${num} tareas</span>
+          <span class="text-[10px] font-medium bg-slate-50 text-slate-400 px-2 py-0.5 rounded-md border border-slate-200/70 flex-shrink-0">${num} tareas</span>
         </div>
       `;
     });
@@ -2155,7 +2157,7 @@ export function filtrarComboboxPlantillas(termino) {
       const tieneCod = p.categoria && p.categoria.includes(" - ");
       const codBadge = tieneCod ? `<span class="bg-teal-100 text-teal-900 border border-teal-200 px-1.5 py-0.2 rounded text-[9.5px] font-black mr-1">[${p.categoria.split(" - ")[0]}]</span>` : '';
       html += `
-        <div onclick="seleccionarPlantillaCombobox(${p.id})" class="p-2.5 hover:bg-teal-50 cursor-pointer flex items-center justify-between transition">
+        <div onclick="seleccionarPlantillaCombobox(${p.id})" class="p-2.5 hover:bg-teal-50/70 cursor-pointer flex items-center justify-between transition">
           <div class="min-w-0 pr-2">
             <div class="font-bold text-[#0f2a4a] text-xs leading-tight flex items-center flex-wrap gap-1">
               ${codBadge}
@@ -2163,7 +2165,7 @@ export function filtrarComboboxPlantillas(termino) {
             </div>
             <span class="text-[10px] text-slate-400 block truncate mt-0.5">${p.categoria || 'General'}</span>
           </div>
-          <span class="text-[10px] font-black bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 flex-shrink-0">${num} tareas</span>
+          <span class="text-[10px] font-medium bg-slate-50 text-slate-400 px-2 py-0.5 rounded-md border border-slate-200/70 flex-shrink-0">${num} tareas</span>
         </div>
       `;
     });
@@ -2182,13 +2184,18 @@ export function seleccionarPlantillaCombobox(plantillaId) {
   const inpBusq = document.getElementById("np-combobox-plantilla-busq");
   const divSug = document.getElementById("sugerencias-plantilla-nuevo-proy");
   const btnLimpiar = document.getElementById("btn-limpiar-combobox-plantilla");
+  const badgeTareas = document.getElementById("np-badge-tareas-plantilla");
 
   const num = (plant.actividades || []).length;
   const tieneCod = plant.categoria && plant.categoria.includes(" - ");
   const codTxt = tieneCod ? `[${plant.categoria.split(" - ")[0]}] ` : "";
 
   if (inpHidden) inpHidden.value = plant.id;
-  if (inpBusq) inpBusq.value = `${codTxt}${plant.nombre} (${num} tareas)`;
+  if (inpBusq) inpBusq.value = `${codTxt}${plant.nombre}`;
+  if (badgeTareas) {
+    badgeTareas.innerText = `${num} ${num === 1 ? 'tarea' : 'tareas'}`;
+    badgeTareas.classList.remove("hidden");
+  }
   if (divSug) divSug.classList.add("hidden");
   if (btnLimpiar) btnLimpiar.classList.remove("hidden");
 
@@ -2215,18 +2222,11 @@ export function seleccionarPlantillaCombobox(plantillaId) {
   }
 }
 
-export function vincularProcesoDesdePlantillaSeleccionada() {
-  const inpHidden = document.getElementById("np-select-plantilla");
-  const pId = inpHidden ? parseInt(inpHidden.value, 10) : null;
-  if (pId) {
-    seleccionarPlantillaCombobox(pId);
-  }
-}
-
 export function limpiarComboboxPlantilla() {
   const inpHidden = document.getElementById("np-select-plantilla");
   const inpBusq = document.getElementById("np-combobox-plantilla-busq");
   const btnLimpiar = document.getElementById("btn-limpiar-combobox-plantilla");
+  const badgeTareas = document.getElementById("np-badge-tareas-plantilla");
 
   if (inpHidden) inpHidden.value = "";
   if (inpBusq) {
@@ -2234,6 +2234,7 @@ export function limpiarComboboxPlantilla() {
     inpBusq.focus();
   }
   if (btnLimpiar) btnLimpiar.classList.add("hidden");
+  if (badgeTareas) badgeTareas.classList.add("hidden");
 
   const inpProcOculto = document.getElementById("input-nuevo-proy-proceso");
   const inpBusqProc = document.getElementById("np-busqueda-proceso");

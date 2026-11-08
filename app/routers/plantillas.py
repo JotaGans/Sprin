@@ -54,6 +54,23 @@ def listar_plantillas(
             ORDER BY COALESCE(p.es_oficial, 1) DESC, p.categoria ASC, p.nombre ASC
         """).fetchall()
     else:
+        # Limpieza automática silenciosa de plantillas oficiales legacy sin código ("Convenios", "Convenios y Cooperación") cuando ya existen plantillas oficiales con código
+        try:
+            tiene_codificadas = db.execute("SELECT 1 FROM plantillas WHERE categoria LIKE '% - %' LIMIT 1").fetchone()
+            if tiene_codificadas:
+                huerfanas = db.execute("""
+                    SELECT id FROM plantillas 
+                    WHERE COALESCE(es_oficial, 1) = 1 
+                      AND (categoria IS NULL OR categoria NOT LIKE '% - %')
+                """).fetchall()
+                for h in huerfanas:
+                    db.execute("DELETE FROM plantillas_actividades WHERE plantilla_id = ?", (h["id"],))
+                    db.execute("DELETE FROM plantillas WHERE id = ?", (h["id"],))
+                if huerfanas:
+                    db.commit()
+        except Exception:
+            pass
+
         filas = db.execute("""
             SELECT MIN(p.id) AS id, p.nombre, p.descripcion, p.categoria, p.creador_id,
                    COALESCE(p.es_oficial, 1) AS es_oficial,
@@ -63,7 +80,7 @@ def listar_plantillas(
             FROM plantillas p
             LEFT JOIN usuarios u ON p.creador_id = u.id
             LEFT JOIN plantillas_actividades pa ON p.id = pa.plantilla_id
-            WHERE COALESCE(p.es_oficial, 1) = 1 OR p.creador_id = ?
+            WHERE (COALESCE(p.es_oficial, 1) = 1 AND p.categoria LIKE '% - %') OR p.creador_id = ?
             GROUP BY LOWER(TRIM(p.nombre)), LOWER(TRIM(COALESCE(p.categoria, 'General')))
             ORDER BY COALESCE(p.es_oficial, 1) DESC, p.categoria ASC, p.nombre ASC
         """, (user["id"],)).fetchall()

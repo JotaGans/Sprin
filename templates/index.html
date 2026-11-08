@@ -1055,11 +1055,10 @@
                      onfocus="mostrarDropdownPlantillas()"
                      autocomplete="off"
                      placeholder="Buscar por código de proceso o nombre de plantilla (ej. E1.3, PEI, Convenio)..."
-                     class="w-full pl-9 pr-8 py-2.5 bg-gray-50 border border-gray-300 rounded-lg font-bold text-[#0f2a4a] text-xs outline-none focus:bg-white focus:border-[#0f2a4a] transition">
-              <button type="button" onclick="limpiarComboboxPlantilla()" id="btn-limpiar-combobox-plantilla" class="hidden absolute right-2.5 text-gray-400 hover:text-gray-600 text-base font-bold cursor-pointer">&times;</button>
+                     class="w-full pl-9 pr-24 py-2.5 bg-gray-50 border border-gray-300 rounded-lg font-bold text-[#0f2a4a] text-xs outline-none focus:bg-white focus:border-[#0f2a4a] transition truncate">
+              <span id="np-badge-tareas-plantilla" class="hidden absolute right-8 px-2 py-0.5 rounded-md text-[10.5px] font-medium text-slate-400 bg-slate-100/90 border border-slate-200/70 pointer-events-none select-none whitespace-nowrap">0 tareas</span>
+              <button type="button" onclick="limpiarComboboxPlantilla()" id="btn-limpiar-combobox-plantilla" class="hidden absolute right-2.5 text-gray-400 hover:text-gray-600 text-base font-bold cursor-pointer" title="Limpiar selección">&times;</button>
             </div>
-            
-            <!-- Menú Flotante Dropdown de Coincidencias -->
             <div id="sugerencias-plantilla-nuevo-proy" class="hidden absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-xl shadow-2xl mt-1 max-h-56 overflow-y-auto z-[99] text-xs divide-y divide-gray-100"></div>
           </div>
           <input type="hidden" id="np-select-plantilla">
