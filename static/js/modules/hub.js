@@ -2795,6 +2795,14 @@ export function volverArribaHubSuave() {
   }
 }
 
+export function vincularProcesoDesdePlantillaSeleccionada() {
+  const inpHidden = document.getElementById("np-select-plantilla");
+  const pId = inpHidden ? parseInt(inpHidden.value, 10) : null;
+  if (pId) {
+    seleccionarPlantillaCombobox(pId);
+  }
+}
+
 // Exposición pública completa al objeto window
 window.cargarHubProyectos = cargarHubProyectos;
 window.cambiarVistaHub = cambiarVistaHub;
